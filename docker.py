@@ -17,6 +17,16 @@ def parse_volumes(volumes: str | None) -> list[str]:
     return [arg for volume in volumes.split(',')
             for arg in ['-v', f'{volume}:{volume}']]
 
+def run_docker_command(cmd: list[str]) -> bool:
+    """Run docker command and return True if successful"""
+    cmd_str: str = " ".join(cmd)
+    try:
+        subprocess.run(cmd_str, shell=True, check=True)
+        return True
+    except subprocess.CalledProcessError as e:
+        print(f"\nDocker command failed with error:\n{e}")
+        return False
+
 def build_docker_command(
     container: str,
     *,
@@ -63,30 +73,42 @@ def build_docker_command(
 def main() -> None:
     parser = argparse.ArgumentParser(description='Run docker container with configurable options')
     parser.add_argument('container', help='Name of the container to run')
-    parser.add_argument('--cuda', action='store_true', help='Enable NVIDIA runtime and GPUs')
     parser.add_argument('--x11', action='store_true', help='Enable X11 forwarding')
     parser.add_argument('-i', '--interactive', action='store_true', help='Run container in interactive mode')
     parser.add_argument('--devices', help='Comma-separated list of devices to mount (e.g., /dev/ttyUSB0,/dev/ttyUSB1)')
     parser.add_argument('--volumes', help='Comma-separated list of paths to mount (e.g., /path1,/path2)')
-    parser.add_argument('-e', '--endpoint', default='bash', help='Container endpoint/command (default: bash)')
+    parser.add_argument('--endpoint', default='bash', help='Container endpoint/command (default: bash)')
 
     args: argparse.Namespace = parser.parse_args()
 
-    cmd: list[str] = build_docker_command(
+    # First try with CUDA
+    print("🚀 Attempting to cast the docker spell with CUDA enchantment...")
+    cmd = build_docker_command(
         container=args.container,
-        cuda=args.cuda,
+        cuda=True,
         x11=args.x11,
         interactive=args.interactive,
         devices=args.devices,
         volumes=args.volumes,
         endpoint=args.endpoint,
     )
+    if run_docker_command(cmd):
+        return
 
-    cmd_str: str = " ".join(cmd)
-    print("I'm casting the docker invocation spell...")
-    print(cmd_str)
-    
-    subprocess.run(cmd_str, shell=True, check=True)
+    print("\n🔮 CUDA enchantment failed, trying without it...")
+
+    # Try without CUDA
+    print("🐋 Casting the basic docker spell...")
+    cmd = build_docker_command(
+        container=args.container,
+        cuda=False,
+        x11=args.x11,
+        interactive=args.interactive,
+        devices=args.devices,
+        volumes=args.volumes,
+        endpoint=args.endpoint,
+    )
+    run_docker_command(cmd)
 
 if __name__ == "__main__":
     main()
