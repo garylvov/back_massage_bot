@@ -14,8 +14,9 @@ def parse_volumes(volumes: str | None) -> list[str]:
     """Convert volume string into docker volume arguments"""
     if not volumes:
         return []
+    ttechdir = os.environ.get('TTECHDIR', '')
     return [arg for volume in volumes.split(',')
-            for arg in ['-v', f'{volume}:{volume}']]
+            for arg in ['-v', f'{os.path.join(ttechdir, volume)}:{volume}']]
 
 def run_docker_command(cmd: list[str]) -> bool:
     """Run docker command and return True if successful"""
@@ -76,7 +77,7 @@ def main() -> None:
     parser.add_argument('--x11', action='store_true', help='Enable X11 forwarding')
     parser.add_argument('-i', '--interactive', action='store_true', help='Run container in interactive mode')
     parser.add_argument('--devices', help='Comma-separated list of devices to mount (e.g., /dev/ttyUSB0,/dev/ttyUSB1)')
-    parser.add_argument('--volumes', help='Comma-separated list of paths to mount (e.g., /path1,/path2)')
+    parser.add_argument('--volumes', help='Comma-separated list of paths to mount relative to TTECHDIR (e.g., projects/foo,projects/bar)')
     parser.add_argument('--endpoint', default='bash', help='Container endpoint/command (default: bash)')
 
     args: argparse.Namespace = parser.parse_args()
