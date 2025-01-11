@@ -36,6 +36,7 @@ def build_docker_command(
     interactive: bool = False,
     devices: str | None = None,
     volumes: str | None = None,
+    use_entrypoint: bool = False,
     endpoint: str = "bash",
 ) -> list[str]:
     """Build docker command with specified options"""
@@ -67,7 +68,10 @@ def build_docker_command(
         cmd.extend(["--runtime=nvidia", "--gpus", "all"])
     
     # Container and endpoint
-    cmd.extend([container, endpoint])
+    if use_entrypoint:
+        cmd.extend(["--entrypoint", "/entrypoint.sh", container])
+    else:
+        cmd.extend([container, endpoint])
     
     return cmd
 
@@ -76,10 +80,10 @@ def main() -> None:
     parser.add_argument('container', help='Name of the container to run')
     parser.add_argument('--x11', action='store_true', help='Enable X11 forwarding')
     parser.add_argument('-i', '--interactive', action='store_true', help='Run container in interactive mode')
+    parser.add_argument('-e', '--entrypoint', action='store_true', help='Use /entrypoint.sh as the entrypoint')
     parser.add_argument('--devices', help='Comma-separated list of devices to mount (e.g., /dev/ttyUSB0,/dev/ttyUSB1)')
     parser.add_argument('--volumes', help='Comma-separated list of paths to mount relative to TTECHDIR (e.g., projects/foo,projects/bar)')
     parser.add_argument('--endpoint', default='bash', help='Container endpoint/command (default: bash)')
-
     args: argparse.Namespace = parser.parse_args()
 
     # First try with CUDA
@@ -91,13 +95,13 @@ def main() -> None:
         interactive=args.interactive,
         devices=args.devices,
         volumes=args.volumes,
+        use_entrypoint=args.entrypoint,
         endpoint=args.endpoint,
     )
     if run_docker_command(cmd):
         return
 
     print("\n🔮 CUDA enchantment failed, trying without it...")
-
     # Try without CUDA
     print("🐋 Casting the basic docker spell...")
     cmd = build_docker_command(
@@ -107,6 +111,7 @@ def main() -> None:
         interactive=args.interactive,
         devices=args.devices,
         volumes=args.volumes,
+        use_entrypoint=args.entrypoint,
         endpoint=args.endpoint,
     )
     run_docker_command(cmd)
