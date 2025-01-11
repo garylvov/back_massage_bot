@@ -7,7 +7,8 @@ This project is designed for Ubuntu Linux. If your computer has NVIDIA GPUs, set
 To get started, run the following.
 ```
 export TTECHDIR=$PWD/therapeutech &&
-git clone https://github.com/garylvov/therapeutech/
+git clone https://github.com/garylvov/therapeutech/ &&
+pip3 install pre-commit && pre-commit install # Optional for enforcing linting
 ```
 
 To run this project, you may need to enable certain permissions, and you may need to disable your computer's firewall for UDP message transport between containers.
@@ -19,7 +20,7 @@ As a temporary measure, the firewall can be disabled with
 ```
 sudo ufw disable
 ```
-Always re-enable the firewall after finishing deployment/development with 
+Always re-enable the firewall after finishing deployment/development with
 ```
 sudo ufw enable
 ```
@@ -79,9 +80,10 @@ therapeutech/ # PROJECT_DIR
 # Contribution Guidelines
 #### Overall Workflow
 To merge code into main, first open a branch from main.
-This branch will be where your changes are housed. 
-Feel free to make commits to your branch at your leisure.
+This branch will be where your changes are housed.
+Feel free to make commits to your branch at your leisure
 When your code is ready to be merged into main, open a pull request from your branch into main.
+Prior to opening a PR, check that everything pases the style guide with ```pre-commit run --all-files```
 
 ### Docker Guide
 If there is a directory you'd like to develop in (PARENT_DEV), run the following.
@@ -90,14 +92,14 @@ If there is a directory you'd like to develop in (PARENT_DEV), run the following
 export TTECHDIR=<PROJECT_DIRECTORY> && bash <PARENT_DEV>/build.sh && bash <PARENT_DEV>/develop.sh
 ```
 
-Once inside of the container, run 
+Once inside of the container, run
 ```
 bash post-entry-hooks.sh
 ```
 
-#### Code Guidlines
+#### Code Guidelines
 - For each new functionality, please make sure to update the README.
-- For each piece of software that includes any third-party dependencies, please include a ``Dockerfile`` in the parent development (<PARENT_DEV> directory). 
+- For each piece of software that includes any third-party dependencies, please include a ``Dockerfile`` in the parent development (<PARENT_DEV> directory).
   The ``Dockerfile`` should auto-install any third-party dependencies. The work directory of the Dockerfile should include a copied over ``post-entry-hooks.sh`` and ``entrypoint.sh``
   -  Please include a ``build.sh`` that has the command to build the ``Dockerfile`` from the topmost folder (PROJECT_DIR), like (``docker build -t PARENT_DEV --file<PROJECT_DEV_TO_PARENT_DEV_PATH>/Dockerfile``).
   -  Please include a ``develop.sh`` that has the command to enter your docker container in interactive mode, with the directories symlinked to the main computer so that
@@ -116,7 +118,7 @@ bash post-entry-hooks.sh
     ```
   - Please include a ``deploy.sh`` that has the command to run your container, as well as the related code.
     ```
-    python3 $TTECHDIR/docker.py PARENT_DEV -e 
+    python3 $TTECHDIR/docker.py PARENT_DEV -e
     ```
 
 #### Integration with Hardware Devices
