@@ -4,11 +4,14 @@ repos:
     hooks:
       - id: black
         args: ["--line-length", "120", "--unstable"]
+
   - repo: https://github.com/pycqa/flake8
     rev: 7.0.0
     hooks:
       - id: flake8
         additional_dependencies: [flake8-simplify, flake8-return]
+        args: ["--max-line-length=120"]
+
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.5.0
     hooks:
@@ -26,23 +29,27 @@ repos:
       - id: check-shebang-scripts-are-executable
       - id: detect-private-key
       - id: debug-statements
+
   - repo: https://github.com/pycqa/isort
     rev: 5.13.2
     hooks:
       - id: isort
         name: isort (python)
         args: ["--profile", "black", "--filter-files"]
+
   - repo: https://github.com/asottile/pyupgrade
     rev: v3.15.1
     hooks:
       - id: pyupgrade
         args: ["--py310-plus"]
+
   - repo: https://github.com/codespell-project/codespell
     rev: v2.2.6
     hooks:
       - id: codespell
         additional_dependencies:
-        - tomli
+          - tomli
+
   - repo: https://github.com/Lucas-C/pre-commit-hooks
     rev: v1.5.1
     hooks:
@@ -52,9 +59,36 @@ repos:
           - --license-filepath
           - .github/LICENSE_HEADER.txt
           - --use-current-year
+
   - repo: https://github.com/pre-commit/pygrep-hooks
     rev: v1.10.0
     hooks:
       - id: rst-backticks
       - id: rst-directive-colons
       - id: rst-inline-touching-normal
+
+  # C++ specific hooks
+  - repo: https://github.com/pocc/pre-commit-hooks
+    rev: v1.3.5
+    hooks:
+      - id: clang-format
+        args: ["-i"]
+        types_or: [c++, c, cuda]
+      - id: cppcheck
+        args: ["--enable=all"]
+      - id: cpplint
+
+  - repo: https://github.com/cheshirekow/cmake-format-precommit
+    rev: v0.6.13
+    hooks:
+      - id: cmake-format
+      - id: cmake-lint
+
+  - repo: local
+    hooks:
+      - id: lizard
+        name: lizard (code complexity)
+        entry: lizard
+        language: python
+        types_or: [c++, c]
+        additional_dependencies: [lizard]
