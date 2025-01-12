@@ -15,6 +15,9 @@ ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 # Make sure pip is up to date in the virtual environment
 RUN pip3 install --upgrade pip
 
+# Set working directory
+WORKDIR /therapeutech
+
 # Copy only requirements first
 COPY therapeutech/requirements.txt /therapeutech/requirements.txt
 
@@ -29,6 +32,3 @@ RUN pip3 install -e /therapeutech
 
 # Ensure virtualenv is activated for interactive sessions
 RUN echo "source $VIRTUAL_ENV/bin/activate" >> ~/.bashrc
-
-# Set working directory
-WORKDIR /therapeutech
