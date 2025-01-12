@@ -94,7 +94,7 @@ on the host machine will be reflected with the container.
 ```
 bash <PARENT_DEV>/build.sh && bash <PARENT_DEV>/develop.sh
 
-# For example, for pure python development; 
+# For example, for pure python development;
 bash therapeutech/build.sh && bash therapeutech/develop.sh
 
 # For example, for ROS 2 and Python development (we can add C++ if needed)
@@ -111,8 +111,8 @@ If you'd like to enter a new terminal window within an existing container, you c
 python3 docker.py --dive
 ```
 
-### No Docker Guide 
-The docker method is strongly recommended. 
+### No Docker Guide
+The docker method is strongly recommended.
 However, you may be able to run parts of this project locally due to [robotstack](https://robostack.github.io/GettingStarted.html) being largely cross platform for
 the sake of local development on Mac or Windows.
 
@@ -131,13 +131,13 @@ conda activate therapeutech && \
 mamba install -y compilers cmake pkg-config make ninja colcon-common-extensions catkin_tools rosdep && \
 for lib in USB{Comm,Command}LayerUbuntu.so Eth{Comm,Command}LayerUbuntu.so; do ln -fs x86_64-linux-gnu/$lib ws/src/main_ros/kinova-ros2/kinova_driver/lib/$lib; done && \
 rosdep init && rosdep update && rosdep install --from-paths ws/src/main_ros --ignore-src -r -y && \
-cd ws/ && colcon build --symlink-install 
+cd ws/ && colcon build --symlink-install
 ```
 
-If the above doesn't work, you can get rid of the ``ws/src/main_ros/kinova-ros2/kinova_driver/`` directory and rerun 
+If the above doesn't work, you can get rid of the ``ws/src/main_ros/kinova-ros2/kinova_driver/`` directory and rerun
 ```
 rosdep install --from-paths ws/src/main_ros --ignore-src -r -y && \
-cd ws/ && colcon build --symlink-install 
+cd ws/ && colcon build --symlink-install
 ```
 
 **Do not source system ROS within the docker container or conda environment** (this is because of our use of [robotstack](https://robostack.github.io/GettingStarted.html).)

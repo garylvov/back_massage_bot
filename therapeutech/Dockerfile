@@ -47,7 +47,7 @@ USER ${USERNAME}
 # Create conda environment
 COPY --chown=${USERNAME}:${USERNAME} therapeutech/environment.yml /therapeutech/environment.yml
 RUN conda env create -f /therapeutech/environment.yml && \
-    conda clean -a -y && \ 
+    conda clean -a -y && \
     conda init bash
 
 # Copy the rest of the project files

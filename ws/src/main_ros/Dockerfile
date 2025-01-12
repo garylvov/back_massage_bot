@@ -9,11 +9,11 @@ WORKDIR /ws/src/main_ros
 # Install ROS with Conda
 RUN conda clean -a -y && conda install -y mamba -c conda-forge && \
 conda config --env --add channels robostack-staging && \
-mamba install -y python ros-humble-desktop 
-RUN mamba install -y compilers cmake pkg-config make ninja colcon-common-extensions catkin_tools rosdep 
+mamba install -y python ros-humble-desktop
+RUN mamba install -y compilers cmake pkg-config make ninja colcon-common-extensions catkin_tools rosdep
 
 # Get deps for workspace
-RUN rosdep init && rosdep update 
+RUN rosdep init && rosdep update
 
 # Copy ROS workspace
 COPY ws/src/main_ros /ws/src/main_ros/

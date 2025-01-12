@@ -108,11 +108,16 @@ def build_docker_command(
         user_xauth = f"/home/{user}/.Xauthority"
 
         cmd.extend([
-            "-e", "DISPLAY",
-            "-e", "QT_X11_NO_MITSHM=1",
-            "-e", f"XDG_RUNTIME_DIR=/tmp/runtime-{os.getuid()}",
-            "-v", f"{xauth_path}:{user_xauth}",
-            "-v", "/tmp/.X11-unix:/tmp/.X11-unix:rw",
+            "-e",
+            "DISPLAY",
+            "-e",
+            "QT_X11_NO_MITSHM=1",
+            "-e",
+            f"XDG_RUNTIME_DIR=/tmp/runtime-{os.getuid()}",
+            "-v",
+            f"{xauth_path}:{user_xauth}",
+            "-v",
+            "/tmp/.X11-unix:/tmp/.X11-unix:rw",
         ])
 
     # Device mappings
@@ -125,7 +130,7 @@ def build_docker_command(
 
     # CUDA support
     if cuda:
-        cmd.extend([ "-e", "NVIDIA_DRIVER_CAPABILITIES=all", "--runtime=nvidia", "--gpus", "all"])
+        cmd.extend(["-e", "NVIDIA_DRIVER_CAPABILITIES=all", "--runtime=nvidia", "--gpus", "all"])
 
     # Container and endpoint
     if use_entrypoint:
@@ -144,7 +149,8 @@ def main() -> None:
     parser.add_argument("-e", "--entrypoint", action="store_true", help="Use /entrypoint.sh as the entrypoint")
     parser.add_argument("--devices", help="Comma-separated list of devices to mount (e.g., /dev/ttyUSB0)")
     parser.add_argument(
-        "-v", "--volumes",
+        "-v",
+        "--volumes",
         help="Comma-separated list of paths to mount relative to TTECHDIR (e.g., projects/foo,projects/bar)",
     )
     parser.add_argument("--endpoint", default="bash", help="Container endpoint/command (default: bash)")
