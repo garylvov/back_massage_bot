@@ -1,3 +1,3 @@
 #!/usr/bin/env bash
-conda activate therapeutech && \
+source /therapeutech/post-entry-hooks.sh && \
 source /ws/install/setup.bash || true  
