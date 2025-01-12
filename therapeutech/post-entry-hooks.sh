@@ -1,2 +1,2 @@
 #!/usr/bin/env bash
-source /opt/venv/bin/activate && echo "Activated virtual environment"
+conda activate therapeutech && echo "Activated Conda."
