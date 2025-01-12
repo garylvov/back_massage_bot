@@ -4,7 +4,7 @@ Combine a Kinova Jaco 2, an Intel RealSense L515, and a massage gun to give back
 # Installation
 This project is designed for Ubuntu Linux, for within Docker containers.
 There is a workaround for some development on platforms other than Ubuntu without Docker with Conda and [RoboStack](https://robostack.github.io/index.html).
-However, Ubuntu and/or Docker is strongly recommended, as certain libraries (looking at you ``kinova_driver``) seem to rely on ``.so`` files complied for ``x86``
+However, Ubuntu and/or Docker is strongly recommended, as certain libraries (looking at you ``kinova_driver``) seem to rely on ``.so`` files pre-compiled for ``x86``.
 
 If your computer has an NVIDIA GPU, set them up along with the NVIDIA container toolkit according to [these instructions](https://github.com/garylvov/dev_env/tree/main/setup_scripts/nvidia). If your computer doesn't have GPUs, [install docker](https://docs.docker.com/desktop/setup/install/linux/) and [docker compose](https://docs.docker.com/compose/install/linux/#install-using-the-repository) (unless you are using conda)
 
@@ -113,7 +113,7 @@ python3 docker.py --dive
 
 ### No Docker Guide
 The docker method is strongly recommended.
-However, you may be able to run parts of this project locally due to [robotstack](https://robostack.github.io/GettingStarted.html) being largely cross platform for
+However, you may be able to run parts of this project locally due to [RoboStack](https://robostack.github.io/GettingStarted.html) being largely cross platform for
 the sake of local development on Mac or Windows.
 
 #### To run locally, first install [miniforge](https://github.com/conda-forge/miniforge)
@@ -140,7 +140,7 @@ rosdep install --from-paths ws/src/main_ros --ignore-src -r -y && \
 cd ws/ && colcon build --symlink-install
 ```
 
-**Do not source system ROS within the docker container or conda environment** (this is because of our use of [robotstack](https://robostack.github.io/GettingStarted.html).)
+**Do not source system ROS within the docker container or conda environment** (this is because of our use of [RoboStack](https://robostack.github.io/GettingStarted.html).)
 
 ### Code Guidelines
 - For each new functionality, please make sure to update the README.
