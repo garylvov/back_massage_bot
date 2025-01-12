@@ -144,7 +144,6 @@ def build_docker_command(
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run docker container with configurable options")
     parser.add_argument("container", help="Name of the container to run")
-    parser.add_argument("--x11", action="store_true", help="Enable X11 forwarding")
     parser.add_argument("-i", "--interactive", action="store_true", help="Run container in interactive mode")
     parser.add_argument("-e", "--entrypoint", action="store_true", help="Use /entrypoint.sh as the entrypoint")
     parser.add_argument("--devices", help="Comma-separated list of devices to mount (e.g., /dev/ttyUSB0)")
@@ -162,7 +161,7 @@ def main() -> None:
     cmd = build_docker_command(
         container=args.container,
         cuda=True,
-        x11=args.x11,
+        x11=True,
         interactive=args.interactive,
         devices=args.devices,
         volumes=args.volumes,
@@ -174,11 +173,25 @@ def main() -> None:
 
     # Try without CUDA
     print("\n🔮 CUDA enchantment failed, trying without it...")
-    print("🐋 Casting the basic docker spell ( no gpus :( )...")
+    print("🐋 Casting the basic docker spell (no gpus :( )...")
     cmd = build_docker_command(
         container=args.container,
         cuda=False,
-        x11=args.x11,
+        x11=True,
+        interactive=args.interactive,
+        devices=args.devices,
+        volumes=args.volumes,
+        use_entrypoint=args.entrypoint,
+        endpoint=args.endpoint,
+    )
+    if run_docker_command(cmd, args.entrypoint):
+        return
+
+    print("\n🔮 Basic spell failed, trying one last time without X11...")
+    cmd = build_docker_command(
+        container=args.container,
+        cuda=False,
+        x11=False,
         interactive=args.interactive,
         devices=args.devices,
         volumes=args.volumes,
