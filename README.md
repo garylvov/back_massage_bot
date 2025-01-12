@@ -30,7 +30,7 @@ therapeutech/ # PROJECT_DIR
 |-ws/src/ # Houses all ROS 2 packages. Each group of packages must have a corresponding dockerfile.
 |------/arm_and_cam/ # Example package parent folder, all subfolders share dependencies
 |------------------/kinova-ros2/ # Kinova Submodule (may be graduted to copy without)
-|------------------/camera/ # Camera ROS 2 deps (potentially submodule)
+|------------------/realsense-ros/ # Realsense Submodule
 |------------------/Dockerfile
 |------------------/build.sh
 |------------------/develop.sh
@@ -96,7 +96,7 @@ bash post-entry-hooks.sh
 
 If you'd like to enter a new terminal window within an existing container, you can run
 ```
-python3 docker.py --dive <PARENT_DEV>
+python3 docker.py --dive
 ```
 
 ### Code Guidelines
@@ -108,7 +108,7 @@ python3 docker.py --dive <PARENT_DEV>
      changes made outside of the docker container are also reflected within the docker container.
      For example, this could look like the following.
       ```
-      python3 docker.py PARENT_DEV -i -v <PATH_TO_PARENT_DEV_FROM_PROJECT_DIR>
+      python3 docker.py <NAME_FROM_BUILD.SH> -i -v <PATH_TO_PARENT_DEV_FROM_PROJECT_DIR>
       ```
   - Please include a ``post-entry-hooks.sh``. If something isn't possible to set persistently in an ```ENV``` variable in the Dockerfile while in interactive mode, put it here.
     For example, this could include ```source /opt/ros/humble/setup.bash```.
