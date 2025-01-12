@@ -1,4 +1,4 @@
-name: therapeutech
+name: back_massage_bot
 channels:
   - pytorch
   - conda-forge
