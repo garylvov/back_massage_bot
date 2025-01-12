@@ -20,8 +20,8 @@ def parse_volumes(volumes: str | None) -> list[str]:
     """Convert volume string into docker volume arguments"""
     if not volumes:
         return []
-    ttechdir = os.environ.get("TTECHDIR", "")
-    return [arg for volume in volumes.split(",") for arg in ["-v", f"{os.path.join(ttechdir, volume)}:{volume}"]]
+    parent_dir = os.path.dirname(os.path.abspath(__file__))
+    return [arg for volume in volumes.split(",") for arg in ["-v", f"{os.path.join(parent_dir, volume)}:/{volume}"]]
 
 
 def run_docker_command(cmd: list[str], use_entrypoint: bool = False) -> bool:
@@ -95,7 +95,7 @@ def build_docker_command(
     endpoint: str = "bash",
 ) -> list[str]:
     """Build docker command with specified options"""
-    cmd: list[str] = ["docker", "run", "--rm", "--net=host", "--ipc=host"]
+    cmd: list[str] = ["docker", "run", "--rm", "--net=host", "--ipc=host", "--user", "$(id -u):$(id -g)"]
 
     # Interactive mode
     if interactive:
@@ -146,7 +146,7 @@ def main() -> None:
     parser.add_argument("-e", "--entrypoint", action="store_true", help="Use /entrypoint.sh as the entrypoint")
     parser.add_argument("--devices", help="Comma-separated list of devices to mount (e.g., /dev/ttyUSB0)")
     parser.add_argument(
-        "--volumes",
+        "-v", "--volumes",
         help="Comma-separated list of paths to mount relative to TTECHDIR (e.g., projects/foo,projects/bar)",
     )
     parser.add_argument("--endpoint", default="bash", help="Container endpoint/command (default: bash)")
