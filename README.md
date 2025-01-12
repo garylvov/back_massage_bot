@@ -73,7 +73,7 @@ therapeutech/ # PROJECT_DIR
 |develop.sh # Launch all docker containers for this project, without entrypoints in interactive mode
 |post-entry-hooks.sh
 |deploy.sh # Launch all docker containers for this project, and launch their entrypoints
-|set_permissions.sh # Setup usb permissions
+|set-permissions.sh # Setup usb permissions
 | README.md # You are here
 ```
 
