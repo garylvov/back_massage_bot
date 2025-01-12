@@ -104,17 +104,15 @@ def build_docker_command(
     # X11 forwarding
     if x11:
         xauth_path = f"{os.environ['HOME']}/.Xauthority"
-        user_xauth = "/home/randuser/.Xauthority"
+        user = os.environ["USER"]
+        user_xauth = f"/home/{user}/.Xauthority"
+
         cmd.extend([
-            "xhost",
-            "+local",
-            "&&",
-            "-e",
-            "DISPLAY",
-            "-v",
-            f"{xauth_path}:{user_xauth}",
-            "-v",
-            "/tmp/.X11-unix:/tmp/.X11-unix",
+            "-e", "DISPLAY",
+            "-e", "QT_X11_NO_MITSHM=1",
+            "-e", f"XDG_RUNTIME_DIR=/tmp/runtime-{os.getuid()}",
+            "-v", f"{xauth_path}:{user_xauth}",
+            "-v", "/tmp/.X11-unix:/tmp/.X11-unix:rw",
         ])
 
     # Device mappings
@@ -127,7 +125,7 @@ def build_docker_command(
 
     # CUDA support
     if cuda:
-        cmd.extend(["--runtime=nvidia", "--gpus", "all"])
+        cmd.extend([ "-e", "NVIDIA_DRIVER_CAPABILITIES=all", "--runtime=nvidia", "--gpus", "all"])
 
     # Container and endpoint
     if use_entrypoint:

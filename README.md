@@ -130,7 +130,7 @@ conda deactivate && \
 conda activate therapeutech && \
 mamba install -y compilers cmake pkg-config make ninja colcon-common-extensions catkin_tools rosdep && \
 for lib in USB{Comm,Command}LayerUbuntu.so Eth{Comm,Command}LayerUbuntu.so; do ln -fs x86_64-linux-gnu/$lib ws/src/main_ros/kinova-ros2/kinova_driver/lib/$lib; done && \
-rosdep install --from-paths ws/src/main_ros --ignore-src -r -y && \
+rosdep init && rosdep update && rosdep install --from-paths ws/src/main_ros --ignore-src -r -y && \
 cd ws/ && colcon build --symlink-install 
 ```
 
