@@ -36,6 +36,7 @@ therapeutech/ # PROJECT_DIR
 |------/main_ros/ # Example package parent folder, all subfolders share dependencies
 |---------------/kinova-ros2/ # Kinova Submodule (may be graduated to forked copy)
 |---------------/realsense-ros/ # Realsense Submodule
+|---------------/therapeutech-ros2/ # TODO: uses therapeutech python lib
 |---------------/Dockerfile
 |---------------/build.sh
 |---------------/develop.sh
@@ -45,7 +46,7 @@ therapeutech/ # PROJECT_DIR
 |-therapeutech/ # Where Python Stuff Lives
 |-------------/external/ # Where third-party things that can't be easily pip installed live
 |----------------------/NOT_PIP_INSTALLABLE_GIT_SUBMODULE_PLACEHOLDER.txt
-|-------------/src/therapeutech/
+|-------------/src/therapeutech/ # Python Lib No ROS
 |------------------------------/__init__.py
 |-------------/pyproject.toml
 |-------------/requirements.txt
