@@ -24,14 +24,62 @@ def parse_volumes(volumes: str | None) -> list[str]:
     return [arg for volume in volumes.split(",") for arg in ["-v", f"{os.path.join(ttechdir, volume)}:{volume}"]]
 
 
-def run_docker_command(cmd: list[str]) -> bool:
+def run_docker_command(cmd: list[str], use_entrypoint: bool = False) -> bool:
     """Run docker command and return True if successful"""
     cmd_str: str = " ".join(cmd)
+    print(f"🐋 Executing command: {cmd_str}")
+
     try:
-        subprocess.run(cmd_str, shell=True, check=True)
-        return True
+        if use_entrypoint:
+            # For entrypoint, stream output in real-time
+            process = subprocess.Popen(
+                cmd_str,
+                shell=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                universal_newlines=True,
+                bufsize=1,  # Line buffered
+            )
+
+            # Stream output in real-time
+            output_received = False
+            while True:
+                output = process.stdout.readline()
+                if output == "" and process.poll() is not None:
+                    break
+                if output:
+                    output_received = True
+                    print(output.rstrip())
+
+            returncode = process.poll()
+
+            # If no output was received and command failed, print helpful message
+            if not output_received and returncode != 0:
+                print("\n❌ Docker command failed without output. Possible issues:")
+                print("   - Container might not exist")
+                print("   - entrypoint.sh might not be executable")
+                print("   - Docker daemon might not be running")
+                print(f"\nExit code: {returncode}")
+
+        else:
+            # For interactive mode, execute directly without output capture
+            # This allows proper handling of TTY and interactive sessions
+            returncode = subprocess.call(cmd_str, shell=True)
+
+        # Exit codes 130 (interrupt) and 0 (normal exit) are considered successful
+        if returncode in [0, 130]:
+            return True
+
+        print(f"\n❌ Docker command failed with exit code: {returncode}")
+        return False
+
     except subprocess.CalledProcessError as e:
-        print(f"\nDocker command failed with error:\n{e}")
+        print(f"\n❌ Docker command failed with error:\n{e}")
+        if hasattr(e, "output") and e.output:
+            print(f"\nOutput:\n{e.output}")
+        return False
+    except Exception as e:
+        print(f"\n❌ Unexpected error running docker command:\n{e}")
         return False
 
 
@@ -83,7 +131,7 @@ def build_docker_command(
 
     # Container and endpoint
     if use_entrypoint:
-        cmd.extend(["--entrypoint", "/entrypoint.sh", container])
+        cmd.extend(["--entrypoint", "./entrypoint.sh", container])
     else:
         cmd.extend([container, endpoint])
 
@@ -105,7 +153,8 @@ def main() -> None:
     args: argparse.Namespace = parser.parse_args()
 
     # First try with CUDA
-    print("🚀 Attempting to cast the docker spell with CUDA enchantment...")
+    print("🔮 Attempting to cast the docker spell with GPUs enabled via CUDA...")
+
     cmd = build_docker_command(
         container=args.container,
         cuda=True,
@@ -116,12 +165,12 @@ def main() -> None:
         use_entrypoint=args.entrypoint,
         endpoint=args.endpoint,
     )
-    if run_docker_command(cmd):
+    if run_docker_command(cmd, args.entrypoint):
         return
 
-    print("\n🔮 CUDA enchantment failed, trying without it...")
     # Try without CUDA
-    print("🐋 Casting the basic docker spell...")
+    print("\n🔮 CUDA enchantment failed, trying without it...")
+    print("🐋 Casting the basic docker spell ( no gpus :( )...")
     cmd = build_docker_command(
         container=args.container,
         cuda=False,
@@ -132,7 +181,7 @@ def main() -> None:
         use_entrypoint=args.entrypoint,
         endpoint=args.endpoint,
     )
-    run_docker_command(cmd)
+    run_docker_command(cmd, args.entrypoint)
 
 
 if __name__ == "__main__":
