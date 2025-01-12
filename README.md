@@ -55,7 +55,7 @@ therapeutech/ # PROJECT_DIR
 |----/external/ # Where third-party things that can be easily apt installed live
 |-------------/NOT_APT_INSTALLABLE_GIT_SUBMODULE_PLACEHOLDER.txt
 |----/project_placeholder/
-|------------------------/project_placeholder.cmake
+|------------------------/CMakeLists.txt
 |----/Dockerfile
 |----/build.sh
 |----/develop.sh

@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools>=65.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -10,8 +10,10 @@ requires-python = ">=3.8"
 dynamic = ["dependencies"]
 
 [tool.setuptools]
-packages = ["therapeutech"]
 package-dir = {"therapeutech" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [tool.setuptools.dynamic]
 dependencies = {file = ["requirements.txt"]}
