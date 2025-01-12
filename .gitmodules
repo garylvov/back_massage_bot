@@ -1,6 +1,6 @@
-[submodule "ws/src/arm_and_cam/kinova-ros2"]
-	path = ws/src/arm_and_cam/kinova-ros2
+[submodule "ws/src/main_ros/kinova-ros2"]
+	path = ws/src/main_ros/kinova-ros2
 	url = https://github.com/RRL-ALeRT/kinova-ros2.git
-[submodule "ws/src/arm_and_cam/realsense-ros"]
-	path = ws/src/arm_and_cam/realsense-ros
+[submodule "ws/src/main_ros/realsense-ros"]
+	path = ws/src/main_ros/realsense-ros
 	url = https://github.com/IntelRealSense/realsense-ros.git
