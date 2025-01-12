@@ -7,6 +7,7 @@ This project is designed for Ubuntu Linux. If your computer has an NVIDIA GPU, s
 To get started, run the following.
 ```
 git clone https://github.com/garylvov/therapeutech/ &&
+cd therapeutech && git submodule init && git submodule update && \
 pip3 install pre-commit && pre-commit install # Optional for enforcing linting
 ```
 
@@ -28,7 +29,7 @@ sudo ufw enable
 therapeutech/ # PROJECT_DIR
 |-ws/src/ # Houses all ROS 2 packages. Each group of packages must have a corresponding dockerfile.
 |------/arm_and_cam/ # Example package parent folder, all subfolders share dependencies
-|------------------/arm/ # Arm ROS 2 deps (potentially submodule)
+|------------------/kinova-ros2/ # Kinova Submodule (may be graduted to copy without)
 |------------------/camera/ # Camera ROS 2 deps (potentially submodule)
 |------------------/Dockerfile
 |------------------/build.sh
