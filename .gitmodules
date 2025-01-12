@@ -1,0 +1,3 @@
+[submodule "ws/src/arm_and_cam/kinova-ros2"]
+	path = ws/src/arm_and_cam/kinova-ros2
+	url = https://github.com/RRL-ALeRT/kinova-ros2.git
