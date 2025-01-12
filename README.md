@@ -41,8 +41,8 @@ therapeutech/ # PROJECT_DIR
 |-therapeutech/ # Where Python Stuff Lives
 |-------------/external/ # Where third-party things that can't be easily pip installed live
 |----------------------/NOT_PIP_INSTALLABLE_GIT_SUBMODULE_PLACEHOLDER.txt
-|-------------/src/
-|-----------------/__init__.py
+|-------------/src/therapeutech/
+|------------------------------/__init__.py
 |-------------/pyproject.toml
 |-------------/requirements.txt
 |-------------/Dockerfile
