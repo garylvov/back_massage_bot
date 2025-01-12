@@ -14,7 +14,7 @@ pip3 install pre-commit && pre-commit install # Optional for enforcing linting
 To run this project, you may need to enable certain permissions, and you may need to disable your computer's firewall for UDP message transport between containers.
 For permissions, review ```set_permissions.sh``` before running it with
 ```
-sudo bash set_permissions.sh
+sudo bash set-permissions.sh
 ```
 As a temporary measure, the firewall can be disabled with
 ```
