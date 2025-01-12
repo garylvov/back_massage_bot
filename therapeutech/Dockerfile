@@ -32,3 +32,14 @@ RUN pip3 install -e /therapeutech
 
 # Ensure virtualenv is activated for interactive sessions
 RUN echo "source $VIRTUAL_ENV/bin/activate" >> ~/.bashrc
+
+# Setup user
+ARG USER=containeruser
+ARG UID=1000
+ARG GID=1000
+
+RUN groupadd -g $GID $USER && \
+    useradd -m -u $UID -g $GID -s /bin/bash $USER
+
+# Set any additional permissions your user needs
+RUN usermod -aG sudo $USER  # If you need sudo acces
