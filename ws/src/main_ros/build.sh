@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-bash therapeutech/build.sh && \
+bash back_massage_bot/build.sh && \
 docker build \
 -t tt_ubuntu22_humble:latest \
 --file ws/src/main_ros/Dockerfile \

@@ -38,23 +38,23 @@ RUN conda init bash && \
     echo "conda config --set auto_activate_base false" >> ~/.bashrc
 
 # Create and set working directory with correct permissions
-WORKDIR /therapeutech
+WORKDIR /back_massage_bot
 USER root
-RUN mkdir -p /therapeutech && \
-    chown -R ${USERNAME}:${USERNAME} /therapeutech
+RUN mkdir -p /back_massage_bot && \
+    chown -R ${USERNAME}:${USERNAME} /back_massage_bot
 USER ${USERNAME}
 
 # Create conda environment
-COPY --chown=${USERNAME}:${USERNAME} therapeutech/environment.yml /therapeutech/environment.yml
-RUN conda env create -f /therapeutech/environment.yml && \
+COPY --chown=${USERNAME}:${USERNAME} back_massage_bot/environment.yml /back_massage_bot/environment.yml
+RUN conda env create -f /back_massage_bot/environment.yml && \
     conda clean -a -y && \
     conda init bash
 
 # Copy the rest of the project files
-COPY --chown=${USERNAME}:${USERNAME} therapeutech /therapeutech
+COPY --chown=${USERNAME}:${USERNAME} back_massage_bot /back_massage_bot
 
 # Install package
-RUN conda run -n therapeutech pip install -e /therapeutech
+RUN conda run -n back_massage_bot pip install -e /back_massage_bot
 
 # Ensure conda environment is activated for interactive sessions
-RUN echo "conda activate therapeutech" >> ~/.bashrc
+RUN echo "conda activate back_massage_bot" >> ~/.bashrc

@@ -3,14 +3,14 @@ requires = ["setuptools>=65.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "therapeutech"
+name = "back_massage_bot"
 version = "0.1.0"
 description = "TherapeuTech project"
 requires-python = ">=3.8"
 dynamic = ["dependencies"]
 
 [tool.setuptools]
-package-dir = {"therapeutech" = "src"}
+package-dir = {"back_massage_bot" = "src"}
 
 [tool.setuptools.packages.find]
 where = ["src"]

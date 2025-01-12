@@ -1,5 +1,5 @@
 FROM tt_ubuntu22_python310:latest
-SHELL ["conda", "run", "-n", "therapeutech", "/bin/bash", "-c"]
+SHELL ["conda", "run", "-n", "back_massage_bot", "/bin/bash", "-c"]
 RUN which python
 
 ARG USERNAME

@@ -1,4 +1,4 @@
-# therapeutech
+# back_massage_bot
 Combine a Kinova Jaco 2, an Intel RealSense L515, and a massage gun to give back massages.
 
 # Installation
@@ -10,8 +10,8 @@ If your computer has an NVIDIA GPU, set them up along with the NVIDIA container 
 
 To get started, run the following.
 ```
-git clone https://github.com/garylvov/therapeutech/ &&
-cd therapeutech && git submodule init && git submodule update && \
+git clone https://github.com/garylvov/back_massage_bot/ &&
+cd back_massage_bot && git submodule init && git submodule update && \
 pip3 install pre-commit && pre-commit install # Optional for enforcing linting
 ```
 
@@ -31,22 +31,22 @@ sudo ufw enable
 ```
 # Project Structure Overview
 ```
-therapeutech/ # PROJECT_DIR
+back_massage_bot/ # PROJECT_DIR
 |-ws/src/ # Houses all ROS 2 packages. Each group of packages must have a corresponding dockerfile.
 |------/main_ros/ # Example package parent folder, all subfolders share dependencies
 |---------------/kinova-ros2/ # Kinova Submodule (may be graduated to forked copy)
 |---------------/realsense-ros/ # Realsense Submodule
-|---------------/therapeutech-ros2/ # TODO: uses therapeutech python lib
+|---------------/back_massage_bot-ros2/ # TODO: uses back_massage_bot python lib
 |---------------/Dockerfile
 |---------------/build.sh
 |---------------/develop.sh
 |---------------/post-entry-hooks.sh
 |---------------/entrypoint.sh
 |------/user_interfaces/
-|-therapeutech/ # Where Python Stuff Lives
+|-back_massage_bot/ # Where Python Stuff Lives
 |-------------/external/ # Where third-party things that can't be easily pip installed live
 |----------------------/NOT_PIP_INSTALLABLE_GIT_SUBMODULE_PLACEHOLDER.txt
-|-------------/src/therapeutech/ # Python Lib No ROS
+|-------------/src/back_massage_bot/ # Python Lib No ROS
 |------------------------------/__init__.py
 |-------------/pyproject.toml
 |-------------/requirements.txt
@@ -96,7 +96,7 @@ on the host machine will be reflected with the container.
 bash <PARENT_DEV>/build.sh && bash <PARENT_DEV>/develop.sh
 
 # For example, for pure python development;
-bash therapeutech/build.sh && bash therapeutech/develop.sh
+bash back_massage_bot/build.sh && bash back_massage_bot/develop.sh
 
 # For example, for ROS 2 and Python development (we can add C++ if needed)
 bash ws/src/main_ros/build.sh && bash ws/src/main_ros/develop.sh
@@ -120,15 +120,15 @@ the sake of local development on Mac or Windows.
 #### To run locally, first install [miniforge](https://github.com/conda-forge/miniforge)
 Then, run the following
 ```
-conda env create -f therapeutech/environment.yml && \
-conda activate therapeutech && \
-pip install -e therapeutech && \
+conda env create -f back_massage_bot/environment.yml && \
+conda activate back_massage_bot && \
+pip install -e back_massage_bot && \
 conda clean -a -y && \
 conda install -y mamba -c conda-forge && \
 conda config --env --add channels robostack-staging && \
 mamba install -y python=3.11 ros-humble-desktop && \
 conda deactivate && \
-conda activate therapeutech && \
+conda activate back_massage_bot && \
 mamba install -y compilers cmake pkg-config make ninja colcon-common-extensions catkin_tools rosdep && \
 for lib in USB{Comm,Command}LayerUbuntu.so Eth{Comm,Command}LayerUbuntu.so; do ln -fs x86_64-linux-gnu/$lib ws/src/main_ros/kinova-ros2/kinova_driver/lib/$lib; done && \
 rosdep init && rosdep update && rosdep install --from-paths ws/src/main_ros --ignore-src -r -y && \
