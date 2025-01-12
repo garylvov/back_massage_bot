@@ -1,5 +1,2 @@
 #!/usr/bin/env bash
-docker build \
--t tt_ubuntu22_humble:latest \
---file ws/src/main_ros/Dockerfile \
-.
+source post-entry-hooks.sh && echo "I'm ready to get a ros2 launch file."

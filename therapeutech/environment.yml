@@ -1,0 +1,14 @@
+name: therapeutech
+channels:
+  - pytorch
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  - numpy
+  - pytorch
+  - matplotlib
+  - setuptools>=65.0
+  - pip
+  - pip:
+    - opencv-python>=4.8.0  # opencv is better installed via pip due to binary compatibility
