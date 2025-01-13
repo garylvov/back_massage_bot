@@ -51,14 +51,16 @@ RUN conda env create -f /back_massage_bot/environment.yml && \
     conda clean -a -y && \
     conda init bash
 
+# Install MMPose
+SHELL ["conda", "run", "-n", "back_massage_bot", "/bin/bash", "-c"]
+COPY --chown=${USERNAME}:${USERNAME} back_massage_bot/post-entry-hooks.sh /back_massage_bot/post-entry-hooks.sh
+RUN bash post-entry-hooks.sh
+
 # Copy the rest of the project files
 COPY --chown=${USERNAME}:${USERNAME} back_massage_bot /back_massage_bot
 
-SHELL ["conda", "run", "-n", "back_massage_bot", "/bin/bash", "-c"]
-
 # Install package
 RUN pip install -e /back_massage_bot
-# Install hooks
-RUN bash post-entry-hooks.sh
+
 # Ensure conda environment is activated for interactive sessions
 RUN echo "conda activate back_massage_bot" >> ~/.bashrc
