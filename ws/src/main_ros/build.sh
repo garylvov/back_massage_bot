@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+git submodule init && git submodule update && \
 bash back_massage_bot/build.sh && \
 docker build \
 -t bmb_ubuntu22_humble:latest \
