@@ -156,7 +156,7 @@ Install MMPose.
 bash back_massage_bot/post-entry-hooks.sh
 ```
 
-If this doesn't work, follow the installation in [MMPose](https://mmpose.readthedocs.io/en/latest/installation.html)
+If the above doesn't work, follow the installation in [MMPose](https://mmpose.readthedocs.io/en/latest/installation.html)
 to install within the existing conda environment. You may need to use ``mmcv-lite``.
 You may need to switch to CPU only pytorch with
 ```
