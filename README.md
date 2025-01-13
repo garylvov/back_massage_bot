@@ -1,6 +1,6 @@
 ## Combine a Kinova Jaco 2, an Intel RealSense L515, and a massage gun to give back massages.
 
-(Click on the arrow pointing to section titles to expand ``README.md``)
+(Click on section titles to expand ``README.md``)
 
 <details><summary><b>Pre-Requisites / System Information </b></summary>
 
