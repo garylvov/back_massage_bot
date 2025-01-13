@@ -1,4 +1,4 @@
-FROM tt_ubuntu22_python310:latest
+FROM bmb_ubuntu22_python310:latest
 SHELL ["conda", "run", "-n", "back_massage_bot", "/bin/bash", "-c"]
 RUN which python
 
