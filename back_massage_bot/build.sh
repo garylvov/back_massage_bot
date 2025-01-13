@@ -6,5 +6,5 @@ docker build \
 --build-arg GID=$(id -g) \
 --build-arg USER=$USER \
 --progress=plain \
---file therapeutech/Dockerfile \
+--file back_massage_bot/Dockerfile \
 .
