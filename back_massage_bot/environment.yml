@@ -10,5 +10,6 @@ dependencies:
   - matplotlib
   - setuptools>=65.0
   - pip
+  - open3d>=0.18.0
   - pip:
     - opencv-python>=4.8.0  # opencv is better installed via pip due to binary compatibility
