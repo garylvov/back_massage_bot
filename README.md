@@ -206,10 +206,10 @@ sed -i 's/find_package(realsense2 2.55.1)/find_package(realsense2 2.54.1)/' src/
 colcon build --symlink-install &&
 source ws/install/setup.bash
 ```
-</details>
-
 You now have a terminal. Make sure to run ``conda activate back_massage_bot && source ws/install/setup.bash``
 prior to commands.
+</details>
+
 <details> <summary><b> Contribution Guidelines </b></summary>
 
 - To merge code into main, first open a branch from main.
