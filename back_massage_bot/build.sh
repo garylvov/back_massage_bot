@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 docker build \
--t tt_ubuntu22_python310:latest \
+-t bmb_ubuntu22_python310:latest \
 --build-arg USERNAME="${USERNAME}" \
 --build-arg UID=$(id -u) \
 --build-arg GID=$(id -g) \
