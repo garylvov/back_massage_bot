@@ -36,7 +36,7 @@ back_massage_bot/ # PROJECT_DIR
 |------/main_ros/ # Example package parent folder, all subfolders share dependencies
 |---------------/kinova-ros2/ # Kinova Submodule (may be graduated to forked copy)
 |---------------/realsense-ros/ # Realsense Submodule
-|---------------/back_massage_bot-ros2/ # TODO: uses back_massage_bot python lib
+|---------------/back_massage_bot_ros2/ # TODO: uses back_massage_bot python lib
 |---------------/Dockerfile
 |---------------/build.sh
 |---------------/develop.sh
