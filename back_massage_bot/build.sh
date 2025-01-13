@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+git submodule init && git submodule update && \
 docker build \
 -t bmb_ubuntu22_python310:latest \
 --build-arg USERNAME="${USERNAME}" \

@@ -6,6 +6,7 @@ SHELL ["/bin/bash", "-c"]
 RUN apt-get update && apt-get install -y \
     wget \
     curl \
+    build-essential \
     sudo \
     && rm -rf /var/lib/apt/lists/*
 
@@ -53,8 +54,11 @@ RUN conda env create -f /back_massage_bot/environment.yml && \
 # Copy the rest of the project files
 COPY --chown=${USERNAME}:${USERNAME} back_massage_bot /back_massage_bot
 
-# Install package
-RUN conda run -n back_massage_bot pip install -e /back_massage_bot
+SHELL ["conda", "run", "-n", "back_massage_bot", "/bin/bash", "-c"]
 
+# Install package
+RUN pip install -e /back_massage_bot
+# Install hooks
+RUN bash post-entry-hooks.sh
 # Ensure conda environment is activated for interactive sessions
 RUN echo "conda activate back_massage_bot" >> ~/.bashrc

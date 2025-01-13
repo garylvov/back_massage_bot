@@ -7,9 +7,12 @@ dependencies:
   - python=3.11
   - numpy
   - pytorch
+  - torchvision
   - matplotlib
   - setuptools>=65.0
   - pip
-  - open3d>=0.18.0
   - pip:
     - opencv-python>=4.8.0  # opencv is better installed via pip due to binary compatibility
+    - open3d>=0.18.0
+    - openmim # mim install mmengine && mim install "mmcv>=2.0.1" && mim install "mmdet>=3.1.0"
+    - typing-extensions>=4.12.2  # Added to resolve dependency conflict on local mim install

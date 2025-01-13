@@ -71,7 +71,7 @@ class DockerManager:
         containers = self.get_running_containers()
 
         if not containers:
-            print("❌ No running containers found!")
+            print("❌ No running containers found! Run build.sh && develop.sh .")
             return None
 
         print("\n🐋 Running containers:")

@@ -4,3 +4,6 @@ matplotlib
 opencv-python>=4.8.0
 setuptools>=65.0
 open3d>=0.18.0
+# https://mmpose.readthedocs.io/en/latest/installation.html
+openmim # run post-entry-hooks.sh after me
+typing-extensions>=4.12.2
