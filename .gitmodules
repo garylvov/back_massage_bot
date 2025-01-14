@@ -4,6 +4,7 @@
 [submodule "ws/src/main_ros/realsense-ros"]
 	path = ws/src/main_ros/realsense-ros
 	url = https://github.com/IntelRealSense/realsense-ros.git
+	commit = 314948b
 [submodule "ws/src/main_ros/ros_utilities"]
 	path = ws/src/main_ros/ros_utilities
 	url = https://github.com/bdaiinstitute/ros_utilities.git

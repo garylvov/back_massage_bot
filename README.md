@@ -123,7 +123,8 @@ bash ws/src/main_ros/build.sh && bash ws/src/main_ros/develop.sh
 You should now have a terminal from where to run commands, with all dependencies installed.
 Your computer directories are symlinked into the container so local changes in the cloned repo are reflected within the container when running.
 
-Once inside of the container, you may need to run the following prior to commands.
+Once inside of the container, you may need to run the following prior to commands (definitely prior to ``ros2 run``
+or ``ros2 launch`` after making changes to ROS packages.)
 ```
 bash post-entry-hooks.sh
 ```
@@ -206,8 +207,13 @@ sed -i 's/find_package(realsense2 2.55.1)/find_package(realsense2 2.54.1)/' src/
 colcon build --symlink-install &&
 source ws/install/setup.bash
 ```
-You now have a terminal. Make sure to run ``conda activate back_massage_bot && source ws/install/setup.bash``
-prior to commands.
+You now have a terminal. Make sure to run the following prior to commands.
+```
+conda activate back_massage_bot && \
+cd ws/ && colcon build --symlink-install && \
+ source install/setup.bash
+```
+
 </details>
 
 <details> <summary><b> Contribution Guidelines </b></summary>
