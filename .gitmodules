@@ -1,10 +1,6 @@
 [submodule "ws/src/main_ros/kinova-ros2"]
 	path = ws/src/main_ros/kinova-ros2
 	url = https://github.com/RRL-ALeRT/kinova-ros2.git
-[submodule "ws/src/main_ros/realsense-ros"]
-	path = ws/src/main_ros/realsense-ros
-	url = https://github.com/IntelRealSense/realsense-ros.git
-	commit = 314948b
 [submodule "ws/src/main_ros/ros_utilities"]
 	path = ws/src/main_ros/ros_utilities
 	url = https://github.com/bdaiinstitute/ros_utilities.git
