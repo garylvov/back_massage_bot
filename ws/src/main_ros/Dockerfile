@@ -8,10 +8,12 @@ WORKDIR /ws/src/main_ros
 
 # Install ROS with Conda
 RUN conda clean -a -y && conda install -y mamba -c conda-forge && \
-conda config --env --add channels robostack-staging && \
-mamba install -y python ros-humble-desktop
+conda config --env --add channels robostack-staging
+RUN mamba install -y python ros-humble-desktop
 RUN mamba install -y compilers cmake pkg-config make ninja colcon-common-extensions catkin_tools rosdep
 
+# Install Realsense
+RUN mamba install -y ros-humble-realsense2-camera==4.54.1
 # Get deps for workspace
 RUN rosdep init && rosdep update
 
