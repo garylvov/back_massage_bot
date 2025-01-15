@@ -1,34 +1,39 @@
 FROM bmb_ubuntu22_python310:latest
 SHELL ["conda", "run", "-n", "back_massage_bot", "/bin/bash", "-c"]
-RUN which python
-
 ARG USERNAME
 USER ${USERNAME}
 WORKDIR /ws/src/main_ros
 
 # Install ROS with Conda
 RUN conda clean -a -y && conda install -y mamba -c conda-forge && \
-conda config --env --add channels robostack-staging
-RUN mamba install -y python ros-humble-desktop
+    conda config --env --add channels robostack-staging
+
+# Install ROS, and a pinned version of realsense2-camera.
+# Also, include some Kinova Dependencies so that mamba can solve the environment,
+# While still respecting the pinned realsense version. Annoying but seemingly necessary.
+RUN mamba install -y python=3.11 ros-humble-desktop ros-humble-realsense2-camera==4.54.1 \
+    ros-humble-control-msgs \
+    ros-humble-joint-state-publisher \
+    ros-humble-joint-state-publisher-gui \
+    ros-humble-xacro
+
 RUN mamba install -y compilers cmake pkg-config make ninja colcon-common-extensions catkin_tools rosdep
 
-# Install Realsense
-RUN mamba install -y ros-humble-realsense2-camera==4.54.1
 # Get deps for workspace
 RUN rosdep init && rosdep update
 
 # Copy ROS workspace
 COPY ws/src/main_ros /ws/src/main_ros/
 
-# Install dependencies
-RUN rosdep install --from-paths /ws/src/main_ros --ignore-src -r -y
+RUN rosdep install --from-paths /ws/src/main_ros --ignore-src -r -y --skip-keys="python3-typing-extensions"
 
-# Patch for Kinova driver
-USER root
-RUN for lib in USB{Comm,Command}LayerUbuntu.so Eth{Comm,Command}LayerUbuntu.so; do \
-    ln -fs x86_64-linux-gnu/$lib /ws/src/main_ros/kinova-ros2/kinova_driver/lib/$lib; \
-    done
-
-# Switch back to user and build workspace
-USER ${USERNAME}
-RUN cd /ws/ && colcon build --symlink-install
+# Build with explicit Python paths for the specific user
+RUN cd /ws && \
+    PYTHONNOUSERSITE=1 \
+    Python3_EXECUTABLE=/home/${USERNAME}/miniforge3/envs/back_massage_bot/bin/python3.11 \
+    colcon build --symlink-install \
+    --cmake-args \
+    -DCMAKE_LIBRARY_ARCHITECTURE=x86_64-linux-gnu \
+    -DPython3_ROOT_DIR=/home/${USERNAME}/miniforge3/envs/back_massage_bot \
+    -DPython3_EXECUTABLE=/home/${USERNAME}/miniforge3/envs/back_massage_bot/bin/python3.11 \
+    -DPYTHON_EXECUTABLE=/home/${USERNAME}/miniforge3/envs/back_massage_bot/bin/python3.11
