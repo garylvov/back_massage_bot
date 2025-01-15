@@ -24,6 +24,8 @@ For permissions, review ```set_permissions.sh``` before running it with the foll
 sudo bash set-permissions.sh
 ```
 As a temporary measure, the firewall can be disabled with the following.
+This only is needed if ```ros2 topic echo <TOPIC>``` doesn't work while the topic shows up
+with ```ros2 topic list```, or the ROS 2 daemon keeps crashing.
 ```
 sudo ufw disable # run sudo ufw disable when finished.
 ```
