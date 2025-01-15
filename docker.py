@@ -5,6 +5,8 @@
 # SPDX-License-Identifier: MIT
 
 import argparse
+import glob
+import grp
 import json
 import os
 import subprocess
@@ -118,6 +120,53 @@ class DockerManager:
             return []
         return [arg for device in devices.split(",") for arg in ["--device", f"{device}:{device}"]]
 
+    def _detect_video_devices(self) -> Sequence[str]:
+        """Detect video devices and prepare them for docker with proper group permissions"""
+        video_devices = []
+        found_devices = []  # For debug printing
+
+        try:
+            # Get the video group ID
+            video_group_id = grp.getgrnam("video").gr_gid
+
+            # List of device patterns to check
+            device_patterns = [
+                ("/dev/video*", range(100)),  # video0-100
+            ]
+
+            # Check each device pattern
+            for pattern, range_obj in device_patterns:
+                if range_obj is not None:
+                    # Numbered devices
+                    for i in range_obj:
+                        device = pattern.replace("*", str(i))
+                        if os.path.exists(device):
+                            video_devices.extend(["--device", f"{device}:{device}", "--group-add", str(video_group_id)])
+                            found_devices.append(device)
+                else:
+                    matching_devices = glob.glob(pattern)
+                    for device in matching_devices:
+                        video_devices.extend(["--device", f"{device}:{device}", "--group-add", str(video_group_id)])
+                        found_devices.append(device)
+
+            # Print found devices
+            if found_devices:
+                video_devices.append("-v")
+                video_devices.append("/dev:/dev")
+                video_devices.append("--device /dev/bus/usb")
+                print("\n🎥 Found video devices:")
+                for device in sorted(found_devices):
+                    print(f"   - {device}")
+            else:
+                print("No video devices found")
+
+        except KeyError:
+            print("Warning: 'video' group not found on system")
+        except Exception as e:
+            print(f"Warning: Error detecting video devices: {e}")
+
+        return video_devices
+
     def _parse_volumes(self, volumes: str | None) -> Sequence[str]:
         """Convert volume string into docker volume arguments"""
         if not volumes:
@@ -129,7 +178,7 @@ class DockerManager:
     def build_docker_command(self, config: DockerConfig) -> list[str]:
         """Build docker command with specified options"""
         cmd = ["docker", "run", "--rm", "--net=host", "--ipc=host", "--user", "$(id -u):$(id -g)"]
-
+        cmd.extend(self._detect_video_devices())
         if config.interactive:
             cmd.append("-it")
 
