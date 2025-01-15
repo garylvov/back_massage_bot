@@ -29,11 +29,7 @@ RUN rosdep install --from-paths /ws/src/main_ros --ignore-src -r -y --skip-keys=
 
 # Build with explicit Python paths for the specific user
 RUN cd /ws && \
-    PYTHONNOUSERSITE=1 \
-    Python3_EXECUTABLE=/home/${USERNAME}/miniforge3/envs/back_massage_bot/bin/python3.11 \
     colcon build --symlink-install \
     --cmake-args \
     -DCMAKE_LIBRARY_ARCHITECTURE=x86_64-linux-gnu \
-    -DPython3_ROOT_DIR=/home/${USERNAME}/miniforge3/envs/back_massage_bot \
-    -DPython3_EXECUTABLE=/home/${USERNAME}/miniforge3/envs/back_massage_bot/bin/python3.11 \
-    -DPYTHON_EXECUTABLE=/home/${USERNAME}/miniforge3/envs/back_massage_bot/bin/python3.11
+    -DPython3_EXECUTABLE=/home/${USERNAME}/miniforge3/envs/back_massage_bot/bin/python3.11
