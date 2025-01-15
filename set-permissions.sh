@@ -1,2 +1,3 @@
-#!/usr/bin/env bash
-echo "No permissions yet."
+#!/bin/bash
+echo "Setting udev rules..."
+sudo bash hardware/setup-udev-rules.bash
