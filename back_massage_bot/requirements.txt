@@ -1,5 +1,6 @@
 numpy
 torch==2.5.1
+torchvision
 matplotlib
 opencv-python>=4.8.0
 setuptools>=65.0
