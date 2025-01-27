@@ -7,6 +7,7 @@
 
 import argparse
 
+import cv2
 import synchros2.process as ros_process
 import synchros2.scope as ros_scope
 from cv_bridge import CvBridge
@@ -54,7 +55,7 @@ class ImageProcessor:
         try:
             # Convert to CV2 image
             cv_image = self.bridge.imgmsg_to_cv2(self.latest_image, desired_encoding="passthrough")
-
+            cv2.imwrite("test.jpg", cv_image)
             try:
                 cv_image = rgb_to_segmented_pose_model.get_pose_mask(
                     cv_image, self.pose_predictor, self.pose_visualizer, self.pose_extractor

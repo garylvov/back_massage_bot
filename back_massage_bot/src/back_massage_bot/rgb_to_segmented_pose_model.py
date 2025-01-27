@@ -21,7 +21,7 @@ def initialize_model(
     config_path: str = "/models/dense_pose/densepose_rcnn_R_50_FPN_s1x.yaml",
     model_path: str = "/models/dense_pose/densepose_rcnn_R_50_FPN_s1x.pkl",
     device="cuda",
-    min_score=0.8,
+    min_score=0.5,
 ):
     """
     Initialize the DensePose segmentation model.
