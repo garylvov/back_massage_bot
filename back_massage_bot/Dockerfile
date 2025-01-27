@@ -1,4 +1,4 @@
-FROM nvidia/cuda:12.6.3-base-ubuntu22.04
+FROM nvidia/cuda:12.6.3-devel-ubuntu22.04
 
 SHELL ["/bin/bash", "-c"]
 
@@ -8,6 +8,8 @@ RUN apt-get update && apt-get install -y \
     curl \
     build-essential \
     sudo \
+    git \
+    tree \
     && rm -rf /var/lib/apt/lists/*
 
 # Define build arguments for user configuration
@@ -41,6 +43,8 @@ RUN conda init bash && \
 # Create and set working directory with correct permissions
 WORKDIR /back_massage_bot
 USER root
+RUN mkdir -p /models/dense_pose && \
+    chown -R ${USERNAME}:${USERNAME} /models
 RUN mkdir -p /back_massage_bot && \
     chown -R ${USERNAME}:${USERNAME} /back_massage_bot
 USER ${USERNAME}
@@ -51,9 +55,25 @@ RUN conda env create -f /back_massage_bot/environment.yml && \
     conda clean -a -y && \
     conda init bash
 
-# Install MMPose
+
 SHELL ["conda", "run", "-n", "back_massage_bot", "/bin/bash", "-c"]
 COPY --chown=${USERNAME}:${USERNAME} back_massage_bot/post-entry-hooks.sh /back_massage_bot/post-entry-hooks.sh
+
+# Install DensePose
+RUN pip install git+https://github.com/facebookresearch/detectron2@main#subdirectory=projects/DensePose
+
+RUN wget -O /models/dense_pose/Base-DensePose-RCNN-FPN.yaml \
+https://raw.githubusercontent.com/facebookresearch/detectron2/refs/heads/main/projects/DensePose/configs/Base-DensePose-RCNN-FPN.yaml
+
+RUN wget -O /models/dense_pose/densepose_rcnn_R_50_FPN_s1x.pkl \
+https://dl.fbaipublicfiles.com/densepose/densepose_rcnn_R_50_FPN_s1x/165712039/model_final_162be9.pkl
+
+RUN wget -O /models/dense_pose/Base-DensePose-RCNN-FPN-Human.yaml \
+https://raw.githubusercontent.com/facebookresearch/detectron2/refs/heads/main/projects/DensePose/configs/cse/Base-DensePose-RCNN-FPN-Human.yaml
+
+RUN wget -O /models/dense_pose/densepose_rcnn_R_50_FPN_s1x.yaml \
+https://raw.githubusercontent.com/facebookresearch/detectron2/refs/heads/main/projects/DensePose/configs/densepose_rcnn_R_50_FPN_s1x.yaml
+
 RUN bash post-entry-hooks.sh
 
 # Copy the rest of the project files
