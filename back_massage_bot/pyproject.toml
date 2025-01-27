@@ -5,15 +5,13 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "back_massage_bot"
 version = "0.1.0"
-description = "TherapeuTech project"
+description = "Back Massage Bot project"
 requires-python = ">=3.8"
 dynamic = ["dependencies"]
 
 [tool.setuptools]
-package-dir = {"back_massage_bot" = "src"}
-
-[tool.setuptools.packages.find]
-where = ["src"]
+packages = ["back_massage_bot"]
+package-dir = {"" = "src"}
 
 [tool.setuptools.dynamic]
 dependencies = {file = ["requirements.txt"]}

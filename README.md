@@ -63,7 +63,6 @@ back_massage_bot/ # PROJECT_DIR
 |---------------/entrypoint.sh
 |------/user_interfaces/
 |-back_massage_bot/ # Where Python Stuff Lives
-|-------------/external/ # Where third-party things that can't be easily pip installed live
 |-------------/src/back_massage_bot/ # Python Lib No ROS
 |------------------------------/__init__.py
 |-------------/pyproject.toml
