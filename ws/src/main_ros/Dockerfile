@@ -47,6 +47,7 @@ RUN cd /ws && \
     kinova_description \
     kinova_demo
 
+# Fix RVIZ2
 RUN apt-get update && apt-get install -y \
     libgl1-mesa-dev \
     libgl1-mesa-glx \
