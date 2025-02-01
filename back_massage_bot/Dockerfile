@@ -9,8 +9,7 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     sudo \
     git \
-    tree \
-    && rm -rf /var/lib/apt/lists/*
+    tree 
 
 # Define build arguments for user configuration
 ARG USERNAME
@@ -80,7 +79,7 @@ RUN bash post-entry-hooks.sh
 COPY --chown=${USERNAME}:${USERNAME} back_massage_bot /back_massage_bot
 
 # Install package
-RUN pip install -e /back_massage_bot
+RUN pip install -r /back_massage_bot/requirements.txt && pip install -e /back_massage_bot
 
 # Ensure conda environment is activated for interactive sessions
 RUN echo "conda activate back_massage_bot" >> ~/.bashrc

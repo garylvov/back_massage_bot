@@ -46,3 +46,15 @@ RUN cd /ws && \
     kinova_bringup kinova_msgs \
     kinova_description \
     kinova_demo
+
+RUN apt-get update && apt-get install -y \
+    libgl1-mesa-dev \
+    libgl1-mesa-glx \
+    libglew-dev \
+    libglvnd0 \
+    libglx0 \
+    libopengl0 \
+    libglx-mesa0 \
+    libglu1-mesa \
+    libglu1-mesa-dev \
+    x11-xserver-utils
