@@ -40,7 +40,7 @@ You should now have a terminal from where to run commands, with all dependencies
 Your computer directories are symlinked into the container so local changes in the cloned repo are reflected within the container when running. Once inside of the container, you may need to run the following prior to commands (definitely prior to ``ros2 run``
 or ``ros2 launch`` after making changes to ROS packages.) (Due to our use of [RoboStack](https://robostack.github.io/GettingStarted.html), do not source system ROS, only use the ```post-entry-hooks.sh```)
 ```
-bash post-entry-hooks.sh
+source post-entry-hooks.sh
 ```
 
 If you'd like to enter a new terminal window within an existing container, you can run the following in a new window.
