@@ -2,7 +2,7 @@
 # All rights reserved.
 #
 # SPDX-License-Identifier: MIT
-from . import densepose_demo_tool, rgb_to_segmented_pose_model
+from . import rgb_to_segmented_pose_model
 
 # Make the module directly accessible
 from .rgb_to_segmented_pose_model import get_pose_mask, initialize_model

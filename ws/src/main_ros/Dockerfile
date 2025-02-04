@@ -1,4 +1,19 @@
 FROM bmb_ubuntu22_python310:latest
+
+USER root 
+SHELL ["/bin/bash", "-c"]
+RUN apt-get update && apt-get install -y \
+    libgl1-mesa-dev \
+    libgl1-mesa-glx \
+    libglew-dev \
+    libglvnd0 \
+    libglx0 \
+    libopengl0 \
+    libglx-mesa0 \
+    libglu1-mesa \
+    libglu1-mesa-dev \
+    x11-xserver-utils
+
 SHELL ["conda", "run", "-n", "back_massage_bot", "/bin/bash", "-c"]
 ARG USERNAME
 USER ${USERNAME}
@@ -13,13 +28,11 @@ RUN conda clean -a -y && conda install -y mamba -c conda-forge && \
 # While still respecting the pinned realsense version. Annoying but seemingly necessary.
 # Also, don't change pytorch or cuda version.
 RUN mamba install -y ros-humble-desktop ros-humble-realsense2-camera==4.54.1 \
+    ros-humble-moveit \
     ros-humble-control-msgs \
     ros-humble-joint-state-publisher \
     ros-humble-joint-state-publisher-gui \
-    ros-humble-xacro \
-    "pytorch==2.5.1" \
-    "pytorch-cuda==12.4" \
-    "pytorch-mutex==1.0"
+    ros-humble-xacro 
 
 RUN mamba install -y compilers cmake \
                 pkg-config make ninja colcon-common-extensions \
@@ -46,15 +59,3 @@ RUN cd /ws && \
     kinova_bringup kinova_msgs \
     kinova_description \
     kinova_demo
-
-RUN apt-get update && apt-get install -y \
-    libgl1-mesa-dev \
-    libgl1-mesa-glx \
-    libglew-dev \
-    libglvnd0 \
-    libglx0 \
-    libopengl0 \
-    libglx-mesa0 \
-    libglu1-mesa \
-    libglu1-mesa-dev \
-    x11-xserver-utils
