@@ -17,13 +17,11 @@ from enum import Enum, auto
 
 class DockerError(Exception):
     """Base exception for docker-related errors"""
-
     pass
 
 
 class CommandStatus(Enum):
     """Enum for command execution status"""
-
     SUCCESS = auto()
     INTERRUPTED = auto()
     FAILED = auto()
@@ -37,7 +35,6 @@ class CommandStatus(Enum):
 @dataclass
 class DockerConfig:
     """Configuration for docker container"""
-
     container: str
     cuda: bool = False
     x11: bool = False
@@ -151,9 +148,10 @@ class DockerManager:
 
             # Print found devices
             if found_devices:
-                video_devices.append("-v")
-                video_devices.append("/dev:/dev")
-                video_devices.append("--device /dev/bus/usb")
+                video_devices.extend([
+                    "-v", "/dev:/dev",
+                    "--device", "/dev/bus/usb"
+                ])
                 print("\n🎥 Found video devices:")
                 for device in sorted(found_devices):
                     print(f"   - {device}")
@@ -166,33 +164,26 @@ class DockerManager:
             print(f"Warning: Error detecting video devices: {e}")
 
         return video_devices
-    
-    def _detect_devices(self) -> Sequence[str]:
-        """Detect video and other devices and prepare them for docker with proper group permissions"""
-        device_args = []
-        found_devices = []  # For debug printing
+
+    def _detect_serial_devices(self) -> Sequence[str]:
+        """Detect serial devices and prepare them for docker"""
+        serial_devices = []
+        found_devices = []
 
         try:
-            # Get the required group IDs
-            video_group_id = grp.getgrnam("video").gr_gid
+            # Check for dialout group
             try:
                 dialout_group_id = grp.getgrnam("dialout").gr_gid
             except KeyError:
                 print("Warning: 'dialout' group not found on system")
-                dialout_group_id = None
+                return []
 
-            # List of device patterns to check
-            device_patterns = [
-                ("/dev/video*", range(100)),  # video0-100
-                ("/dev/ttyUSB*", range(10)),  # USB serial devices
-            ]
-            
             # Check for Kinova device
             try:
                 lsusb_output = subprocess.check_output(['lsusb'], text=True)
-                if 'Kinova' in lsusb_output:  # Look for any Kinova device
-                    device_args.extend(["--group-add", str(dialout_group_id)] if dialout_group_id else [])
-                    device_args.extend([
+                if 'Kinova' in lsusb_output:
+                    serial_devices.extend([
+                        "--group-add", str(dialout_group_id),
                         "--device", "/dev/bus/usb",
                         "-v", "/dev/bus/usb:/dev/bus/usb"
                     ])
@@ -200,38 +191,23 @@ class DockerManager:
             except subprocess.CalledProcessError:
                 print("Warning: Could not check for Kinova device")
 
-            # Check each device pattern
-            for pattern, range_obj in device_patterns:
-                if range_obj is not None:
-                    # Numbered devices
-                    for i in range_obj:
-                        device = pattern.replace("*", str(i))
-                        if os.path.exists(device):
-                            device_args.extend(["--device", f"{device}:{device}", "--group-add", str(video_group_id)])
-                            found_devices.append(device)
-                else:
-                    matching_devices = glob.glob(pattern)
-                    for device in matching_devices:
-                        device_args.extend(["--device", f"{device}:{device}", "--group-add", str(video_group_id)])
-                        found_devices.append(device)
+            # Check for USB serial devices
+            for i in range(10):
+                device = f"/dev/ttyUSB{i}"
+                if os.path.exists(device):
+                    serial_devices.extend(["--device", f"{device}:{device}", "--group-add", str(dialout_group_id)])
+                    found_devices.append(device)
 
-            # Print found devices and add general device access
             if found_devices:
-                device_args.extend(["-v", "/dev:/dev"])
-                print("\n🔍 Found devices:")
+                print("\n🔌 Found serial devices:")
                 for device in sorted(found_devices):
                     print(f"   - {device}")
-            else:
-                print("No devices found")
 
-        except KeyError:
-            print("Warning: 'video' group not found on system")
         except Exception as e:
-            print(f"Warning: Error detecting devices: {e}")
+            print(f"Warning: Error detecting serial devices: {e}")
 
-        return device_args
+        return serial_devices
 
-    
     def _parse_volumes(self, volumes: str | None) -> Sequence[str]:
         """Convert volume string into docker volume arguments"""
         if not volumes:
@@ -243,7 +219,11 @@ class DockerManager:
     def build_docker_command(self, config: DockerConfig) -> list[str]:
         """Build docker command with specified options"""
         cmd = ["docker", "run", "--rm", "--net=host", "--ipc=host", "--user", "$(id -u):$(id -g)"]
-        cmd.extend(self._detect_devices())
+        
+        # Add both video and serial device detection
+        cmd.extend(self._detect_video_devices())
+        cmd.extend(self._detect_serial_devices())
+        
         if config.interactive:
             cmd.append("-it")
 
@@ -253,16 +233,11 @@ class DockerManager:
             user_xauth = f"/home/{user}/.Xauthority"
 
             cmd.extend([
-                "-e",
-                "DISPLAY",
-                "-e",
-                "QT_X11_NO_MITSHM=1",
-                "-e",
-                f"XDG_RUNTIME_DIR=/tmp/runtime-{os.getuid()}",
-                "-v",
-                f"{xauth_path}:{user_xauth}",
-                "-v",
-                "/tmp/.X11-unix:/tmp/.X11-unix:rw",
+                "-e", "DISPLAY",
+                "-e", "QT_X11_NO_MITSHM=1",
+                "-e", f"XDG_RUNTIME_DIR=/tmp/runtime-{os.getuid()}",
+                "-v", f"{xauth_path}:{user_xauth}",
+                "-v", "/tmp/.X11-unix:/tmp/.X11-unix:rw",
             ])
 
         cmd.extend(self._parse_devices(config.devices))
