@@ -166,7 +166,7 @@ class DockerManager:
             print(f"Warning: Error detecting video devices: {e}")
 
         return video_devices
-    
+
     def _detect_devices(self) -> Sequence[str]:
         """Detect video and other devices and prepare them for docker with proper group permissions"""
         device_args = []
@@ -186,19 +186,26 @@ class DockerManager:
                 ("/dev/video*", range(100)),  # video0-100
                 ("/dev/ttyUSB*", range(10)),  # USB serial devices
             ]
-            
+
             # Check for Kinova device
             try:
-                lsusb_output = subprocess.check_output(['lsusb'], text=True)
-                if 'Kinova' in lsusb_output:  # Look for any Kinova device
+                lsusb_output = subprocess.check_output(["lsusb"], text=True)
+                if "Kinova" in lsusb_output:  # Look for any Kinova device
                     device_args.extend(["--group-add", str(dialout_group_id)] if dialout_group_id else [])
-                    device_args.extend([
-                        "--device", "/dev/bus/usb",
-                        "-v", "/dev/bus/usb:/dev/bus/usb"
-                    ])
+                    device_args.extend(["--device", "/dev/bus/usb", "-v", "/dev/bus/usb:/dev/bus/usb"])
                     found_devices.append("Kinova Robotic Platform (USB)")
             except subprocess.CalledProcessError:
                 print("Warning: Could not check for Kinova device")
+
+            # Check for ESP32 Device
+            try:
+                lsusb_output = subprocess.check_output(["lsusb"], text=True)
+                if "Espressif" in lsusb_output:  # Look for any ESP32 device
+                    device_args.extend(["--group-add", str(dialout_group_id)] if dialout_group_id else [])
+                    device_args.extend(["--device", "/dev/bus/usb", "-v", "/dev/bus/usb:/dev/bus/usb"])
+                    found_devices.append("Espressif ESP32 (USB)")
+            except subprocess.CalledProcessError:
+                print("Warning: Could not check for ESP32 device")
 
             # Check each device pattern
             for pattern, range_obj in device_patterns:
@@ -231,7 +238,6 @@ class DockerManager:
 
         return device_args
 
-    
     def _parse_volumes(self, volumes: str | None) -> Sequence[str]:
         """Convert volume string into docker volume arguments"""
         if not volumes:
