@@ -1,13 +1,24 @@
+#!/usr/bin/env python3
+
 # Copyright (c) 2025, Gary Lvov, Vinay Balaji, Tim Bennet, Xandar Ingare, Ben Yoon
 # All rights reserved.
 #
 # SPDX-License-Identifier: MIT
 
+import re
+
 import rclpy
 import serial
-import serial.tools
-from rclpy.node import Node
+from commands import commands
+from serial.tools import list_ports
 from std_msgs.msg import String
+from synchros2.node import Node
+
+
+# Function to remove ANSI escape codes from a string
+def remove_ansi_escape_codes(text):
+    ansi_escape = re.compile(r"\x1B[@-_][0-?]*[ -/]*[@-~]")
+    return ansi_escape.sub("", text)
 
 
 class ESP32MessageHandler(Node):
@@ -19,6 +30,7 @@ class ESP32MessageHandler(Node):
 
         # Create a publisher for ESP32 log messages
         self.publisher = self.create_publisher(String, output_topic, 10)
+        self.get_logger().info(f"Subscribing to serial port: {serial_port}")
         self.get_logger().info(f"Publishing to topic: {output_topic}")
 
         # Timer to read serial messages (2 Hz = every 0.5s)
@@ -26,14 +38,19 @@ class ESP32MessageHandler(Node):
 
     def get_message(self):
         """Reads a line from the serial port and publishes relevant logs."""
-        if self.serial_conn.in_waiting > 0:
+        # self.get_logger().info("Checking for messages...")
+        # self.get_logger().info(f"Bytes in buffer: {self.serial_conn.in_waiting}")
+        while self.serial_conn.in_waiting > 0:
             try:
                 raw_data = self.serial_conn.readline().decode("utf-8").strip()
-                if raw_data.startswith("LOGI") or raw_data.startswith("LOGE"):
-                    msg = String()
-                    msg.data = raw_data
-                    self.publisher.publish(msg)
-                    self.get_logger().info(f"Published: {msg.data}")
+                raw_data = remove_ansi_escape_codes(raw_data)
+                self.get_logger().info(f"Received: {raw_data}")
+                for command in commands:
+                    if command in raw_data:
+                        msg = String()
+                        msg.data = command
+                        self.publisher.publish(msg)
+                        self.get_logger().info(f"Published: {msg.data}")
             except Exception as e:
                 self.get_logger().error(f"Error reading from serial: {str(e)}")
 
@@ -42,11 +59,11 @@ def main(args=None):
     rclpy.init(args=args)
 
     # Find the correct serial port using serial.tools.list_ports
-    connected_ports = serial.tools.list_ports.comports()
+    connected_ports = list_ports.comports()
     serial_port = None
     for port in connected_ports:
-        print(port.device, port.description)
         if "VID:PID=303A:1001" in port.hwid:
+            print(port.device, port.description)
             serial_port = port.device
             break
     if not serial_port:
