@@ -202,8 +202,17 @@ class DockerManager:
                 lsusb_output = subprocess.check_output(["lsusb"], text=True)
                 if "Espressif" in lsusb_output:  # Look for any ESP32 device
                     device_args.extend(["--group-add", str(dialout_group_id)] if dialout_group_id else [])
-                    device_args.extend(["--device", "/dev/bus/usb", "-v", "/dev/bus/usb:/dev/bus/usb"])
-                    found_devices.append("Espressif ESP32 (USB)")
+                    # The ESP32 is a ttyACM device, which we cannot mount directly
+                    # Instead, we mount the entire /dev/:dev directory
+                    device_args.extend([
+                        "--device",
+                        "/dev/bus/usb",
+                        "-v",
+                        "/dev/bus/usb:/dev/bus/usb",
+                        "--privileged",
+                        "-v",
+                        "/dev:/dev",
+                    ])
             except subprocess.CalledProcessError:
                 print("Warning: Could not check for ESP32 device")
 
