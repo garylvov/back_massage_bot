@@ -7,12 +7,13 @@
 
 import re
 
-import rclpy
 import serial
+import synchros2.process as ros_process
+import synchros2.scope as ros_scope
 from commands import commands
+from rclpy.qos import QoSHistoryPolicy, QoSProfile, QoSReliabilityPolicy
 from serial.tools import list_ports
 from std_msgs.msg import String
-from synchros2.node import Node
 
 
 # Function to remove ANSI escape codes from a string
@@ -21,20 +22,21 @@ def remove_ansi_escape_codes(text):
     return ansi_escape.sub("", text)
 
 
-class ESP32MessageHandler(Node):
+class ESP32MessageHandler:
     def __init__(self, serial_port: str, baud_rate: int, output_topic: str):
-        super().__init__("esp32_message_handler")
+        self.node = ros_scope.node()
 
         # Open the serial port
         self.serial_conn = serial.Serial(serial_port, baud_rate, timeout=1)
 
         # Create a publisher for ESP32 log messages
-        self.publisher = self.create_publisher(String, output_topic, 10)
-        self.get_logger().info(f"Subscribing to serial port: {serial_port}")
-        self.get_logger().info(f"Publishing to topic: {output_topic}")
+        qos = QoSProfile(reliability=QoSReliabilityPolicy.BEST_EFFORT, history=QoSHistoryPolicy.KEEP_LAST, depth=1)
+        self.publisher = self.node.create_publisher(String, output_topic, qos)
+        self.node.get_logger().info(f"Subscribing to serial port: {serial_port}")
+        self.node.get_logger().info(f"Publishing to topic: {output_topic}")
 
         # Timer to read serial messages (2 Hz = every 0.5s)
-        self.timer = self.create_timer(0.5, self.get_message)
+        self.timer = self.node.create_timer(0.5, self.get_message)
 
     def get_message(self):
         """Reads a line from the serial port and publishes relevant logs."""
@@ -44,20 +46,19 @@ class ESP32MessageHandler(Node):
             try:
                 raw_data = self.serial_conn.readline().decode("utf-8").strip()
                 raw_data = remove_ansi_escape_codes(raw_data)
-                self.get_logger().info(f"Received: {raw_data}")
+                # self.node.get_logger().info(f"Received: {raw_data}")
                 for command in commands:
                     if command in raw_data:
                         msg = String()
                         msg.data = command
                         self.publisher.publish(msg)
-                        self.get_logger().info(f"Published: {msg.data}")
+                        self.node.get_logger().info(f"Published: {msg.data}")
             except Exception as e:
-                self.get_logger().error(f"Error reading from serial: {str(e)}")
+                self.node.get_logger().error(f"Error reading from serial: {str(e)}")
 
 
+@ros_process.main()
 def main(args=None):
-    rclpy.init(args=args)
-
     # Find the correct serial port using serial.tools.list_ports
     connected_ports = list_ports.comports()
     serial_port = None
@@ -72,11 +73,8 @@ def main(args=None):
     baud_rate = 9600
     output_topic = "esp32_logs"
 
-    node = ESP32MessageHandler(serial_port, baud_rate, output_topic)
-    rclpy.spin(node)
-
-    node.destroy_node()
-    rclpy.shutdown()
+    ESP32MessageHandler(serial_port, baud_rate, output_topic)
+    main.wait_for_shutdown()
 
 
 if __name__ == "__main__":
