@@ -12,6 +12,7 @@ synchros2 \
 kinova_driver \
 kinova_bringup kinova_msgs \
 kinova_description \
-kinova_demo
+kinova_demo \
+pymoveit2
 source /ws/install/setup.bash || true
 popd # Return to original directory

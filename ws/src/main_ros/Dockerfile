@@ -47,15 +47,4 @@ COPY ws/src/main_ros /ws/src/main_ros/
 RUN rosdep install --from-paths /ws/src/main_ros --ignore-src -r -y --skip-keys="python3-typing-extensions"
 
 # Build with explicit Python paths for the specific user
-RUN cd /ws && \
-    colcon build --symlink-install \
-    --cmake-args \
-    -DCMAKE_LIBRARY_ARCHITECTURE=x86_64-linux-gnu \
-    -DPython3_EXECUTABLE=/home/${USERNAME}/miniforge3/envs/back_massage_bot/bin/python3.1 1\
-    colcon build --packages-select \
-    back_massage_bot_ros \
-    synchros2 \
-    kinova_driver \
-    kinova_bringup kinova_msgs \
-    kinova_description \
-    kinova_demo
+RUN source post-entry-hooks.sh

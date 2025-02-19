@@ -4,3 +4,6 @@
 [submodule "ws/src/main_ros/ros_utilities"]
 	path = ws/src/main_ros/ros_utilities
 	url = https://github.com/bdaiinstitute/ros_utilities.git
+[submodule "ws/src/main_ros/pymoveit2"]
+	path = ws/src/main_ros/pymoveit2
+	url = https://github.com/AndrejOrsula/pymoveit2.git
