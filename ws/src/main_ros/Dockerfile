@@ -1,6 +1,6 @@
 FROM bmb_ubuntu22_python310:latest
 
-USER root 
+USER root
 SHELL ["/bin/bash", "-c"]
 RUN apt-get update && apt-get install -y \
     libgl1-mesa-dev \
@@ -32,7 +32,7 @@ RUN mamba install -y ros-humble-desktop ros-humble-realsense2-camera==4.54.1 \
     ros-humble-control-msgs \
     ros-humble-joint-state-publisher \
     ros-humble-joint-state-publisher-gui \
-    ros-humble-xacro 
+    ros-humble-xacro
 
 RUN mamba install -y compilers cmake \
                 pkg-config make ninja colcon-common-extensions \

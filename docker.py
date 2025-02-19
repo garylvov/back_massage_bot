@@ -17,11 +17,13 @@ from enum import Enum, auto
 
 class DockerError(Exception):
     """Base exception for docker-related errors"""
+
     pass
 
 
 class CommandStatus(Enum):
     """Enum for command execution status"""
+
     SUCCESS = auto()
     INTERRUPTED = auto()
     FAILED = auto()
@@ -35,6 +37,7 @@ class CommandStatus(Enum):
 @dataclass
 class DockerConfig:
     """Configuration for docker container"""
+
     container: str
     cuda: bool = False
     x11: bool = False
@@ -148,10 +151,7 @@ class DockerManager:
 
             # Print found devices
             if found_devices:
-                video_devices.extend([
-                    "-v", "/dev:/dev",
-                    "--device", "/dev/bus/usb"
-                ])
+                video_devices.extend(["-v", "/dev:/dev", "--device", "/dev/bus/usb"])
                 print("\n🎥 Found video devices:")
                 for device in sorted(found_devices):
                     print(f"   - {device}")
@@ -180,12 +180,15 @@ class DockerManager:
 
             # Check for Kinova device
             try:
-                lsusb_output = subprocess.check_output(['lsusb'], text=True)
-                if 'Kinova' in lsusb_output:
+                lsusb_output = subprocess.check_output(["lsusb"], text=True)
+                if "Kinova" in lsusb_output:
                     serial_devices.extend([
-                        "--group-add", str(dialout_group_id),
-                        "--device", "/dev/bus/usb",
-                        "-v", "/dev/bus/usb:/dev/bus/usb"
+                        "--group-add",
+                        str(dialout_group_id),
+                        "--device",
+                        "/dev/bus/usb",
+                        "-v",
+                        "/dev/bus/usb:/dev/bus/usb",
                     ])
                     found_devices.append("Kinova Robotic Platform (USB)")
             except subprocess.CalledProcessError:
@@ -219,11 +222,11 @@ class DockerManager:
     def build_docker_command(self, config: DockerConfig) -> list[str]:
         """Build docker command with specified options"""
         cmd = ["docker", "run", "--rm", "--net=host", "--ipc=host", "--user", "$(id -u):$(id -g)"]
-        
+
         # Add both video and serial device detection
         cmd.extend(self._detect_video_devices())
         cmd.extend(self._detect_serial_devices())
-        
+
         if config.interactive:
             cmd.append("-it")
 
@@ -233,11 +236,16 @@ class DockerManager:
             user_xauth = f"/home/{user}/.Xauthority"
 
             cmd.extend([
-                "-e", "DISPLAY",
-                "-e", "QT_X11_NO_MITSHM=1",
-                "-e", f"XDG_RUNTIME_DIR=/tmp/runtime-{os.getuid()}",
-                "-v", f"{xauth_path}:{user_xauth}",
-                "-v", "/tmp/.X11-unix:/tmp/.X11-unix:rw",
+                "-e",
+                "DISPLAY",
+                "-e",
+                "QT_X11_NO_MITSHM=1",
+                "-e",
+                f"XDG_RUNTIME_DIR=/tmp/runtime-{os.getuid()}",
+                "-v",
+                f"{xauth_path}:{user_xauth}",
+                "-v",
+                "/tmp/.X11-unix:/tmp/.X11-unix:rw",
             ])
 
         cmd.extend(self._parse_devices(config.devices))
