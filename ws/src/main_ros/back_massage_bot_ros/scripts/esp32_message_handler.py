@@ -30,13 +30,18 @@ class ESP32MessageHandler:
         self.serial_conn = serial.Serial(serial_port, baud_rate, timeout=1)
 
         # Create a publisher for ESP32 log messages
-        qos = QoSProfile(reliability=QoSReliabilityPolicy.BEST_EFFORT, history=QoSHistoryPolicy.KEEP_LAST, depth=1)
+        qos = QoSProfile(
+            reliability=QoSReliabilityPolicy.BEST_EFFORT,
+            history=QoSHistoryPolicy.KEEP_LAST,
+            avoid_ros_namespace_conventions=True,
+            depth=1,
+        )
         self.publisher = self.node.create_publisher(String, output_topic, qos)
         self.node.get_logger().info(f"Subscribing to serial port: {serial_port}")
         self.node.get_logger().info(f"Publishing to topic: {output_topic}")
 
         # Timer to read serial messages (2 Hz = every 0.5s)
-        self.timer = self.node.create_timer(0.5, self.get_message)
+        self.timer = self.node.create_timer(0.1, self.get_message)
 
     def get_message(self):
         """Reads a line from the serial port and publishes relevant logs."""
