@@ -13,18 +13,18 @@ from launch_ros.actions import Node
 
 
 def generate_launch_description():
-    # Define the ESP32 communication node
-    esp32_node = Node(
+    # Define the Massage Gun communication node
+    massage_node = Node(
         package="back_massage_bot_ros",
-        executable="esp32_message_handler.py",
-        name="esp32_message_handler",
+        executable="massage_handler.py",
+        name="massage_handler",
         output="screen",
         parameters=[
             # {"serial_port": "/dev/ttyUSB0"},  # Update with the correct serial port if needed
             # {"baud_rate": 9600},
-            # {"output_topic": "esp32_logs"},
+            # {"input_topic": "esp32_logs"},
         ],
     )
 
-    # Return the launch description with the ESP32 node
-    return LaunchDescription([esp32_node])
+    # Return the launch description with the Massage Gun node
+    return LaunchDescription([massage_node])

@@ -44,6 +44,7 @@ install(PROGRAMS scripts/rgb_to_segmented_pose.py
         DESTINATION lib/${PROJECT_NAME})
 install(PROGRAMS scripts/esp32_message_handler.py
         DESTINATION lib/${PROJECT_NAME})
+install(PROGRAMS scripts/massage_handler.py DESTINATION lib/${PROJECT_NAME})
 
 # Install launch files
 install(DIRECTORY launch DESTINATION share/${PROJECT_NAME})
