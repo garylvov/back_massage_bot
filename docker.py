@@ -204,15 +204,7 @@ class DockerManager:
                     device_args.extend(["--group-add", str(dialout_group_id)] if dialout_group_id else [])
                     # The ESP32 is a ttyACM device, which we cannot mount directly
                     # Instead, we mount the entire /dev/:dev directory
-                    device_args.extend([
-                        "--device",
-                        "/dev/bus/usb",
-                        "-v",
-                        "/dev/bus/usb:/dev/bus/usb",
-                        "--privileged",
-                        "-v",
-                        "/dev:/dev",
-                    ])
+                    device_args.extend(["--device", "/dev/bus/usb:/dev/bus/usb", "-v", "/dev:/dev"])
             except subprocess.CalledProcessError:
                 print("Warning: Could not check for ESP32 device")
 
@@ -257,7 +249,7 @@ class DockerManager:
 
     def build_docker_command(self, config: DockerConfig) -> list[str]:
         """Build docker command with specified options"""
-        cmd = ["docker", "run", "--rm", "--net=host", "--ipc=host", "--user", "$(id -u):$(id -g)"]
+        cmd = ["docker", "run", "--rm", "--privileged", "--net=host", "--ipc=host", "--user", "$(id -u):$(id -g)"]
         cmd.extend(self._detect_devices())
         if config.interactive:
             cmd.append("-it")
