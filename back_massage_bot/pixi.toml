@@ -1,0 +1,32 @@
+[project]
+name = "back_massage_bot"
+version = "0.1.0"
+description = "Back Massage Bot project"
+channels = ["pytorch", "conda-forge", "nvidia"]
+platforms = ["linux-64"]
+
+[dependencies]
+python = "3.11.*"
+numpy = "*"
+pytorch = "*"
+torchvision = "*"
+matplotlib = "*"
+setuptools = ">=65.0"
+pip = "*"
+wget = "*"
+
+[pypi-dependencies]
+opencv-python = ">=4.8.0"
+open3d = ">=0.18.0"
+
+[tasks]
+test = "pytest"
+build = "pip install -e ."
+install-densepose = "pip install git+https://github.com/facebookresearch/detectron2.git@main#subdirectory=projects/DensePose"
+
+# DensePose model download tasks
+get-base-config = "wget -O /models/dense_pose/Base-DensePose-RCNN-FPN.yaml https://raw.githubusercontent.com/facebookresearch/detectron2/refs/heads/main/projects/DensePose/configs/Base-DensePose-RCNN-FPN.yaml"
+get-model-weights = "wget -O /models/dense_pose/densepose_rcnn_R_50_FPN_s1x.pkl https://dl.fbaipublicfiles.com/densepose/densepose_rcnn_R_50_FPN_s1x/165712039/model_final_162be9.pkl"
+get-human-config = "wget -O /models/dense_pose/Base-DensePose-RCNN-FPN-Human.yaml https://raw.githubusercontent.com/facebookresearch/detectron2/refs/heads/main/projects/DensePose/configs/cse/Base-DensePose-RCNN-FPN-Human.yaml"
+get-fpn-config = "wget -O /models/dense_pose/densepose_rcnn_R_50_FPN_s1x.yaml https://raw.githubusercontent.com/facebookresearch/detectron2/refs/heads/main/projects/DensePose/configs/densepose_rcnn_R_50_FPN_s1x.yaml"
+get-all-models = "pixi run get-base-config && pixi run get-model-weights && pixi run get-human-config && pixi run get-fpn-config"

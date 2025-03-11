@@ -1,0 +1,36 @@
+[project]
+name = "back_massage_bot_ros"
+version = "0.1.0"
+description = "Back Massage Bot ROS project"
+channels = ["robostack-staging", "robostack", "conda-forge"]
+platforms = ["linux-64"]
+
+[dependencies]
+python = "3.11.*"
+ros-humble-realsense2-camera = "==4.54.1"
+ros-humble-desktop = "*"
+colcon-common-extensions = "*"
+rosdep = "*"
+catkin_tools = "*"
+make = "*"
+ninja = "*"
+mamba = "*"
+conda = "*"
+tinyxml2 = "==10.0.0"
+pip = "*"
+# back_massage_bot = { path = "/back_massage_bot" }
+
+[tasks]
+rosdep-init = { cmd = "rosdep init || true" }
+rosdep-update = { cmd = "rosdep update" }
+setup-ros = { cmd = "rosdep install --from-paths /ws/src/main_ros --ignore-src -r -y --skip-keys=\"python3-typing-extensions ament_lint_common ament_cmake rclpy example_interfaces action_msgs\"" }
+setup-environment = "pixi shell"
+build = { cmd = "cd /ws && colcon build --symlink-install --cmake-args -DCMAKE_LIBRARY_ARCHITECTURE=x86_64-linux-gnu -DPython3_EXECUTABLE=$(which python3) || true" }
+build-selected = { cmd = "cd /ws && colcon build --symlink-install --cmake-args -DCMAKE_LIBRARY_ARCHITECTURE=x86_64-linux-gnu -DPython3_EXECUTABLE=$(which python3) --packages-select back_massage_bot_ros synchros2 kinova_driver kinova_bringup kinova_msgs kinova_description kinova_demo && cd /ws/src/main_ros || true" }
+setup-base-python = {cmd = "pip3 install --no-build-isolation --disable-pip-version-check -e /back_massage_bot && pip3 install git+https://github.com/facebookresearch/detectron2.git@main#subdirectory=projects/DensePose"}
+
+[target.unix.activation]
+scripts = [
+  # Source the ROS workspace
+  "/ws/install/setup.bash"
+]

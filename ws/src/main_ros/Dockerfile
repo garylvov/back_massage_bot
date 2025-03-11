@@ -1,5 +1,8 @@
 FROM bmb_ubuntu22_python310:latest
 
+# Define username variable
+ARG USERNAME=garylvov
+
 USER root
 SHELL ["/bin/bash", "-c"]
 RUN apt-get update && apt-get install -y \
@@ -14,48 +17,24 @@ RUN apt-get update && apt-get install -y \
     libglu1-mesa-dev \
     x11-xserver-utils
 
-SHELL ["conda", "run", "-n", "back_massage_bot", "/bin/bash", "-c"]
-ARG USERNAME
+# Create workspace directories
+RUN mkdir -p /ws/src && chown -R ${USERNAME}:${USERNAME} /ws
+
+# Switch to user
 USER ${USERNAME}
 WORKDIR /ws/src/main_ros
 
-# Install ROS with Conda
-RUN conda clean -a -y && conda install -y mamba -c conda-forge && \
-    conda config --env --add channels robostack-staging
+# Copy pixi configuration first
+COPY --chown=${USERNAME}:${USERNAME} ws/src/main_ros/pixi.toml /ws/src/main_ros/pixi.toml
 
-# Install ROS, and a pinned version of realsense2-camera.
-# Also, include some Kinova Dependencies so that mamba can solve the environment,
-# While still respecting the pinned realsense version. Annoying but seemingly necessary.
-# Also, don't change pytorch or cuda version.
-RUN mamba install -y ros-humble-desktop ros-humble-realsense2-camera==4.54.1 \
-    ros-humble-moveit \
-    ros-humble-control-msgs \
-    ros-humble-joint-state-publisher \
-    ros-humble-joint-state-publisher-gui \
-    ros-humble-xacro
+# Install pixi environment
+RUN cd /ws/src/main_ros && pixi install
 
-RUN mamba install -y compilers cmake \
-                pkg-config make ninja colcon-common-extensions \
-                catkin_tools rosdep
+# Copy the rest of the ROS code
+COPY --chown=${USERNAME}:${USERNAME} ws/src/main_ros /ws/src/main_ros/
 
-# Get deps for workspace
-RUN rosdep init && rosdep update
+# Create post-entry hooks
+COPY --chown=${USERNAME}:${USERNAME} back_massage_bot/post-entry-hooks.sh /back_massage_bot/post-entry-hooks.sh
+COPY --chown=${USERNAME}:${USERNAME} ws/src/main_ros/post-entry-hooks.sh /ws/src/main_ros/post-entry-hooks.sh
 
-# Copy ROS workspace
-COPY ws/src/main_ros /ws/src/main_ros/
-
-RUN rosdep install --from-paths /ws/src/main_ros --ignore-src -r -y --skip-keys="python3-typing-extensions"
-
-# Build with explicit Python paths for the specific user
-RUN cd /ws && \
-    colcon build --symlink-install \
-    --cmake-args \
-    -DCMAKE_LIBRARY_ARCHITECTURE=x86_64-linux-gnu \
-    -DPython3_EXECUTABLE=/home/${USERNAME}/miniforge3/envs/back_massage_bot/bin/python3.1 1\
-    colcon build --packages-select \
-    back_massage_bot_ros \
-    synchros2 \
-    kinova_driver \
-    kinova_bringup kinova_msgs \
-    kinova_description \
-    kinova_demo
+# Rest of the magic happens in the post-entry-hooks.sh script
