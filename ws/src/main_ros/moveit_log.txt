@@ -1,3 +1,0 @@
-[INFO] [launch]: All log files can be found below /home/garylvov/.ros/log/2025-03-11-04-21-48-056100-minerva-7105
-[INFO] [launch]: Default logging verbosity is set to INFO
-[INFO] [launch.user]: "moveit" package is not installed,                                                 please install it in order to run this demo.
