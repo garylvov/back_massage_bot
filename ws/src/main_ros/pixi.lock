@@ -438,6 +438,7 @@ environments:
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-ignition-cmake2-vendor-0.0.2-py311hd50fb47_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-ignition-math6-vendor-0.0.2-py311hb335429_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-image-geometry-3.2.1-py311h5fd4792_6.tar.bz2
+      - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-image-proc-3.0.3-py311h5fd4792_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-image-tools-0.20.3-py311h5fd4792_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-image-transport-3.1.8-py311hb335429_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-interactive-markers-2.3.2-py311hb335429_6.tar.bz2
@@ -619,6 +620,7 @@ environments:
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-tlsf-cpp-0.13.0-py311hb335429_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-topic-monitor-0.20.3-py311hb335429_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-tracetools-4.1.1-py311hb335429_6.tar.bz2
+      - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-tracetools-image-pipeline-3.0.3-py311hb335429_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-trajectory-msgs-4.2.3-py311hb335429_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-turtlesim-1.4.2-py311h27406db_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-uncrustify-vendor-2.0.2-py311hb335429_6.tar.bz2
@@ -6710,6 +6712,35 @@ packages:
   license: BSD-3-Clause
   size: 49907
   timestamp: 1707313981265
+- conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-image-proc-3.0.3-py311h5fd4792_6.tar.bz2
+  sha256: eddfc228464e2d5386d547faa99aadc7bad698562d479c6597211bb71777962e
+  md5: 0e5906e1ca473efd393597919025adad
+  depends:
+  - __glibc >=2.17,<3.0.a0
+  - libgcc-ng >=12
+  - libgcc-ng >=12
+  - libopencv >=4.9.0,<4.9.1.0a0
+  - libstdcxx-ng >=12
+  - numpy >=1.23.5,<2.0a0
+  - py-opencv >=4.9.0,<5.0a0
+  - python
+  - python_abi 3.11.* *_cp311
+  - ros-humble-cv-bridge
+  - ros-humble-image-geometry
+  - ros-humble-image-transport
+  - ros-humble-rclcpp
+  - ros-humble-rclcpp-components
+  - ros-humble-rcutils
+  - ros-humble-ros-workspace
+  - ros-humble-sensor-msgs
+  - ros-humble-tracetools-image-pipeline
+  - ros2-distro-mutex 0.5.*
+  - ros2-distro-mutex 0.5.* humble
+  - xorg-libx11 >=1.8.7,<2.0a0
+  - xorg-libxext >=1.3.4,<2.0a0
+  license: BSD-3-Clause
+  size: 137662
+  timestamp: 1707316548238
 - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-image-tools-0.20.3-py311h5fd4792_6.tar.bz2
   sha256: 3b9c2dece48186910537f288cf6dc114ddf903d1615b9d1f62309de70308559f
   md5: 9f8aa1f09fd94af0f908671eb3f19e67
@@ -10765,6 +10796,23 @@ packages:
   license: BSD-3-Clause
   size: 24383
   timestamp: 1707311050177
+- conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-tracetools-image-pipeline-3.0.3-py311hb335429_6.tar.bz2
+  sha256: 648dd73ecdc40bc37e1eaae636f737db0195ed75441e2e549d139022e8f0df22
+  md5: 83cc243244b2de653a2d6af379d215d1
+  depends:
+  - __glibc >=2.17,<3.0.a0
+  - libgcc-ng >=12
+  - libgcc-ng >=12
+  - libstdcxx-ng >=12
+  - numpy >=1.23.5,<2.0a0
+  - python
+  - python_abi 3.11.* *_cp311
+  - ros-humble-ros-workspace
+  - ros2-distro-mutex 0.5.*
+  - ros2-distro-mutex 0.5.* humble
+  license: BSD-3-Clause
+  size: 20495
+  timestamp: 1707311063624
 - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-trajectory-msgs-4.2.3-py311hb335429_6.tar.bz2
   sha256: ce24bead2aebac65aae7f03f32247d28f09bccdca3ead6ba6c0162ffebb23437
   md5: 8ae77a47ef9d540322e983f678ab4592

@@ -72,7 +72,9 @@ def get_pose_mask(img, predictor: DefaultPredictor, visualizer: CompoundVisualiz
         numpy.ndarray: Processed image with segmentation mask
     """
     with torch.no_grad():
-        outputs = predictor(img)["instances"]
+        outputs = predictor(img)
+        # print(outputs)
+        outputs = outputs["instances"]
 
     # Convert to grayscale and prepare for visualization
     image = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -82,7 +84,7 @@ def get_pose_mask(img, predictor: DefaultPredictor, visualizer: CompoundVisualiz
     extracted_data = extractor(outputs)
 
     try:
-        image_vis = visualizer.visualize(image, extracted_data)
+        image_vis = visualizer.visualize(np.zeros_like(image), extracted_data)
         return image_vis
     except Exception as e:
         raise ValueError(f"Extracted data type: {e} | {type(extracted_data)} | Data length: {len(extracted_data)}")

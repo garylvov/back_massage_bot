@@ -2,9 +2,18 @@
 # All rights reserved.
 #
 # SPDX-License-Identifier: MIT
-from . import rgb_to_segmented_pose_model
+from . import rgb_to_segmented_pose_model, utils
 
 # Make the module directly accessible
 from .rgb_to_segmented_pose_model import get_pose_mask, initialize_model
+from .utils import AreaColorsMapping, get_close_color_mask
 
-__all__ = ["rgb_to_segmented_pose_model", "densepose_demo_tool", "initialize_model", "get_pose_mask"]
+__all__ = [
+    "rgb_to_segmented_pose_model",
+    "densepose_demo_tool",
+    "initialize_model",
+    "get_pose_mask",
+    "utils",
+    "AreaColorsMapping",
+    "get_color_mask_bgr",
+]

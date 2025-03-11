@@ -18,16 +18,19 @@ mamba = "*"
 conda = "*"
 tinyxml2 = "==10.0.0"
 pip = "*"
+ros-humble-image-proc = ">=3.0.3,<4"
 # back_massage_bot = { path = "/back_massage_bot" }
 
 [tasks]
+#ros2 run image_proc rectify_node --ros-args -r image:=/color/image_raw -r camera_info:=/color/camera_info -r out:=/color/image_rect
 rosdep-init = { cmd = "rosdep init || true" }
 rosdep-update = { cmd = "rosdep update" }
 setup-ros = { cmd = "rosdep install --from-paths /ws/src/main_ros --ignore-src -r -y --skip-keys=\"python3-typing-extensions ament_lint_common ament_cmake rclpy example_interfaces action_msgs\"" }
 setup-environment = "pixi shell"
 build = { cmd = "cd /ws && colcon build --symlink-install --cmake-args -DCMAKE_LIBRARY_ARCHITECTURE=x86_64-linux-gnu -DPython3_EXECUTABLE=$(which python3) || true" }
 build-selected = { cmd = "cd /ws && colcon build --symlink-install --cmake-args -DCMAKE_LIBRARY_ARCHITECTURE=x86_64-linux-gnu -DPython3_EXECUTABLE=$(which python3) --packages-select back_massage_bot_ros synchros2 kinova_driver kinova_bringup kinova_msgs kinova_description kinova_demo && cd /ws/src/main_ros || true" }
-setup-base-python = {cmd = "pip3 install --no-build-isolation --disable-pip-version-check -e /back_massage_bot && pip3 install git+https://github.com/facebookresearch/detectron2.git@main#subdirectory=projects/DensePose"}
+setup-base-python = {cmd = "pip3 install --no-build-isolation --disable-pip-version-check -e /back_massage_bot && pip3 install git+https://github.com/facebookresearch/detectron2.git@9604f5995cc628619f0e4fd913453b4d7d61db3f#subdirectory=projects/DensePose"}
+proc = {cmd = "python3 /ws/src/main_ros/back_massage_bot_ros/scripts/rgb_to_segmented_pose.py -i /image_rect -o /color/masks"}
 
 [target.unix.activation]
 scripts = [

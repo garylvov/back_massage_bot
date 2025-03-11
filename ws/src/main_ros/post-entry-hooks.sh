@@ -5,6 +5,9 @@ pixi install
 pixi run rosdep-init
 pixi run rosdep-update
 pixi run setup-ros
+# Install the back_massage_bot package
+cd /back_massage_bot && pip install -e .
+cd /ws/src/main_ros
 pixi run build-selected
 pixi run setup-base-python
 

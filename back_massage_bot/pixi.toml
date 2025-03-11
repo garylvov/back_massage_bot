@@ -22,7 +22,7 @@ open3d = ">=0.18.0"
 [tasks]
 test = "pytest"
 build = "pip install -e ."
-install-densepose = "pip install git+https://github.com/facebookresearch/detectron2.git@main#subdirectory=projects/DensePose"
+install-densepose = "pip install git+https://github.com/facebookresearch/detectron2.git@9604f5995cc628619f0e4fd913453b4d7d61db3f#subdirectory=projects/DensePose"
 
 # DensePose model download tasks
 get-base-config = "wget -O /models/dense_pose/Base-DensePose-RCNN-FPN.yaml https://raw.githubusercontent.com/facebookresearch/detectron2/refs/heads/main/projects/DensePose/configs/Base-DensePose-RCNN-FPN.yaml"
