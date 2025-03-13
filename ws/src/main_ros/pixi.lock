@@ -23,6 +23,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/blosc-1.21.5-hc2324a3_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/boltons-24.0.0-pyhd8ed1ab_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/boost-1.82.0-h781c19f_6.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/boost-cpp-1.82.0-h44aadfe_6.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/brotli-1.1.0-hb9d3cd8_2.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/brotli-bin-1.1.0-hb9d3cd8_2.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/brotli-python-1.1.0-py311hfdbb021_2.conda
@@ -79,9 +80,11 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/docutils-0.21.2-pyhd8ed1ab_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/double-conversion-3.3.1-h5888daf_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/eigen-3.4.0-h00ab1b0_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/elfutils-0.189-h6f2b95c_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/empy-3.3.4-pyh9f0ad1d_1.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/noarch/exceptiongroup-1.2.2-pyhd8ed1ab_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/expat-2.5.0-hcb278e6_1.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/fcl-0.7.0-hadc09e8_4.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/ffmpeg-6.1.1-gpl_he44c6f3_112.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/flake8-7.1.2-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/flann-1.9.2-h776a335_3.conda
@@ -133,6 +136,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/importlib_resources-6.5.2-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/iniconfig-2.0.0-pyhd8ed1ab_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/jasper-4.2.4-h536e39c_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/noarch/jinja2-3.1.6-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/jsoncpp-1.9.5-h4bd325d_1.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/noarch/jsonpatch-1.33-pyhd8ed1ab_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/jsonpointer-3.0.0-py311h38be061_1.conda
@@ -163,6 +167,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libbrotlienc-1.1.0-hb9d3cd8_2.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libcap-2.71-h39aace5_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libcblas-3.9.0-31_he106b2a_openblas.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/libccd-double-2.1-h59595ed_3.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libclang-15.0.7-default_h127d8a8_5.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libclang13-15.0.7-default_h5d6823c_5.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libcups-2.3.3-h4637d8d_4.conda
@@ -201,9 +206,11 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/liblzma-devel-5.6.4-hb9d3cd8_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libmamba-1.5.8-had39da4_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libmambapy-1.5.8-py311hf2555c7_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/libmicrohttpd-0.9.77-h97afed2_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libnetcdf-4.9.2-nompi_h135f659_114.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libnghttp2-1.58.0-h47da74e_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libnsl-2.0.1-hd590300_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/libode-0.16.2-hb755f60_14.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libogg-1.3.5-h4ab18f5_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libopenblas-0.3.29-pthreads_h94d23a6_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libopencv-4.9.0-qt5_py311ha9522c6_515.conda
@@ -260,6 +267,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/lzo-2.10-hd590300_1001.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/make-4.4.1-hb9d3cd8_2.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/mamba-1.5.8-py311h3072747_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/markupsafe-3.0.2-py311h2dc5d0c_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/matplotlib-base-3.10.1-py311h2b939e6_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/mccabe-0.7.0-pyhd8ed1ab_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/menuinst-2.2.0-py311h38be061_0.conda
@@ -278,6 +286,8 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/nss-3.100-hca3bf56_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/numpy-1.26.4-py311h64a7726_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/ocl-icd-2.3.2-hb9d3cd8_2.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/octomap-1.9.8-h924138e_0.tar.bz2
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/ompl-1.5.2-py311h2a55564_7.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/opencl-headers-2024.10.24-h5888daf_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/openexr-3.2.2-haf962dd_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/openh264-2.4.1-h59595ed_0.conda
@@ -387,12 +397,14 @@ environments:
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-ament-uncrustify-0.12.10-py311hb335429_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-ament-xmllint-0.12.10-py311hb335429_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-angles-1.15.0-py311hb335429_6.tar.bz2
+      - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-backward-ros-1.0.2-py311h4ff203a_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-builtin-interfaces-1.2.1-py311hb335429_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-class-loader-2.2.0-py311hb303436_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-common-interfaces-4.2.3-py311hb335429_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-composition-0.20.3-py311hb335429_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-composition-interfaces-1.2.1-py311hb335429_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-console-bridge-vendor-1.4.1-py311hb303436_6.tar.bz2
+      - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-control-msgs-4.4.0-py311hb335429_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-cv-bridge-3.2.1-py311h5fd4792_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-cyclonedds-0.10.4-py311h8eb0f6d_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-demo-nodes-cpp-0.20.3-py311hb335429_6.tar.bz2
@@ -406,6 +418,7 @@ environments:
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-dummy-map-server-0.20.3-py311hb335429_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-dummy-robot-bringup-0.20.3-py311hb335429_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-dummy-sensors-0.20.3-py311hb335429_6.tar.bz2
+      - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-eigen-stl-containers-1.0.0-py311hb335429_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-eigen3-cmake-module-0.1.1-py311hb335429_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-example-interfaces-0.9.3-py311hb335429_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-examples-rclcpp-minimal-action-client-0.15.1-py311hb335429_6.tar.bz2
@@ -428,6 +441,9 @@ environments:
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-fastrtps-2.6.7-py311h70423f0_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-fastrtps-cmake-module-2.2.2-py311hb335429_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-foonathan-memory-vendor-1.2.0-py311hb335429_6.tar.bz2
+      - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-generate-parameter-library-0.3.7-py311h5888c24_6.tar.bz2
+      - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-generate-parameter-library-py-0.3.7-py311hb335429_6.tar.bz2
+      - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-geometric-shapes-2.1.3-py311h391de45_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-geometry-msgs-4.2.3-py311hb335429_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-geometry2-0.25.5-py311hb335429_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-gmock-vendor-1.10.9004-py311hb335429_6.tar.bz2
@@ -448,6 +464,7 @@ environments:
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-keyboard-handler-0.0.5-py311hb335429_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-laser-geometry-2.4.0-py311hb335429_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-launch-1.0.4-py311hb335429_6.tar.bz2
+      - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-launch-param-builder-0.1.1-py311hb335429_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-launch-ros-0.19.7-py311hb335429_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-launch-testing-1.0.4-py311hb335429_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-launch-testing-ament-cmake-1.0.4-py311hb335429_6.tar.bz2
@@ -463,13 +480,45 @@ environments:
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-logging-demo-0.20.3-py311hb335429_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-map-msgs-2.1.0-py311hb335429_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-message-filters-4.3.3-py311hb335429_6.tar.bz2
+      - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-moveit-2.5.5-py311hb335429_6.tar.bz2
+      - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-moveit-common-2.5.5-py311hb335429_6.tar.bz2
+      - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-moveit-configs-utils-2.5.5-py311hb335429_6.tar.bz2
+      - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-moveit-core-2.5.5-py311h391de45_6.tar.bz2
+      - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-moveit-kinematics-2.5.5-py311hb335429_6.tar.bz2
+      - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-moveit-msgs-2.2.1-py311hb335429_6.tar.bz2
+      - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-moveit-planners-2.5.5-py311hb335429_6.tar.bz2
+      - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-moveit-planners-ompl-2.5.5-py311hb335429_6.tar.bz2
+      - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-moveit-plugins-2.5.5-py311hb335429_6.tar.bz2
+      - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-moveit-ros-2.5.5-py311hb335429_6.tar.bz2
+      - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-moveit-ros-benchmarks-2.5.5-py311h141ba8b_6.tar.bz2
+      - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-moveit-ros-move-group-2.5.5-py311hb335429_6.tar.bz2
+      - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-moveit-ros-occupancy-map-monitor-2.5.5-py311hb335429_6.tar.bz2
+      - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-moveit-ros-perception-2.5.5-py311h1b74b74_6.tar.bz2
+      - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-moveit-ros-planning-2.5.5-py311hb335429_6.tar.bz2
+      - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-moveit-ros-planning-interface-2.5.5-py311hb335429_6.tar.bz2
+      - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-moveit-ros-robot-interaction-2.5.5-py311hb335429_6.tar.bz2
+      - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-moveit-ros-visualization-2.5.5-py311h27406db_6.tar.bz2
+      - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-moveit-ros-warehouse-2.5.5-py311hb335429_6.tar.bz2
+      - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-moveit-runtime-2.5.5-py311hb335429_6.tar.bz2
+      - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-moveit-setup-app-plugins-2.5.5-py311hb335429_6.tar.bz2
+      - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-moveit-setup-assistant-2.5.5-py311h27406db_6.tar.bz2
+      - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-moveit-setup-controllers-2.5.5-py311hb335429_6.tar.bz2
+      - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-moveit-setup-core-plugins-2.5.5-py311hb335429_6.tar.bz2
+      - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-moveit-setup-framework-2.5.5-py311hb335429_6.tar.bz2
+      - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-moveit-setup-srdf-plugins-2.5.5-py311hb335429_6.tar.bz2
+      - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-moveit-simple-controller-manager-2.5.5-py311hb335429_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-nav-msgs-4.2.3-py311hb335429_6.tar.bz2
+      - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-object-recognition-msgs-2.0.0-py311hb335429_6.tar.bz2
+      - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-octomap-msgs-2.0.0-py311hb335429_6.tar.bz2
+      - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-ompl-1.6.0-py311h284c4b5_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-orocos-kdl-vendor-0.2.5-py311hb335429_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-osrf-pycommon-2.0.2-py311hb335429_6.tar.bz2
+      - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-parameter-traits-0.3.7-py311h5888c24_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-pcl-conversions-2.4.0-py311hf85fee4_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-pcl-msgs-1.0.0-py311hb335429_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-pendulum-control-0.20.3-py311hb335429_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-pendulum-msgs-0.20.3-py311hb335429_6.tar.bz2
+      - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-pilz-industrial-motion-planner-2.5.5-py311h9ee2941_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-pluginlib-5.1.0-py311hb335429_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-pybind11-vendor-2.4.2-py311hb335429_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-python-cmake-module-0.10.0-py311hb335429_6.tar.bz2
@@ -480,6 +529,7 @@ environments:
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-qt-gui-py-common-2.2.3-py311hb335429_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-quality-of-service-demo-cpp-0.20.3-py311hb335429_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-quality-of-service-demo-py-0.20.3-py311hb335429_6.tar.bz2
+      - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-random-numbers-2.0.1-py311hb335429_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-rcl-5.3.7-py311hb335429_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-rcl-action-5.3.7-py311hb335429_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-rcl-interfaces-1.2.1-py311hb335429_6.tar.bz2
@@ -578,8 +628,10 @@ environments:
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-rqt-shell-1.0.2-py311hb335429_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-rqt-srv-1.0.3-py311hb335429_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-rqt-topic-1.5.0-py311hb335429_6.tar.bz2
+      - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-rsl-1.1.0-py311hba9e1f2_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-rti-connext-dds-cmake-module-0.11.2-py311hb335429_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-rttest-0.13.0-py311hb335429_6.tar.bz2
+      - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-ruckig-0.9.2-py311hb335429_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-rviz-assimp-vendor-11.2.10-py311h391de45_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-rviz-common-11.2.10-py311h27406db_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-rviz-default-plugins-11.2.10-py311h27406db_6.tar.bz2
@@ -593,6 +645,7 @@ environments:
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-shared-queues-vendor-0.15.9-py311hb335429_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-spdlog-vendor-1.3.1-py311h9883907_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-sqlite3-vendor-0.15.9-py311he5a647e_6.tar.bz2
+      - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-srdfdom-2.0.4-py311hb303436_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-sros2-0.10.4-py311hb335429_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-sros2-cmake-0.10.4-py311hb335429_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-statistics-msgs-1.2.1-py311hb335429_6.tar.bz2
@@ -600,6 +653,7 @@ environments:
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-std-srvs-4.2.3-py311hb335429_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-stereo-msgs-4.2.3-py311hb335429_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-tango-icons-vendor-0.1.1-py311hb335429_6.tar.bz2
+      - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-tcb-span-1.0.2-py311hb335429_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-teleop-twist-joy-2.4.5-py311hb335429_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-teleop-twist-keyboard-2.3.2-py311hb335429_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-tf2-0.25.5-py311hb303436_6.tar.bz2
@@ -616,6 +670,7 @@ environments:
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-tf2-tools-0.25.5-py311hb335429_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-tinyxml-vendor-0.8.3-py311hb335429_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-tinyxml2-vendor-0.7.6-py311hfc76a15_6.tar.bz2
+      - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-tl-expected-1.0.2-py311hb335429_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-tlsf-0.7.0-py311hb335429_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-tlsf-cpp-0.13.0-py311hb335429_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-topic-monitor-0.20.3-py311hb335429_6.tar.bz2
@@ -629,7 +684,10 @@ environments:
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-urdf-parser-plugin-2.6.0-py311hb335429_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-urdfdom-3.0.2-py311hb303436_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-urdfdom-headers-1.0.6-py311hb335429_6.tar.bz2
+      - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-urdfdom-py-1.2.1-py311hb335429_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-visualization-msgs-4.2.3-py311hb335429_6.tar.bz2
+      - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-warehouse-ros-2.0.4-py311h8eb0f6d_6.tar.bz2
+      - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-xacro-2.0.8-py311hb335429_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-yaml-cpp-vendor-8.0.2-py311hb335429_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-zstd-vendor-0.15.9-py311hefdfea7_6.tar.bz2
       - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros2-distro-mutex-0.5.0-humble.tar.bz2
@@ -656,6 +714,9 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/tomli-2.2.1-pyhd8ed1ab_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/tqdm-4.67.1-pyhd8ed1ab_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/truststore-0.10.1-pyh29332c3_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/noarch/typeguard-4.4.2-pyhd8ed1ab_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/noarch/typing-extensions-4.12.2-hd8ed1ab_1.conda
+      - conda: https://conda.anaconda.org/conda-forge/noarch/typing_extensions-4.12.2-pyha770c72_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/tzdata-2025a-h78e105d_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/uncrustify-0.74.0-h27087fc_0.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/linux-64/unicodedata2-16.0.0-py311h9ecbd09_0.conda
@@ -879,6 +940,19 @@ packages:
   license: BSL-1.0
   size: 13629
   timestamp: 1696732791213
+- conda: https://conda.anaconda.org/conda-forge/linux-64/boost-cpp-1.82.0-h44aadfe_6.conda
+  sha256: 4e5e34090e5ecaf95283b253c6a0ab781e81ad952275a953d2aeef5b262f5fb1
+  md5: f96e9a56e7f5f6be6f1f0f01d364eb82
+  depends:
+  - bzip2 >=1.0.8,<2.0a0
+  - icu >=73.2,<74.0a0
+  - libboost-devel 1.82.0 h00ab1b0_6
+  - libzlib >=1.2.13,<2.0.0a0
+  - xz >=5.2.6,<6.0a0
+  - zstd >=1.5.5,<1.6.0a0
+  license: BSL-1.0
+  size: 13575
+  timestamp: 1696732155767
 - conda: https://conda.anaconda.org/conda-forge/linux-64/brotli-1.1.0-hb9d3cd8_2.conda
   sha256: fcb0b5b28ba7492093e54f3184435144e074dfceab27ac8e6a9457e736565b0b
   md5: 98514fe74548d768907ce7a13f680e8f
@@ -1560,6 +1634,24 @@ packages:
   license_family: MOZILLA
   size: 1088433
   timestamp: 1690272126173
+- conda: https://conda.anaconda.org/conda-forge/linux-64/elfutils-0.189-h6f2b95c_1.conda
+  sha256: 00fa6acbd1c029e548bb2715c7f4c0ab75c9d1f06f3c588303a563eb090edc9e
+  md5: 8ed5337fe3c03ba519743d7fccc1518a
+  depends:
+  - bzip2 >=1.0.8,<2.0a0
+  - libarchive >=3.7.2,<3.8.0a0
+  - libcurl >=8.3.0,<9.0a0
+  - libgcc-ng >=12
+  - libmicrohttpd >=0.9.77,<0.10.0a0
+  - libsqlite >=3.43.0,<4.0a0
+  - libstdcxx-ng >=12
+  - libzlib >=1.2.13,<2.0.0a0
+  - xz >=5.2.6,<6.0a0
+  - zstd >=1.5.5,<1.6.0a0
+  license: LGPL-3.0-only
+  license_family: LGPL
+  size: 1142695
+  timestamp: 1694680616868
 - conda: https://conda.anaconda.org/conda-forge/noarch/empy-3.3.4-pyh9f0ad1d_1.tar.bz2
   sha256: 75e04755df8d8db7a7711dddaf68963c11258b755c9c24565bfefa493ee383e3
   md5: e4be10fd1a907b223da5be93f06709d2
@@ -1587,6 +1679,20 @@ packages:
   license_family: MIT
   size: 136778
   timestamp: 1680190541750
+- conda: https://conda.anaconda.org/conda-forge/linux-64/fcl-0.7.0-hadc09e8_4.conda
+  sha256: 0707b5aa983146941761ef613b7fba64927a260a15ca39a44b2521896c9788a2
+  md5: 3d3bab773a4d0be32d92e71065977c50
+  depends:
+  - flann >=1.9.2,<1.9.3.0a0
+  - libccd-double >=2.1,<2.2.0a0
+  - libgcc-ng >=12
+  - libode >=0.16.2,<0.16.3.0a0
+  - libstdcxx-ng >=12
+  - octomap >=1.9.8,<1.10.0a0
+  license: BSD-3-Clause
+  license_family: BSD
+  size: 1546064
+  timestamp: 1697961209613
 - conda: https://conda.anaconda.org/conda-forge/linux-64/ffmpeg-6.1.1-gpl_he44c6f3_112.conda
   sha256: a4cfb76c9a1e58f755869e0cc33707a5e3473f0c8d0d49ddaa10e84e87909486
   md5: 51a49318bcd4e848e867a5b9ea5b6545
@@ -2228,6 +2334,16 @@ packages:
   license: JasPer-2.0
   size: 675951
   timestamp: 1714298705230
+- conda: https://conda.anaconda.org/conda-forge/noarch/jinja2-3.1.6-pyhd8ed1ab_0.conda
+  sha256: f1ac18b11637ddadc05642e8185a851c7fab5998c6f5470d716812fae943b2af
+  md5: 446bd6c8cb26050d528881df495ce646
+  depends:
+  - markupsafe >=2.0
+  - python >=3.9
+  license: BSD-3-Clause
+  license_family: BSD
+  size: 112714
+  timestamp: 1741263433881
 - conda: https://conda.anaconda.org/conda-forge/linux-64/jsoncpp-1.9.5-h4bd325d_1.tar.bz2
   sha256: 7a5a6cdfc17849bb8000cc31b91c22f1fe0e087dfc3fd59ecc4d3b64cf0ad772
   md5: ae7f50dd1e78c7e78b5d2cf7062e559d
@@ -2577,6 +2693,18 @@ packages:
   license_family: BSD
   size: 16796
   timestamp: 1740087984429
+- conda: https://conda.anaconda.org/conda-forge/linux-64/libccd-double-2.1-h59595ed_3.conda
+  sha256: 4695ce68eda595b4f53146bea1096a9f2e0d33290618ba83a246b5ed8871ebc9
+  md5: 6a3d962d34385e0a511b859d679f6ea2
+  depends:
+  - libgcc-ng >=12
+  - libstdcxx-ng >=12
+  constrains:
+  - libccd <1
+  license: BSD-3-Clause
+  license_family: BSD
+  size: 36171
+  timestamp: 1687341825064
 - conda: https://conda.anaconda.org/conda-forge/linux-64/libclang-15.0.7-default_h127d8a8_5.conda
   sha256: 606b79c8a4a926334191d79f4a1447aac1d82c43344e3a603cbba31ace859b8f
   md5: 09b94dd3a7e304df5b83176239347920
@@ -3032,6 +3160,16 @@ packages:
   license_family: BSD
   size: 311255
   timestamp: 1711395017728
+- conda: https://conda.anaconda.org/conda-forge/linux-64/libmicrohttpd-0.9.77-h97afed2_0.conda
+  sha256: 8530794bb59332eefea6af1e7e3e7289a5fe40d2c4d265357af72b67ff6ee38e
+  md5: 20e3667699ceaae97d6ba110a098e8f8
+  depends:
+  - gnutls >=3.7.8,<3.8.0a0
+  - libgcc-ng >=12
+  license: LGPL-2.0-or-later
+  license_family: GPL
+  size: 217937
+  timestamp: 1686410114613
 - conda: https://conda.anaconda.org/conda-forge/linux-64/libnetcdf-4.9.2-nompi_h135f659_114.conda
   sha256: 055572a4c8a1c3f9ac60071ee678f5ea49cfd7ac60a636d817988a6f9d6de6ae
   md5: a908e463c710bd6b10a9eaa89fdf003c
@@ -3078,6 +3216,18 @@ packages:
   license_family: GPL
   size: 33408
   timestamp: 1697359010159
+- conda: https://conda.anaconda.org/conda-forge/linux-64/libode-0.16.2-hb755f60_14.conda
+  sha256: 2ba3e4ec655e82873aec68194038eef2cb38b52c75c95639134ecb582be8e4a1
+  md5: 66674dec3de7ed172b6492c393b3a944
+  depends:
+  - libccd-double >=2.1,<2.2.0a0
+  - libgcc-ng >=12
+  - libstdcxx-ng >=12
+  - pthread-stubs
+  - python_abi 3.11.* *_cp311
+  license: LGPL-2.1-or-later OR BSD-4-Clause
+  size: 503634
+  timestamp: 1710841412522
 - conda: https://conda.anaconda.org/conda-forge/linux-64/libogg-1.3.5-h4ab18f5_0.conda
   sha256: 5eda3fe92b99b25dd4737226a9485078ab405672d9f621be75edcb68f1e9026d
   md5: 601bfb4b3c6f0b844443bb81a56651e0
@@ -3746,6 +3896,20 @@ packages:
   license_family: BSD
   size: 66662
   timestamp: 1711395441147
+- conda: https://conda.anaconda.org/conda-forge/linux-64/markupsafe-3.0.2-py311h2dc5d0c_1.conda
+  sha256: 0291d90706ac6d3eea73e66cd290ef6d805da3fad388d1d476b8536ec92ca9a8
+  md5: 6565a715337ae279e351d0abd8ffe88a
+  depends:
+  - __glibc >=2.17,<3.0.a0
+  - libgcc >=13
+  - python >=3.11,<3.12.0a0
+  - python_abi 3.11.* *_cp311
+  constrains:
+  - jinja2 >=3.0.0
+  license: BSD-3-Clause
+  license_family: BSD
+  size: 25354
+  timestamp: 1733219879408
 - conda: https://conda.anaconda.org/conda-forge/linux-64/matplotlib-base-3.10.1-py311h2b939e6_0.conda
   sha256: e64e7b9e7fe80051b0a99f79a93fefb2266fd107182853567e7fdec6abf05d74
   md5: eed17bae389043337f33b95a0fd8c172
@@ -3960,6 +4124,32 @@ packages:
   license_family: BSD
   size: 94934
   timestamp: 1732915114536
+- conda: https://conda.anaconda.org/conda-forge/linux-64/octomap-1.9.8-h924138e_0.tar.bz2
+  sha256: a4258176de30ccfbf3b13b97391a9c0b9f5a4d513d964d139d7f70dd45676543
+  md5: 06e95e004ea7181cd1bab08276b09471
+  depends:
+  - libgcc-ng >=12
+  - libstdcxx-ng >=12
+  license: BSD-3-Clause
+  license_family: BSD
+  size: 264375
+  timestamp: 1668155567283
+- conda: https://conda.anaconda.org/conda-forge/linux-64/ompl-1.5.2-py311h2a55564_7.conda
+  sha256: 216099f6cc2115fb492a81788e45277f402a3da82e67ae2b441d16d47b29dee1
+  md5: 993045d78d34d865d3e3d509e4a0dc01
+  depends:
+  - flann >=1.9.2,<1.9.3.0a0
+  - libboost >=1.82.0,<1.83.0a0
+  - libgcc-ng >=12
+  - libode >=0.16.2,<0.16.3.0a0
+  - libstdcxx-ng >=12
+  - numpy >=1.23.5,<2.0a0
+  - python >=3.11,<3.12.0a0
+  - python_abi 3.11.* *_cp311
+  license: BSD-3-Clause
+  license_family: BSD
+  size: 2223881
+  timestamp: 1706207678007
 - conda: https://conda.anaconda.org/conda-forge/linux-64/opencl-headers-2024.10.24-h5888daf_0.conda
   sha256: 7e1d3ad55d4ad3ddf826e205d4603b9ed40c5e655a9dfd66b56f459d7ba14db3
   md5: 3ba02cce423fdac1a8582bd6bb189359
@@ -5649,6 +5839,24 @@ packages:
   license: BSD-3-Clause
   size: 23309
   timestamp: 1707309109051
+- conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-backward-ros-1.0.2-py311h4ff203a_6.tar.bz2
+  sha256: fa9eece19da1f3950ad3cd0458786f5ba31f4ed64df56904af4cfb013c18ff1b
+  md5: 991e2a380674fa2855e92e6d93d2c4ab
+  depends:
+  - __glibc >=2.17,<3.0.a0
+  - elfutils >=0.189,<0.190.0a0
+  - libgcc-ng >=12
+  - libgcc-ng >=12
+  - libstdcxx-ng >=12
+  - numpy >=1.23.5,<2.0a0
+  - python
+  - python_abi 3.11.* *_cp311
+  - ros-humble-ros-workspace
+  - ros2-distro-mutex 0.5.*
+  - ros2-distro-mutex 0.5.* humble
+  license: BSD-3-Clause
+  size: 351057
+  timestamp: 1707309112903
 - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-builtin-interfaces-1.2.1-py311hb335429_6.tar.bz2
   sha256: 986eae68eab641cfba903ccc019ea18998c4342e9fb2e4e6bea4329f5e882c1e
   md5: bb99cc968586cc86b200ddcb8dd31e98
@@ -5776,6 +5984,30 @@ packages:
   license: BSD-3-Clause
   size: 11024
   timestamp: 1707311071523
+- conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-control-msgs-4.4.0-py311hb335429_6.tar.bz2
+  sha256: b5d422cfad155e9a9f2b043ce0505444b5fd4a8436f4380bd12595dcdc638858
+  md5: 1f7d5b63268f50a98a10021141b3cb9e
+  depends:
+  - __glibc >=2.17,<3.0.a0
+  - libgcc-ng >=12
+  - libgcc-ng >=12
+  - libstdcxx-ng >=12
+  - numpy >=1.23.5,<2.0a0
+  - python
+  - python_abi 3.11.* *_cp311
+  - ros-humble-action-msgs
+  - ros-humble-builtin-interfaces
+  - ros-humble-geometry-msgs
+  - ros-humble-ros-workspace
+  - ros-humble-rosidl-default-runtime
+  - ros-humble-sensor-msgs
+  - ros-humble-std-msgs
+  - ros-humble-trajectory-msgs
+  - ros2-distro-mutex 0.5.*
+  - ros2-distro-mutex 0.5.* humble
+  license: BSD-3-Clause
+  size: 605767
+  timestamp: 1707314005003
 - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-cv-bridge-3.2.1-py311h5fd4792_6.tar.bz2
   sha256: 39dfb851df4704c356d8a15897c7999514aa3d25b58904c592ddabda1f52dbd7
   md5: 7830afabcd240c150c567235c0f5504e
@@ -6098,6 +6330,24 @@ packages:
   license: BSD-3-Clause
   size: 97163
   timestamp: 1707315224098
+- conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-eigen-stl-containers-1.0.0-py311hb335429_6.tar.bz2
+  sha256: ceaf29159a7073e928a3f4224b5f7560764c58e76a333e50fd205696db12c797
+  md5: 9973284c2a5e6fe4e08e1634141f8feb
+  depends:
+  - __glibc >=2.17,<3.0.a0
+  - eigen
+  - libgcc-ng >=12
+  - libgcc-ng >=12
+  - libstdcxx-ng >=12
+  - numpy >=1.23.5,<2.0a0
+  - python
+  - python_abi 3.11.* *_cp311
+  - ros-humble-ros-workspace
+  - ros2-distro-mutex 0.5.*
+  - ros2-distro-mutex 0.5.* humble
+  license: BSD-3-Clause
+  size: 12753
+  timestamp: 1707309046951
 - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-eigen3-cmake-module-0.1.1-py311hb335429_6.tar.bz2
   sha256: 42f985662ea1ec82840bb391ab716cdf93c2626806f81bc5e124f586363cfd1f
   md5: 5efa85793df05d48add6b93504bd1a15
@@ -6517,6 +6767,84 @@ packages:
   license: BSD-3-Clause
   size: 9011
   timestamp: 1707309962109
+- conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-generate-parameter-library-0.3.7-py311h5888c24_6.tar.bz2
+  sha256: 921116984990bc8714df54a165cc66f9e461225fcd66cde54235c365d4c20906
+  md5: 6a24e17085eacc1b71593affa1165c2d
+  depends:
+  - __glibc >=2.17,<3.0.a0
+  - fmt >=10.2.1,<11.0a0
+  - libgcc-ng >=12
+  - libgcc-ng >=12
+  - libstdcxx-ng >=12
+  - numpy >=1.23.5,<2.0a0
+  - python
+  - python_abi 3.11.* *_cp311
+  - ros-humble-generate-parameter-library-py
+  - ros-humble-parameter-traits
+  - ros-humble-rclcpp
+  - ros-humble-rclcpp-lifecycle
+  - ros-humble-rclpy
+  - ros-humble-ros-workspace
+  - ros-humble-rsl
+  - ros-humble-tcb-span
+  - ros-humble-tl-expected
+  - ros2-distro-mutex 0.5.*
+  - ros2-distro-mutex 0.5.* humble
+  license: BSD-3-Clause
+  size: 15237
+  timestamp: 1707316155734
+- conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-generate-parameter-library-py-0.3.7-py311hb335429_6.tar.bz2
+  sha256: 61ae08ac6c2bacb84a59541fe74a8839800ef1f5f83c7634608abcd7f175c186
+  md5: 98bc7d88cd43c30bffbdee6bc8e47819
+  depends:
+  - __glibc >=2.17,<3.0.a0
+  - jinja2
+  - libgcc-ng >=12
+  - libgcc-ng >=12
+  - libstdcxx-ng >=12
+  - numpy >=1.23.5,<2.0a0
+  - python
+  - python_abi 3.11.* *_cp311
+  - pyyaml
+  - ros-humble-ros-workspace
+  - ros2-distro-mutex 0.5.*
+  - ros2-distro-mutex 0.5.* humble
+  - typeguard
+  license: BSD-3-Clause
+  size: 75144
+  timestamp: 1707308898706
+- conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-geometric-shapes-2.1.3-py311h391de45_6.tar.bz2
+  sha256: f7d171e3eed029b0b1841fcf66caae51ae65a7b9871d6b53ab2da59b058fee84
+  md5: 1c82731b498b86e58c6d7cff5e946cb0
+  depends:
+  - __glibc >=2.17,<3.0.a0
+  - assimp >=5.3.1,<5.3.2.0a0
+  - boost-cpp
+  - eigen
+  - libgcc-ng >=12
+  - libgcc-ng >=12
+  - libstdcxx-ng >=12
+  - numpy >=1.23.5,<2.0a0
+  - octomap >=1.9.8,<1.10.0a0
+  - python
+  - python_abi 3.11.* *_cp311
+  - qhull >=2020.2,<2020.3.0a0
+  - ros-humble-console-bridge-vendor
+  - ros-humble-eigen-stl-containers
+  - ros-humble-eigen3-cmake-module
+  - ros-humble-geometry-msgs
+  - ros-humble-random-numbers
+  - ros-humble-rclcpp
+  - ros-humble-resource-retriever
+  - ros-humble-ros-workspace
+  - ros-humble-rosidl-default-runtime
+  - ros-humble-shape-msgs
+  - ros-humble-visualization-msgs
+  - ros2-distro-mutex 0.5.*
+  - ros2-distro-mutex 0.5.* humble
+  license: BSD-3-Clause
+  size: 114188
+  timestamp: 1707315218277
 - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-geometry-msgs-4.2.3-py311hb335429_6.tar.bz2
   sha256: b3521cb7ad43d3585ee8985f98ecc8f3549fb767f3ad03a17a5c58fe13da1c84
   md5: d6c1d79ec371067ec3fdc71b9c9652f1
@@ -6939,6 +7267,27 @@ packages:
   license: BSD-3-Clause
   size: 281628
   timestamp: 1707309096875
+- conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-launch-param-builder-0.1.1-py311hb335429_6.tar.bz2
+  sha256: 3ca0877e70a0793070ec0bae448c10df84347e8234e657ab409d1d2a3d9efe61
+  md5: 2f1e7b0e1314d91fca7b6d73048664a9
+  depends:
+  - __glibc >=2.17,<3.0.a0
+  - libgcc-ng >=12
+  - libgcc-ng >=12
+  - libstdcxx-ng >=12
+  - numpy >=1.23.5,<2.0a0
+  - python
+  - python_abi 3.11.* *_cp311
+  - pyyaml
+  - ros-humble-ament-index-python
+  - ros-humble-rclpy
+  - ros-humble-ros-workspace
+  - ros-humble-xacro
+  - ros2-distro-mutex 0.5.*
+  - ros2-distro-mutex 0.5.* humble
+  license: BSD-3-Clause
+  size: 22374
+  timestamp: 1707315122508
 - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-launch-ros-0.19.7-py311hb335429_6.tar.bz2
   sha256: 9a343ab40e740bdf4d41f00ec3f6b1b5ab3bbc77410a31ec46744bd7a9b6f2bc
   md5: 5d8aa60f86a6f581a88c9f536cd822e3
@@ -7246,6 +7595,721 @@ packages:
   license: BSD-3-Clause
   size: 56240
   timestamp: 1707315484888
+- conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-moveit-2.5.5-py311hb335429_6.tar.bz2
+  sha256: 23d5ac43358bd94b490bc5eae4a7a5be8ea06bfdbbd2ad5b60f7b9913e9933d2
+  md5: 21fa44b23d9150d978ce52a76dd88f9a
+  depends:
+  - __glibc >=2.17,<3.0.a0
+  - libgcc-ng >=12
+  - libgcc-ng >=12
+  - libstdcxx-ng >=12
+  - numpy >=1.23.5,<2.0a0
+  - python
+  - python_abi 3.11.* *_cp311
+  - ros-humble-moveit-core
+  - ros-humble-moveit-planners
+  - ros-humble-moveit-plugins
+  - ros-humble-moveit-ros
+  - ros-humble-moveit-setup-assistant
+  - ros-humble-ros-workspace
+  - ros2-distro-mutex 0.5.*
+  - ros2-distro-mutex 0.5.* humble
+  - xorg-libx11 >=1.8.9,<2.0a0
+  - xorg-libxext >=1.3.4,<2.0a0
+  size: 14792
+  timestamp: 1713144603998
+- conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-moveit-common-2.5.5-py311hb335429_6.tar.bz2
+  sha256: 1baae699b3c419356b01bbe83036e451357fbb90d013f0c3e35e866aeb7e0339
+  md5: 3cae52794655b6e8dd7d8276f6504bf2
+  depends:
+  - __glibc >=2.17,<3.0.a0
+  - libgcc-ng >=12
+  - libgcc-ng >=12
+  - libstdcxx-ng >=12
+  - numpy >=1.23.5,<2.0a0
+  - python
+  - python_abi 3.11.* *_cp311
+  - ros-humble-backward-ros
+  - ros-humble-ros-workspace
+  - ros2-distro-mutex 0.5.*
+  - ros2-distro-mutex 0.5.* humble
+  license: BSD-3-Clause
+  size: 12871
+  timestamp: 1707310564317
+- conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-moveit-configs-utils-2.5.5-py311hb335429_6.tar.bz2
+  sha256: 1dcc20b127b3b20e3d3c737212fc13273e0b3232037393f6eca1c73c99bd2faa
+  md5: 1d921a707ce614b9cc5f7fa1a2cad215
+  depends:
+  - __glibc >=2.17,<3.0.a0
+  - libgcc-ng >=12
+  - libgcc-ng >=12
+  - libstdcxx-ng >=12
+  - numpy >=1.23.5,<2.0a0
+  - python
+  - python_abi 3.11.* *_cp311
+  - ros-humble-ament-index-python
+  - ros-humble-launch
+  - ros-humble-launch-param-builder
+  - ros-humble-launch-ros
+  - ros-humble-ros-workspace
+  - ros-humble-srdfdom
+  - ros2-distro-mutex 0.5.*
+  - ros2-distro-mutex 0.5.* humble
+  license: BSD-3-Clause
+  size: 41759
+  timestamp: 1707316096285
+- conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-moveit-core-2.5.5-py311h391de45_6.tar.bz2
+  sha256: 9a92530e17377b5afd020814092b260062e551cdb7ca21a1ac3a60e8162686ca
+  md5: d28f027094ba0ab79b5f749e0d39cf74
+  depends:
+  - __glibc >=2.17,<3.0.a0
+  - assimp >=5.3.1,<5.3.2.0a0
+  - boost
+  - bullet
+  - eigen
+  - fcl >=0.7.0,<0.8.0a0
+  - libgcc-ng >=12
+  - libgcc-ng >=12
+  - libstdcxx-ng >=12
+  - numpy >=1.23.5,<2.0a0
+  - python
+  - python_abi 3.11.* *_cp311
+  - ros-humble-angles
+  - ros-humble-common-interfaces
+  - ros-humble-eigen-stl-containers
+  - ros-humble-eigen3-cmake-module
+  - ros-humble-generate-parameter-library
+  - ros-humble-geometric-shapes
+  - ros-humble-geometry-msgs
+  - ros-humble-kdl-parser
+  - ros-humble-moveit-common
+  - ros-humble-moveit-msgs
+  - ros-humble-octomap-msgs
+  - ros-humble-pluginlib
+  - ros-humble-pybind11-vendor
+  - ros-humble-random-numbers
+  - ros-humble-rclcpp
+  - ros-humble-ros-workspace
+  - ros-humble-ruckig
+  - ros-humble-sensor-msgs
+  - ros-humble-shape-msgs
+  - ros-humble-srdfdom
+  - ros-humble-std-msgs
+  - ros-humble-tf2
+  - ros-humble-tf2-eigen
+  - ros-humble-tf2-geometry-msgs
+  - ros-humble-tf2-kdl
+  - ros-humble-trajectory-msgs
+  - ros-humble-urdf
+  - ros-humble-urdfdom
+  - ros-humble-urdfdom-headers
+  - ros-humble-visualization-msgs
+  - ros2-distro-mutex 0.5.*
+  - ros2-distro-mutex 0.5.* humble
+  license: BSD-3-Clause
+  size: 1752948
+  timestamp: 1707318177446
+- conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-moveit-kinematics-2.5.5-py311hb335429_6.tar.bz2
+  sha256: e0482c87b642dcfac829608f1017c24794f4930409a965ea2c9f39078356f00b
+  md5: 2284461d0f1506513b26bf4a7ce4c9c1
+  depends:
+  - __glibc >=2.17,<3.0.a0
+  - eigen
+  - libgcc-ng >=12
+  - libgcc-ng >=12
+  - libstdcxx-ng >=12
+  - lxml
+  - numpy >=1.23.5,<2.0a0
+  - python
+  - python_abi 3.11.* *_cp311
+  - ros-humble-class-loader
+  - ros-humble-moveit-common
+  - ros-humble-moveit-core
+  - ros-humble-moveit-msgs
+  - ros-humble-orocos-kdl-vendor
+  - ros-humble-pluginlib
+  - ros-humble-ros-workspace
+  - ros-humble-tf2
+  - ros-humble-tf2-kdl
+  - ros-humble-urdfdom
+  - ros2-distro-mutex 0.5.*
+  - ros2-distro-mutex 0.5.* humble
+  license: BSD-3-Clause
+  size: 313551
+  timestamp: 1707320483465
+- conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-moveit-msgs-2.2.1-py311hb335429_6.tar.bz2
+  sha256: b15d07edf3e80e6ec236ce02de0659d6212c08aa419d547a135890256577909b
+  md5: 5c06b5ba5fec2fb9ad431ad066ad4dba
+  depends:
+  - __glibc >=2.17,<3.0.a0
+  - libgcc-ng >=12
+  - libgcc-ng >=12
+  - libstdcxx-ng >=12
+  - numpy >=1.23.5,<2.0a0
+  - python
+  - python_abi 3.11.* *_cp311
+  - ros-humble-action-msgs
+  - ros-humble-geometry-msgs
+  - ros-humble-object-recognition-msgs
+  - ros-humble-octomap-msgs
+  - ros-humble-ros-workspace
+  - ros-humble-rosidl-default-runtime
+  - ros-humble-sensor-msgs
+  - ros-humble-shape-msgs
+  - ros-humble-std-msgs
+  - ros-humble-trajectory-msgs
+  - ros2-distro-mutex 0.5.*
+  - ros2-distro-mutex 0.5.* humble
+  license: BSD-3-Clause
+  size: 1835860
+  timestamp: 1707314466245
+- conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-moveit-planners-2.5.5-py311hb335429_6.tar.bz2
+  sha256: 49516e2dbb81ee48936b47e509ad2d778b20771b02dd7e5b0890c0a745f60297
+  md5: 2a2d7ceb9abe53fff6d97cda66dddb74
+  depends:
+  - __glibc >=2.17,<3.0.a0
+  - libgcc-ng >=12
+  - libgcc-ng >=12
+  - libstdcxx-ng >=12
+  - numpy >=1.23.5,<2.0a0
+  - python
+  - python_abi 3.11.* *_cp311
+  - ros-humble-moveit-planners-ompl
+  - ros-humble-pilz-industrial-motion-planner
+  - ros-humble-ros-workspace
+  - ros2-distro-mutex 0.5.*
+  - ros2-distro-mutex 0.5.* humble
+  size: 13485
+  timestamp: 1713144481880
+- conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-moveit-planners-ompl-2.5.5-py311hb335429_6.tar.bz2
+  sha256: c3ec95f1e6227b0e2e7c50f89ae8ddcd17e5c62c1b2f8e1defa50ee0488a6092
+  md5: 6f91a75e9f4477caf43a0d4e1c5f1af7
+  depends:
+  - __glibc >=2.17,<3.0.a0
+  - _openmp_mutex >=4.5
+  - libgcc-ng >=12
+  - libgcc-ng >=12
+  - libgomp
+  - libstdcxx-ng >=12
+  - numpy >=1.23.5,<2.0a0
+  - python
+  - python_abi 3.11.* *_cp311
+  - ros-humble-moveit-common
+  - ros-humble-moveit-core
+  - ros-humble-moveit-msgs
+  - ros-humble-moveit-ros-planning
+  - ros-humble-ompl
+  - ros-humble-pluginlib
+  - ros-humble-rclcpp
+  - ros-humble-ros-workspace
+  - ros-humble-tf2-eigen
+  - ros-humble-tf2-ros
+  - ros2-distro-mutex 0.5.*
+  - ros2-distro-mutex 0.5.* humble
+  license: BSD-3-Clause
+  size: 501950
+  timestamp: 1707320741981
+- conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-moveit-plugins-2.5.5-py311hb335429_6.tar.bz2
+  sha256: 6e9c6529ad082b3051798ac842a23b6744076ded1a569a1ce3b0a206f2391a40
+  md5: b3e2a8aaa90d8f43a77bb46fecee19ab
+  depends:
+  - __glibc >=2.17,<3.0.a0
+  - libgcc-ng >=12
+  - libgcc-ng >=12
+  - libstdcxx-ng >=12
+  - numpy >=1.23.5,<2.0a0
+  - python
+  - python_abi 3.11.* *_cp311
+  - ros-humble-moveit-simple-controller-manager
+  - ros-humble-ros-workspace
+  - ros2-distro-mutex 0.5.*
+  - ros2-distro-mutex 0.5.* humble
+  size: 13353
+  timestamp: 1713143067554
+- conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-moveit-ros-2.5.5-py311hb335429_6.tar.bz2
+  sha256: a3f75b1cfd64dc586e4d5e68ba9fb0a05b22ffdc6e6e131d992ba23b580cd1be
+  md5: 52ae16ba530651c86d07db3138a5ad93
+  depends:
+  - __glibc >=2.17,<3.0.a0
+  - libgcc-ng >=12
+  - libgcc-ng >=12
+  - libstdcxx-ng >=12
+  - numpy >=1.23.5,<2.0a0
+  - python
+  - python_abi 3.11.* *_cp311
+  - ros-humble-moveit-ros-benchmarks
+  - ros-humble-moveit-ros-move-group
+  - ros-humble-moveit-ros-planning
+  - ros-humble-moveit-ros-planning-interface
+  - ros-humble-moveit-ros-robot-interaction
+  - ros-humble-moveit-ros-visualization
+  - ros-humble-moveit-ros-warehouse
+  - ros-humble-ros-workspace
+  - ros2-distro-mutex 0.5.*
+  - ros2-distro-mutex 0.5.* humble
+  size: 14427
+  timestamp: 1713143499613
+- conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-moveit-ros-benchmarks-2.5.5-py311h141ba8b_6.tar.bz2
+  sha256: 71fef742dee52ebf8691b95662a789e2ef5c004033c1be6b9420d60f51c2a5be
+  md5: 89e3a0d1b6c4e20b1cf6503abdd81f62
+  depends:
+  - __glibc >=2.17,<3.0.a0
+  - libboost >=1.82.0,<1.83.0a0
+  - libgcc-ng >=12
+  - libgcc-ng >=12
+  - libstdcxx-ng >=12
+  - numpy >=1.23.5,<2.0a0
+  - python
+  - python_abi 3.11.* *_cp311
+  - ros-humble-launch-param-builder
+  - ros-humble-moveit-common
+  - ros-humble-moveit-configs-utils
+  - ros-humble-moveit-ros-planning
+  - ros-humble-moveit-ros-warehouse
+  - ros-humble-pluginlib
+  - ros-humble-rclcpp
+  - ros-humble-ros-workspace
+  - ros-humble-tf2-eigen
+  - ros2-distro-mutex 0.5.*
+  - ros2-distro-mutex 0.5.* humble
+  size: 292749
+  timestamp: 1713143367180
+- conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-moveit-ros-move-group-2.5.5-py311hb335429_6.tar.bz2
+  sha256: c8e0a6a84e16f002a8c8fb04d370a5889eb23894bffb1bd4bbe2bb52f32326cd
+  md5: ab80bcfe671dc626311b531261d95b5c
+  depends:
+  - __glibc >=2.17,<3.0.a0
+  - libgcc-ng >=12
+  - libgcc-ng >=12
+  - libstdcxx-ng >=12
+  - numpy >=1.23.5,<2.0a0
+  - python
+  - python_abi 3.11.* *_cp311
+  - ros-humble-moveit-common
+  - ros-humble-moveit-core
+  - ros-humble-moveit-kinematics
+  - ros-humble-moveit-ros-occupancy-map-monitor
+  - ros-humble-moveit-ros-planning
+  - ros-humble-pluginlib
+  - ros-humble-rclcpp
+  - ros-humble-rclcpp-action
+  - ros-humble-ros-workspace
+  - ros-humble-std-srvs
+  - ros-humble-tf2
+  - ros-humble-tf2-geometry-msgs
+  - ros-humble-tf2-ros
+  - ros2-distro-mutex 0.5.*
+  - ros2-distro-mutex 0.5.* humble
+  license: BSD-3-Clause
+  size: 525796
+  timestamp: 1707321120726
+- conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-moveit-ros-occupancy-map-monitor-2.5.5-py311hb335429_6.tar.bz2
+  sha256: 439a9b520d96dfd74771375e2a817249af008d506f836a2ebad9b90c7bd7de1b
+  md5: c14243104bab236db309288f5312376c
+  depends:
+  - __glibc >=2.17,<3.0.a0
+  - eigen
+  - libgcc-ng >=12
+  - libgcc-ng >=12
+  - libstdcxx-ng >=12
+  - numpy >=1.23.5,<2.0a0
+  - python
+  - python_abi 3.11.* *_cp311
+  - ros-humble-eigen3-cmake-module
+  - ros-humble-geometric-shapes
+  - ros-humble-moveit-common
+  - ros-humble-moveit-core
+  - ros-humble-moveit-msgs
+  - ros-humble-pluginlib
+  - ros-humble-rclcpp
+  - ros-humble-ros-workspace
+  - ros-humble-tf2-ros
+  - ros2-distro-mutex 0.5.*
+  - ros2-distro-mutex 0.5.* humble
+  license: BSD-3-Clause
+  size: 346765
+  timestamp: 1707319143684
+- conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-moveit-ros-perception-2.5.5-py311h1b74b74_6.tar.bz2
+  sha256: 49cbc5c4122fbf80ee2e05475b48809d92cac04081eaab070e5ff1fcb4d20fa4
+  md5: 2332c7282700d397a742870c27ef25fb
+  depends:
+  - __glibc >=2.17,<3.0.a0
+  - _openmp_mutex >=4.5
+  - freeglut >=3.2.2,<4.0a0
+  - glew >=2.1.0,<2.2.0a0
+  - libgcc-ng >=12
+  - libgcc-ng >=12
+  - libgomp
+  - libstdcxx-ng >=12
+  - numpy >=1.23.5,<2.0a0
+  - python
+  - python_abi 3.11.* *_cp311
+  - ros-humble-cv-bridge
+  - ros-humble-image-transport
+  - ros-humble-message-filters
+  - ros-humble-moveit-common
+  - ros-humble-moveit-core
+  - ros-humble-moveit-msgs
+  - ros-humble-moveit-ros-occupancy-map-monitor
+  - ros-humble-moveit-ros-planning
+  - ros-humble-object-recognition-msgs
+  - ros-humble-pluginlib
+  - ros-humble-rclcpp
+  - ros-humble-ros-workspace
+  - ros-humble-sensor-msgs
+  - ros-humble-tf2
+  - ros-humble-tf2-eigen
+  - ros-humble-tf2-geometry-msgs
+  - ros-humble-tf2-ros
+  - ros-humble-urdf
+  - ros2-distro-mutex 0.5.*
+  - ros2-distro-mutex 0.5.* humble
+  - xorg-libx11 >=1.8.9,<2.0a0
+  - xorg-libxext >=1.3.4,<2.0a0
+  size: 504406
+  timestamp: 1713143263926
+- conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-moveit-ros-planning-2.5.5-py311hb335429_6.tar.bz2
+  sha256: c81e836cec1806f97bbcb80959fb51fcc06ba4ad8a5a38ff8cbcd70c09881bea
+  md5: 97ffaf7fd66e1a8c16978ea81c3bb09b
+  depends:
+  - __glibc >=2.17,<3.0.a0
+  - eigen
+  - libgcc-ng >=12
+  - libgcc-ng >=12
+  - libstdcxx-ng >=12
+  - numpy >=1.23.5,<2.0a0
+  - python
+  - python_abi 3.11.* *_cp311
+  - ros-humble-ament-index-cpp
+  - ros-humble-eigen3-cmake-module
+  - ros-humble-message-filters
+  - ros-humble-moveit-common
+  - ros-humble-moveit-core
+  - ros-humble-moveit-msgs
+  - ros-humble-moveit-ros-occupancy-map-monitor
+  - ros-humble-pluginlib
+  - ros-humble-rclcpp
+  - ros-humble-rclcpp-action
+  - ros-humble-ros-workspace
+  - ros-humble-srdfdom
+  - ros-humble-tf2
+  - ros-humble-tf2-eigen
+  - ros-humble-tf2-geometry-msgs
+  - ros-humble-tf2-msgs
+  - ros-humble-tf2-ros
+  - ros-humble-urdf
+  - ros2-distro-mutex 0.5.*
+  - ros2-distro-mutex 0.5.* humble
+  license: BSD-3-Clause
+  size: 1967113
+  timestamp: 1707319977215
+- conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-moveit-ros-planning-interface-2.5.5-py311hb335429_6.tar.bz2
+  sha256: 8a51075bc140f9a7e5e992af0596464776efebe3ea4267f66cc1ab4a080ed3c8
+  md5: f6d86fc2cf45455749b8d40be8b84a1f
+  depends:
+  - __glibc >=2.17,<3.0.a0
+  - libgcc-ng >=12
+  - libgcc-ng >=12
+  - libstdcxx-ng >=12
+  - numpy >=1.23.5,<2.0a0
+  - python
+  - python_abi 3.11.* *_cp311
+  - ros-humble-geometry-msgs
+  - ros-humble-moveit-common
+  - ros-humble-moveit-core
+  - ros-humble-moveit-msgs
+  - ros-humble-moveit-ros-move-group
+  - ros-humble-moveit-ros-planning
+  - ros-humble-moveit-ros-warehouse
+  - ros-humble-rclcpp
+  - ros-humble-rclcpp-action
+  - ros-humble-rclpy
+  - ros-humble-ros-workspace
+  - ros-humble-tf2
+  - ros-humble-tf2-eigen
+  - ros-humble-tf2-geometry-msgs
+  - ros-humble-tf2-ros
+  - ros2-distro-mutex 0.5.*
+  - ros2-distro-mutex 0.5.* humble
+  license: BSD-3-Clause
+  size: 363229
+  timestamp: 1707321468512
+- conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-moveit-ros-robot-interaction-2.5.5-py311hb335429_6.tar.bz2
+  sha256: 12e9ab0f36c7a30932d46c9f879c1c736e6715c21dfd409c0a47a4662ab84d12
+  md5: 8b072b5064a5e2916852ac45fcec8f11
+  depends:
+  - __glibc >=2.17,<3.0.a0
+  - libgcc-ng >=12
+  - libgcc-ng >=12
+  - libstdcxx-ng >=12
+  - numpy >=1.23.5,<2.0a0
+  - python
+  - python_abi 3.11.* *_cp311
+  - ros-humble-interactive-markers
+  - ros-humble-moveit-common
+  - ros-humble-moveit-core
+  - ros-humble-moveit-ros-planning
+  - ros-humble-rclcpp
+  - ros-humble-ros-workspace
+  - ros-humble-tf2
+  - ros-humble-tf2-eigen
+  - ros-humble-tf2-geometry-msgs
+  - ros-humble-tf2-ros
+  - ros2-distro-mutex 0.5.*
+  - ros2-distro-mutex 0.5.* humble
+  license: BSD-3-Clause
+  size: 239185
+  timestamp: 1707320463230
+- conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-moveit-ros-visualization-2.5.5-py311h27406db_6.tar.bz2
+  sha256: a3b9b2f46be23ae78f6bf1788c146fec4c071fe82572df391ca3099ce361d4d3
+  md5: c6198d64615ced862d1864775fed0eae
+  depends:
+  - __glibc >=2.17,<3.0.a0
+  - libgcc-ng >=12
+  - libgcc-ng >=12
+  - libstdcxx-ng >=12
+  - numpy >=1.23.5,<2.0a0
+  - python
+  - python_abi 3.11.* *_cp311
+  - qt-main >=5.15.8,<5.16.0a0
+  - ros-humble-geometric-shapes
+  - ros-humble-interactive-markers
+  - ros-humble-moveit-common
+  - ros-humble-moveit-ros-planning-interface
+  - ros-humble-moveit-ros-robot-interaction
+  - ros-humble-moveit-ros-warehouse
+  - ros-humble-object-recognition-msgs
+  - ros-humble-pluginlib
+  - ros-humble-rclcpp
+  - ros-humble-rclpy
+  - ros-humble-ros-workspace
+  - ros-humble-rviz2
+  - ros-humble-tf2-eigen
+  - ros2-distro-mutex 0.5.*
+  - ros2-distro-mutex 0.5.* humble
+  - xorg-libx11 >=1.8.7,<2.0a0
+  - xorg-libxext >=1.3.4,<2.0a0
+  license: BSD-3-Clause
+  size: 1133733
+  timestamp: 1707321919208
+- conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-moveit-ros-warehouse-2.5.5-py311hb335429_6.tar.bz2
+  sha256: 8e1a9971a4f8fe6559bc3fa80f2e8191c53c3612d09fade63524e1fac34c32b1
+  md5: c5f22ce86f89ac75613f4d798621038e
+  depends:
+  - __glibc >=2.17,<3.0.a0
+  - libgcc-ng >=12
+  - libgcc-ng >=12
+  - libstdcxx-ng >=12
+  - numpy >=1.23.5,<2.0a0
+  - python
+  - python_abi 3.11.* *_cp311
+  - ros-humble-moveit-common
+  - ros-humble-moveit-core
+  - ros-humble-moveit-ros-planning
+  - ros-humble-rclcpp
+  - ros-humble-ros-workspace
+  - ros-humble-tf2-eigen
+  - ros-humble-tf2-ros
+  - ros-humble-warehouse-ros
+  - ros2-distro-mutex 0.5.*
+  - ros2-distro-mutex 0.5.* humble
+  license: BSD-3-Clause
+  size: 705240
+  timestamp: 1707320593130
+- conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-moveit-runtime-2.5.5-py311hb335429_6.tar.bz2
+  sha256: 8da60a8ae3967e267b4dd939cf0a22ba69182575891166d6864f76e0ee0bf768
+  md5: 460d201b5a2f376cf9078ad7d6b76dfe
+  depends:
+  - __glibc >=2.17,<3.0.a0
+  - libgcc-ng >=12
+  - libgcc-ng >=12
+  - libstdcxx-ng >=12
+  - numpy >=1.23.5,<2.0a0
+  - python
+  - python_abi 3.11.* *_cp311
+  - ros-humble-moveit-core
+  - ros-humble-moveit-planners
+  - ros-humble-moveit-plugins
+  - ros-humble-moveit-ros-move-group
+  - ros-humble-moveit-ros-perception
+  - ros-humble-moveit-ros-planning
+  - ros-humble-moveit-ros-planning-interface
+  - ros-humble-moveit-ros-warehouse
+  - ros-humble-ros-workspace
+  - ros2-distro-mutex 0.5.*
+  - ros2-distro-mutex 0.5.* humble
+  size: 14485
+  timestamp: 1713144627085
+- conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-moveit-setup-app-plugins-2.5.5-py311hb335429_6.tar.bz2
+  sha256: 630b3c91d2d0ca9e49ecf68f587591689cea65d19243755adfcf1ddaeed41f5f
+  md5: c9c0e68d7c8a0aaa4234a1f4b077082c
+  depends:
+  - __glibc >=2.17,<3.0.a0
+  - libgcc-ng >=12
+  - libgcc-ng >=12
+  - libstdcxx-ng >=12
+  - numpy >=1.23.5,<2.0a0
+  - python
+  - python_abi 3.11.* *_cp311
+  - ros-humble-ament-index-cpp
+  - ros-humble-moveit-configs-utils
+  - ros-humble-moveit-ros-visualization
+  - ros-humble-moveit-setup-framework
+  - ros-humble-pluginlib
+  - ros-humble-rclcpp
+  - ros-humble-ros-workspace
+  - ros2-distro-mutex 0.5.*
+  - ros2-distro-mutex 0.5.* humble
+  - xorg-libx11 >=1.8.9,<2.0a0
+  - xorg-libxext >=1.3.4,<2.0a0
+  size: 175583
+  timestamp: 1713143880036
+- conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-moveit-setup-assistant-2.5.5-py311h27406db_6.tar.bz2
+  sha256: e11e3ed0a1a4b47bf167c589a6fca0d7127d37763f04b69f10d20727403b3baf
+  md5: 20664f99d518090633511057eb718dc8
+  depends:
+  - __glibc >=2.17,<3.0.a0
+  - libgcc-ng >=12
+  - libgcc-ng >=12
+  - libstdcxx-ng >=12
+  - numpy >=1.23.5,<2.0a0
+  - python
+  - python_abi 3.11.* *_cp311
+  - qt-main >=5.15.8,<5.16.0a0
+  - ros-humble-ament-index-cpp
+  - ros-humble-moveit-setup-app-plugins
+  - ros-humble-moveit-setup-controllers
+  - ros-humble-moveit-setup-core-plugins
+  - ros-humble-moveit-setup-framework
+  - ros-humble-moveit-setup-srdf-plugins
+  - ros-humble-pluginlib
+  - ros-humble-rclcpp
+  - ros-humble-ros-workspace
+  - ros2-distro-mutex 0.5.*
+  - ros2-distro-mutex 0.5.* humble
+  - xorg-libx11 >=1.8.9,<2.0a0
+  - xorg-libxext >=1.3.4,<2.0a0
+  size: 377576
+  timestamp: 1713144320866
+- conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-moveit-setup-controllers-2.5.5-py311hb335429_6.tar.bz2
+  sha256: 71524174f928b8b22e5d4f3ec2023b98288b3cbbc85764ffb82137cfcf22dfe7
+  md5: cfce9266b40a34dbfe392407c7b784bd
+  depends:
+  - __glibc >=2.17,<3.0.a0
+  - libgcc-ng >=12
+  - libgcc-ng >=12
+  - libstdcxx-ng >=12
+  - numpy >=1.23.5,<2.0a0
+  - python
+  - python_abi 3.11.* *_cp311
+  - ros-humble-ament-index-cpp
+  - ros-humble-moveit-setup-framework
+  - ros-humble-pluginlib
+  - ros-humble-rclcpp
+  - ros-humble-ros-workspace
+  - ros2-distro-mutex 0.5.*
+  - ros2-distro-mutex 0.5.* humble
+  - xorg-libx11 >=1.8.9,<2.0a0
+  - xorg-libxext >=1.3.4,<2.0a0
+  size: 307325
+  timestamp: 1713143795560
+- conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-moveit-setup-core-plugins-2.5.5-py311hb335429_6.tar.bz2
+  sha256: 81f75eb3542ad96fe364dd27d66673841d1b0fa4a28d9c4061de1cf4a791dfdd
+  md5: 73130e2123f88ea3cdead1166481fb96
+  depends:
+  - __glibc >=2.17,<3.0.a0
+  - libgcc-ng >=12
+  - libgcc-ng >=12
+  - libstdcxx-ng >=12
+  - numpy >=1.23.5,<2.0a0
+  - python
+  - python_abi 3.11.* *_cp311
+  - ros-humble-ament-index-cpp
+  - ros-humble-moveit-ros-visualization
+  - ros-humble-moveit-setup-framework
+  - ros-humble-pluginlib
+  - ros-humble-rclcpp
+  - ros-humble-ros-workspace
+  - ros-humble-srdfdom
+  - ros-humble-urdf
+  - ros2-distro-mutex 0.5.*
+  - ros2-distro-mutex 0.5.* humble
+  - xorg-libx11 >=1.8.9,<2.0a0
+  - xorg-libxext >=1.3.4,<2.0a0
+  size: 145324
+  timestamp: 1713143612430
+- conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-moveit-setup-framework-2.5.5-py311hb335429_6.tar.bz2
+  sha256: b610e3964e7f7cf8296d981595950e9a6f1b05976094b73cd175d70c019a57aa
+  md5: 382a541f60cfb2a39a9a0d814e5edc4b
+  depends:
+  - __glibc >=2.17,<3.0.a0
+  - libgcc-ng >=12
+  - libgcc-ng >=12
+  - libstdcxx-ng >=12
+  - numpy >=1.23.5,<2.0a0
+  - python
+  - python_abi 3.11.* *_cp311
+  - ros-humble-ament-index-cpp
+  - ros-humble-moveit-common
+  - ros-humble-moveit-core
+  - ros-humble-moveit-ros-planning
+  - ros-humble-moveit-ros-visualization
+  - ros-humble-pluginlib
+  - ros-humble-rclcpp
+  - ros-humble-ros-workspace
+  - ros-humble-rviz-common
+  - ros-humble-rviz-rendering
+  - ros-humble-srdfdom
+  - ros-humble-urdf
+  - ros2-distro-mutex 0.5.*
+  - ros2-distro-mutex 0.5.* humble
+  - xorg-libx11 >=1.8.9,<2.0a0
+  - xorg-libxext >=1.3.4,<2.0a0
+  size: 280973
+  timestamp: 1713143231511
+- conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-moveit-setup-srdf-plugins-2.5.5-py311hb335429_6.tar.bz2
+  sha256: 45c43ecbc9e287a765352d966e626b95d5270db95974a9ac194ec2babb285c9c
+  md5: 6a977df3ee3296068d8084ff53181201
+  depends:
+  - __glibc >=2.17,<3.0.a0
+  - libgcc-ng >=12
+  - libgcc-ng >=12
+  - libstdcxx-ng >=12
+  - numpy >=1.23.5,<2.0a0
+  - python
+  - python_abi 3.11.* *_cp311
+  - ros-humble-moveit-setup-framework
+  - ros-humble-pluginlib
+  - ros-humble-ros-workspace
+  - ros2-distro-mutex 0.5.*
+  - ros2-distro-mutex 0.5.* humble
+  - xorg-libx11 >=1.8.9,<2.0a0
+  - xorg-libxext >=1.3.4,<2.0a0
+  size: 516084
+  timestamp: 1713144076544
+- conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-moveit-simple-controller-manager-2.5.5-py311hb335429_6.tar.bz2
+  sha256: 8ffb384c07ffeffd3e78de74b91388c463e35aca8ac5f475e6fe2512c3d68017
+  md5: 88580e0ad48e21785351af8752dd199d
+  depends:
+  - __glibc >=2.17,<3.0.a0
+  - libgcc-ng >=12
+  - libgcc-ng >=12
+  - libstdcxx-ng >=12
+  - numpy >=1.23.5,<2.0a0
+  - python
+  - python_abi 3.11.* *_cp311
+  - ros-humble-control-msgs
+  - ros-humble-moveit-common
+  - ros-humble-moveit-core
+  - ros-humble-pluginlib
+  - ros-humble-rclcpp
+  - ros-humble-rclcpp-action
+  - ros-humble-ros-workspace
+  - ros2-distro-mutex 0.5.*
+  - ros2-distro-mutex 0.5.* humble
+  license: BSD-3-Clause
+  size: 137628
+  timestamp: 1707319328434
 - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-nav-msgs-4.2.3-py311hb335429_6.tar.bz2
   sha256: 52c24c46b3717cb81b5c6373fbf5e3471e11669d6e75b4c7821167b3231a00a6
   md5: b013983a5cff31c601123055b042f1b4
@@ -7267,6 +8331,70 @@ packages:
   license: BSD-3-Clause
   size: 193565
   timestamp: 1707313676329
+- conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-object-recognition-msgs-2.0.0-py311hb335429_6.tar.bz2
+  sha256: 8b7cd49371b8dbe974793193d70e445142de7c97031fe627ecb99ff2846ecac6
+  md5: 081ca92e1f992ba3f1f60a686fe68495
+  depends:
+  - __glibc >=2.17,<3.0.a0
+  - libgcc-ng >=12
+  - libgcc-ng >=12
+  - libstdcxx-ng >=12
+  - numpy >=1.23.5,<2.0a0
+  - python
+  - python_abi 3.11.* *_cp311
+  - ros-humble-action-msgs
+  - ros-humble-geometry-msgs
+  - ros-humble-ros-workspace
+  - ros-humble-rosidl-default-runtime
+  - ros-humble-sensor-msgs
+  - ros-humble-shape-msgs
+  - ros-humble-std-msgs
+  - ros2-distro-mutex 0.5.*
+  - ros2-distro-mutex 0.5.* humble
+  license: BSD-3-Clause
+  size: 233605
+  timestamp: 1707313973480
+- conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-octomap-msgs-2.0.0-py311hb335429_6.tar.bz2
+  sha256: b15a9c6bbb4f46dcf0c90f9047bce4e47975a93c2228987bf5dd8df3fa854558
+  md5: 1cb681ec698fe2524b0dd4c980d78369
+  depends:
+  - __glibc >=2.17,<3.0.a0
+  - libgcc-ng >=12
+  - libgcc-ng >=12
+  - libstdcxx-ng >=12
+  - numpy >=1.23.5,<2.0a0
+  - python
+  - python_abi 3.11.* *_cp311
+  - ros-humble-geometry-msgs
+  - ros-humble-ros-workspace
+  - ros-humble-rosidl-default-runtime
+  - ros-humble-std-msgs
+  - ros2-distro-mutex 0.5.*
+  - ros2-distro-mutex 0.5.* humble
+  license: BSD-3-Clause
+  size: 121520
+  timestamp: 1707313738681
+- conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-ompl-1.6.0-py311h284c4b5_6.tar.bz2
+  sha256: c9d0c9782c73e895e1afe2e029753078f4a9d0d4652d0cf9ab5037e2a63c3926
+  md5: 79f803b1531333143efd361dfeeb8185
+  depends:
+  - __glibc >=2.17,<3.0.a0
+  - boost
+  - eigen
+  - flann >=1.9.2,<1.9.3.0a0
+  - libgcc-ng >=12
+  - libgcc-ng >=12
+  - libstdcxx-ng >=12
+  - numpy >=1.23.5,<2.0a0
+  - ompl >=1.5.2,<1.6.0a0
+  - python
+  - python_abi 3.11.* *_cp311
+  - ros-humble-ros-workspace
+  - ros2-distro-mutex 0.5.*
+  - ros2-distro-mutex 0.5.* humble
+  license: BSD-3-Clause
+  size: 2851525
+  timestamp: 1707307404106
 - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-orocos-kdl-vendor-0.2.5-py311hb335429_6.tar.bz2
   sha256: 5c6baa360b5fb754e356fd5bece1766159051d0e6d4cc676828ffdc2ba9f0e2e
   md5: 81dc2417c4e1cb9e80d2b84b8d58ada4
@@ -7305,6 +8433,28 @@ packages:
   license: BSD-3-Clause
   size: 72889
   timestamp: 1707307062940
+- conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-parameter-traits-0.3.7-py311h5888c24_6.tar.bz2
+  sha256: 757ad13d8a166f3b2ac7dc63fb956e54fa4f22e9be32e822c61109b7921e2dc1
+  md5: ba95e888b7dfaa5a2343d2d758a80156
+  depends:
+  - __glibc >=2.17,<3.0.a0
+  - fmt >=10.2.1,<11.0a0
+  - libgcc-ng >=12
+  - libgcc-ng >=12
+  - libstdcxx-ng >=12
+  - numpy >=1.23.5,<2.0a0
+  - python
+  - python_abi 3.11.* *_cp311
+  - ros-humble-rclcpp
+  - ros-humble-ros-workspace
+  - ros-humble-rsl
+  - ros-humble-tcb-span
+  - ros-humble-tl-expected
+  - ros2-distro-mutex 0.5.*
+  - ros2-distro-mutex 0.5.* humble
+  license: BSD-3-Clause
+  size: 16257
+  timestamp: 1707315561754
 - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-pcl-conversions-2.4.0-py311hf85fee4_6.tar.bz2
   sha256: c976deb0c8ecd0e6979a499de7521d1cfec5c8cc3ad460f1a6eca4b3198bf572
   md5: dae35fc24cbe97c5ab0a4606fbbced79
@@ -7392,6 +8542,42 @@ packages:
   license: BSD-3-Clause
   size: 78895
   timestamp: 1707313016246
+- conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-pilz-industrial-motion-planner-2.5.5-py311h9ee2941_6.tar.bz2
+  sha256: b42a5c1efee810072ad1972f90b26e37affb08e45b920f4c9a5cf7898eadbcfb
+  md5: 9db989de966b007bc5edbe0ce74c8be6
+  depends:
+  - __glibc >=2.17,<3.0.a0
+  - libboost >=1.82.0,<1.83.0a0
+  - libboost >=1.82.0,<1.83.0a0
+  - libboost-python >=1.82.0,<1.83.0a0
+  - libgcc-ng >=12
+  - libgcc-ng >=12
+  - libstdcxx-ng >=12
+  - numpy >=1.23.5,<2.0a0
+  - python
+  - python_abi 3.11.* *_cp311
+  - ros-humble-eigen3-cmake-module
+  - ros-humble-geometry-msgs
+  - ros-humble-moveit-common
+  - ros-humble-moveit-core
+  - ros-humble-moveit-msgs
+  - ros-humble-moveit-ros-move-group
+  - ros-humble-moveit-ros-planning
+  - ros-humble-moveit-ros-planning-interface
+  - ros-humble-orocos-kdl-vendor
+  - ros-humble-pluginlib
+  - ros-humble-rclcpp
+  - ros-humble-ros-workspace
+  - ros-humble-tf2
+  - ros-humble-tf2-eigen
+  - ros-humble-tf2-eigen-kdl
+  - ros-humble-tf2-geometry-msgs
+  - ros-humble-tf2-kdl
+  - ros-humble-tf2-ros
+  - ros2-distro-mutex 0.5.*
+  - ros2-distro-mutex 0.5.* humble
+  size: 522046
+  timestamp: 1713144458750
 - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-pluginlib-5.1.0-py311hb335429_6.tar.bz2
   sha256: bfe115f52d4df3d4a410f0558ca65c6ac2570e698b69ad567a7227683711b00f
   md5: 18e6cd66a16763080c4152b3522f1aa0
@@ -7604,6 +8790,24 @@ packages:
   license: BSD-3-Clause
   size: 31770
   timestamp: 1707315152075
+- conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-random-numbers-2.0.1-py311hb335429_6.tar.bz2
+  sha256: dda3f70bddde4630bf0cb5a976121206a1031eb49288af5fd6c362eb0881a2e3
+  md5: 85a53943ccd6b1232ecb875193d6d9f4
+  depends:
+  - __glibc >=2.17,<3.0.a0
+  - boost-cpp
+  - libgcc-ng >=12
+  - libgcc-ng >=12
+  - libstdcxx-ng >=12
+  - numpy >=1.23.5,<2.0a0
+  - python
+  - python_abi 3.11.* *_cp311
+  - ros-humble-ros-workspace
+  - ros2-distro-mutex 0.5.*
+  - ros2-distro-mutex 0.5.* humble
+  license: BSD-3-Clause
+  size: 39157
+  timestamp: 1707309138802
 - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-rcl-5.3.7-py311hb335429_6.tar.bz2
   sha256: 36f5b779ad0059763685f79e9544cd41279dde63084991ef2973b797736c7229
   md5: fac4bcbb4aab52e3bc5f0cc265e2aa76
@@ -9903,6 +11107,29 @@ packages:
   license: BSD-3-Clause
   size: 38351
   timestamp: 1707316044818
+- conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-rsl-1.1.0-py311hba9e1f2_6.tar.bz2
+  sha256: 621afc4e8654de016594fc73d0f2dc52ff869b475df13003673cae70182f0c3d
+  md5: df60a9309fa33b3a077de2504418408d
+  depends:
+  - __glibc >=2.17,<3.0.a0
+  - eigen
+  - fmt >=10.2.1,<11.0a0
+  - graphviz >=9.0.0,<10.0a0
+  - libgcc-ng >=12
+  - libgcc-ng >=12
+  - libstdcxx-ng >=12
+  - numpy >=1.23.5,<2.0a0
+  - python
+  - python_abi 3.11.* *_cp311
+  - ros-humble-rclcpp
+  - ros-humble-ros-workspace
+  - ros-humble-tcb-span
+  - ros-humble-tl-expected
+  - ros2-distro-mutex 0.5.*
+  - ros2-distro-mutex 0.5.* humble
+  license: BSD-3-Clause
+  size: 26628
+  timestamp: 1707315131755
 - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-rti-connext-dds-cmake-module-0.11.2-py311hb335429_6.tar.bz2
   sha256: d5c9bbc0cd6af8ecb1e5cf29857c51f6a99da72cf5ac66eb2ac51e7bf75f4a1d
   md5: cbc98e5c851c1af0a1fc3d232f52f2c5
@@ -9938,6 +11165,23 @@ packages:
   license: BSD-3-Clause
   size: 41208
   timestamp: 1707310558450
+- conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-ruckig-0.9.2-py311hb335429_6.tar.bz2
+  sha256: 40f6f146d0aa95fee73b065894d17be6bf35d2a410c0bfa2ba4ec6231755f7a8
+  md5: 8697ebeb51fe351de96883882fe86ed5
+  depends:
+  - __glibc >=2.17,<3.0.a0
+  - libgcc-ng >=12
+  - libgcc-ng >=12
+  - libstdcxx-ng >=12
+  - numpy >=1.23.5,<2.0a0
+  - python
+  - python_abi 3.11.* *_cp311
+  - ros-humble-ros-workspace
+  - ros2-distro-mutex 0.5.*
+  - ros2-distro-mutex 0.5.* humble
+  license: BSD-3-Clause
+  size: 110469
+  timestamp: 1707307141809
 - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-rviz-assimp-vendor-11.2.10-py311h391de45_6.tar.bz2
   sha256: 72f71eda92d39b7ad5408f8fe8fb57f50d265582f0477c2658eb11659098ba67
   md5: d8cb6210d0bb25e9c1bfa9a0bc661554
@@ -10238,6 +11482,28 @@ packages:
   license: BSD-3-Clause
   size: 12168
   timestamp: 1707309054648
+- conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-srdfdom-2.0.4-py311hb303436_6.tar.bz2
+  sha256: cfe51b9fb3e5382c2beee9c065772f446d3366dc81d36cdeeb2bad325207cf92
+  md5: 28143ffa9caf7af75f4a5f802cb5eb8c
+  depends:
+  - __glibc >=2.17,<3.0.a0
+  - console_bridge >=1.0.2,<1.1.0a0
+  - libgcc-ng >=12
+  - libgcc-ng >=12
+  - libstdcxx-ng >=12
+  - numpy >=1.23.5,<2.0a0
+  - python
+  - python_abi 3.11.* *_cp311
+  - ros-humble-console-bridge-vendor
+  - ros-humble-ros-workspace
+  - ros-humble-tinyxml2-vendor
+  - ros-humble-urdf
+  - ros-humble-urdfdom-py
+  - ros2-distro-mutex 0.5.*
+  - ros2-distro-mutex 0.5.* humble
+  license: BSD-3-Clause
+  size: 97535
+  timestamp: 1707315499676
 - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-sros2-0.10.4-py311hb335429_6.tar.bz2
   sha256: 7fc53d8040c59a50311c36e0a3cda15e4bec50a8a30437b714dd15c192cdc53f
   md5: d5114a3439216dfdf48862045c7fc467
@@ -10373,6 +11639,23 @@ packages:
   license: BSD-3-Clause
   size: 10911
   timestamp: 1707310607580
+- conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-tcb-span-1.0.2-py311hb335429_6.tar.bz2
+  sha256: dcf402a6558bf17e516310523ec1ffc6743df62560e48b6f4c3f44f308cdf8eb
+  md5: 0ca5ade52537bacbf6087360c8675d80
+  depends:
+  - __glibc >=2.17,<3.0.a0
+  - libgcc-ng >=12
+  - libgcc-ng >=12
+  - libstdcxx-ng >=12
+  - numpy >=1.23.5,<2.0a0
+  - python
+  - python_abi 3.11.* *_cp311
+  - ros-humble-ros-workspace
+  - ros2-distro-mutex 0.5.*
+  - ros2-distro-mutex 0.5.* humble
+  license: BSD-3-Clause
+  size: 15826
+  timestamp: 1707309118795
 - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-teleop-twist-joy-2.4.5-py311hb335429_6.tar.bz2
   sha256: 758fb31bcb4f771d851c52018f84881bad0dcb9a95075afc19dca50bc6b2c2d9
   md5: 48f28e1040af011ccb4f5d7304d3d892
@@ -10718,6 +12001,23 @@ packages:
   license: BSD-3-Clause
   size: 12119
   timestamp: 1707309084599
+- conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-tl-expected-1.0.2-py311hb335429_6.tar.bz2
+  sha256: 30d3674ce1eb8fbb9a6f8d81c86408a1b78d703dca64104e48c8dcbdf5b554f6
+  md5: f860104d5633f4bcdfdb494e10df009f
+  depends:
+  - __glibc >=2.17,<3.0.a0
+  - libgcc-ng >=12
+  - libgcc-ng >=12
+  - libstdcxx-ng >=12
+  - numpy >=1.23.5,<2.0a0
+  - python
+  - python_abi 3.11.* *_cp311
+  - ros-humble-ros-workspace
+  - ros2-distro-mutex 0.5.*
+  - ros2-distro-mutex 0.5.* humble
+  license: BSD-3-Clause
+  size: 21873
+  timestamp: 1707309101671
 - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-tlsf-0.7.0-py311hb335429_6.tar.bz2
   sha256: 3174b91d47d9e0fd006863fa025c6886aef2e2a032e76cac87a88ceeeb364f36
   md5: af98c089949565936a3ab26c36d0a360
@@ -10976,6 +12276,26 @@ packages:
   license: BSD-3-Clause
   size: 20400
   timestamp: 1707307099473
+- conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-urdfdom-py-1.2.1-py311hb335429_6.tar.bz2
+  sha256: fe33c5d5f119504150eb0425d9cabc5844892584f8dc305a082fb2cc7e459a52
+  md5: 383798e03960719a2aa188a69f65d84e
+  depends:
+  - __glibc >=2.17,<3.0.a0
+  - libgcc-ng >=12
+  - libgcc-ng >=12
+  - libstdcxx-ng >=12
+  - lxml
+  - numpy >=1.23.5,<2.0a0
+  - python
+  - python_abi 3.11.* *_cp311
+  - pyyaml
+  - ros-humble-rclpy
+  - ros-humble-ros-workspace
+  - ros2-distro-mutex 0.5.*
+  - ros2-distro-mutex 0.5.* humble
+  license: BSD-3-Clause
+  size: 57468
+  timestamp: 1707315150090
 - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-visualization-msgs-4.2.3-py311hb335429_6.tar.bz2
   sha256: dcd523107424e4ceca4bd88170549eb48e11fa33591220cff1e6872a3ea5149f
   md5: d6a52068c187ae2b47c69ae665b6a2bd
@@ -10998,6 +12318,51 @@ packages:
   license: BSD-3-Clause
   size: 302925
   timestamp: 1707314022531
+- conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-warehouse-ros-2.0.4-py311h8eb0f6d_6.tar.bz2
+  sha256: 10edf1c013c9f5a33dd0da6fcb27cd183ba6d29dee93e66bbabba07e9db58072
+  md5: a7c9f7c17b721d66c08d36b4b15f05fa
+  depends:
+  - __glibc >=2.17,<3.0.a0
+  - boost
+  - libgcc-ng >=12
+  - libgcc-ng >=12
+  - libstdcxx-ng >=12
+  - numpy >=1.23.5,<2.0a0
+  - openssl >=3.2.1,<4.0a0
+  - python
+  - python_abi 3.11.* *_cp311
+  - ros-humble-geometry-msgs
+  - ros-humble-pluginlib
+  - ros-humble-rclcpp
+  - ros-humble-ros-workspace
+  - ros-humble-std-msgs
+  - ros-humble-tf2
+  - ros-humble-tf2-geometry-msgs
+  - ros-humble-tf2-ros
+  - ros2-distro-mutex 0.5.*
+  - ros2-distro-mutex 0.5.* humble
+  license: BSD-3-Clause
+  size: 165480
+  timestamp: 1707316874253
+- conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-xacro-2.0.8-py311hb335429_6.tar.bz2
+  sha256: 81c1ced63517c782d1cd2163f0e63e645e57356742b160443f7c563a227e3163
+  md5: aa6bda224fbffda59c33cb2718e70324
+  depends:
+  - __glibc >=2.17,<3.0.a0
+  - libgcc-ng >=12
+  - libgcc-ng >=12
+  - libstdcxx-ng >=12
+  - numpy >=1.23.5,<2.0a0
+  - python
+  - python_abi 3.11.* *_cp311
+  - pyyaml
+  - ros-humble-ament-index-python
+  - ros-humble-ros-workspace
+  - ros2-distro-mutex 0.5.*
+  - ros2-distro-mutex 0.5.* humble
+  license: BSD-3-Clause
+  size: 82946
+  timestamp: 1707309067378
 - conda: https://conda.anaconda.org/robostack-staging/linux-64/ros-humble-yaml-cpp-vendor-8.0.2-py311hb335429_6.tar.bz2
   sha256: 0d9b930dd45ff0e1c1001ea34dbc74f36c9f191b22722b3d36f89b88c0d3a05c
   md5: 35bd5ee5fd666f5a5d800b50bea8c430
@@ -11296,6 +12661,39 @@ packages:
   license_family: MIT
   size: 23354
   timestamp: 1739009763560
+- conda: https://conda.anaconda.org/conda-forge/noarch/typeguard-4.4.2-pyhd8ed1ab_0.conda
+  sha256: 0b4dce14a4bbe36e9e2d8637436292ab1fafa608317dd3121e119695e75c4764
+  md5: 5a0d90b98099e52389c668ba1c0734a4
+  depends:
+  - importlib-metadata >=3.6
+  - python >=3.9
+  - typing-extensions >=4.10.0
+  - typing_extensions >=4.10.0
+  constrains:
+  - pytest >=7
+  license: MIT
+  license_family: MIT
+  size: 35184
+  timestamp: 1739732461765
+- conda: https://conda.anaconda.org/conda-forge/noarch/typing-extensions-4.12.2-hd8ed1ab_1.conda
+  noarch: python
+  sha256: c8e9c1c467b5f960b627d7adc1c65fece8e929a3de89967e91ef0f726422fd32
+  md5: b6a408c64b78ec7b779a3e5c7a902433
+  depends:
+  - typing_extensions 4.12.2 pyha770c72_1
+  license: PSF-2.0
+  license_family: PSF
+  size: 10075
+  timestamp: 1733188758872
+- conda: https://conda.anaconda.org/conda-forge/noarch/typing_extensions-4.12.2-pyha770c72_1.conda
+  sha256: 337be7af5af8b2817f115b3b68870208b30c31d3439bec07bfb2d8f4823e3568
+  md5: d17f13df8b65464ca316cbc000a3cb64
+  depends:
+  - python >=3.9
+  license: PSF-2.0
+  license_family: PSF
+  size: 39637
+  timestamp: 1733188758212
 - conda: https://conda.anaconda.org/conda-forge/noarch/tzdata-2025a-h78e105d_0.conda
   sha256: c4b1ae8a2931fe9b274c44af29c5475a85b37693999f8c792dad0f8c6734b1de
   md5: dbcace4706afdfb7eb891f7b37d07c04

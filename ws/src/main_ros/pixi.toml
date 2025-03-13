@@ -18,6 +18,13 @@ mamba = "*"
 conda = "*"
 tinyxml2 = "==10.0.0"
 pip = "*"
+ros-humble-moveit = ">=2.5.4"
+ros-humble-moveit-common = ">=2.5.4"
+ros-humble-moveit-core = ">=2.5.4"
+ros-humble-moveit-ros = ">=2.5.4"
+ros-humble-moveit-plugins = ">=2.5.4"
+ros-humble-moveit-runtime = ">=2.5.4"
+ros-humble-moveit-ros-planning-interface = ">=2.5.4"
 ros-humble-image-proc = ">=3.0.3,<4"
 # back_massage_bot = { path = "/back_massage_bot" }
 

@@ -27,6 +27,9 @@ ament_python_install_package(${PROJECT_NAME})
 install(PROGRAMS scripts/rgb_to_segmented_pose.py
         DESTINATION lib/${PROJECT_NAME})
 
+# Installmoveit2 controller
+install(PROGRAMS scripts/arm_controller.py DESTINATION lib/${PROJECT_NAME})
+
 # Install launch files
 install(DIRECTORY launch DESTINATION share/${PROJECT_NAME})
 
