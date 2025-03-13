@@ -80,6 +80,7 @@ COPY --chown=${USERNAME}:${USERNAME} back_massage_bot /back_massage_bot
 
 # Install package
 RUN pip install -r /back_massage_bot/requirements.txt && pip install -e /back_massage_bot
-
+# Bug patch
+RUN mamba install -y tinyxml2==10.0.0
 # Ensure conda environment is activated for interactive sessions
 RUN echo "conda activate back_massage_bot" >> ~/.bashrc
