@@ -77,6 +77,7 @@ repos:
       - id: cppcheck
         args: ["--enable=all"]
       - id: cpplint
+        args: [--linelength=120]
 
   - repo: https://github.com/cheshirekow/cmake-format-precommit
     rev: v0.6.13

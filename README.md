@@ -14,7 +14,7 @@ To get started, run the following.
 ```
 git clone https://github.com/garylvov/back_massage_bot/ &&
 cd back_massage_bot && git submodule init && git submodule update && \
-sudo apt install pre-commit && pre-commit install # Optional for enforcing linting
+sudo apt install pre-commit && pre-commit install && sudo apt install cppcheck cpplint clang-format # Optional for enforcing linting
 ```
 #### Project Permissions (USB and Network)
 
@@ -122,3 +122,51 @@ As long as ROS 2 is installed in all Docker images, several images can be used c
   - Please include a ``entrypoint.sh`` that deploys all of the software once in the container, like in ``ws/src/main_ros/entrypoint.sh``
 - All USB devices should have [static rules](https://msadowski.github.io/linux-static-port/).
 The rules should be reflected in ``/hardware``, and should be automatically installed by ``set-permissions.bash``.
+
+// Copyright 2024 Gary Lvov
+#ifndef WS_SRC_MAIN_ROS_BACK_MASSAGE_BOT_ROS_INCLUDE_BACK_MASSAGE_BOT_ROS_MASSAGE_MOVEIT_HPP_
+#define WS_SRC_MAIN_ROS_BACK_MASSAGE_BOT_ROS_INCLUDE_BACK_MASSAGE_BOT_ROS_MASSAGE_MOVEIT_HPP_
+
+// C++ system headers
+#include <memory>
+#include <string>
+#include <vector>
+
+// Other libraries' headers
+#include <geometry_msgs/msg/pose.hpp>
+#include <moveit/move_group_interface/move_group_interface.h>
+#include <rclcpp/rclcpp.hpp>
+#include <tf2_ros/buffer.h>
+#include <tf2_ros/transform_listener.h>
+
+namespace back_massage_bot_ros {
+
+class MassageMoveit : public rclcpp::Node {
+ public:
+  explicit MassageMoveit(const rclcpp::NodeOptions & options = rclcpp::NodeOptions());
+  virtual ~MassageMoveit();
+
+ private:
+  // MoveIt interface
+  std::shared_ptr<moveit::planning_interface::MoveGroupInterface> move_group_;
+
+  // TF2 components
+  std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
+  std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
+
+  // Parameters
+  std::string arm_group_name_;
+  std::string end_effector_link_;
+
+  // Methods
+  void initialize_move_group();
+  bool move_to_pose(const geometry_msgs::msg::Pose & target_pose);
+  bool move_to_joint_positions(const std::vector<double> & joint_positions);
+
+  // Example massage patterns
+  void execute_simple_massage_pattern();
+};
+
+}  // namespace back_massage_bot_ros
+
+#endif  // WS_SRC_MAIN_ROS_BACK_MASSAGE_BOT_ROS_INCLUDE_BACK_MASSAGE_BOT_ROS_MASSAGE_MOVEIT_HPP_
