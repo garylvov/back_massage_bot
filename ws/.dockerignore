@@ -1,0 +1,8 @@
+# Ignore all .txt files
+*.txt
+
+# Ignore all .jpg files
+*.jpg
+
+# Ignore bags directory
+bags/

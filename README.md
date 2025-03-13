@@ -31,6 +31,12 @@ sudo ufw disable # run sudo ufw disable when finished.
 ```
 
 ### Docker Guide (EZPZ)
+
+Using the stored image from Dockerhub for ROS 2 and Python/C++ development, run the following
+```
+bash pull_run_overlay.sh
+```
+
 For ROS 2 and Python development (we can add C++ if needed), run the following.
 ```
 bash ws/src/main_ros/build.sh && bash ws/src/main_ros/develop.sh # (for pure Python with no ROS, run bash back_massage_bot/develop.sh)
