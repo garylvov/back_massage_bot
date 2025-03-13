@@ -16,6 +16,7 @@ find_package(geometry_msgs REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
+find_package(std_srvs REQUIRED)
 
 # Include Cpp "include" directory
 include_directories(include)
@@ -29,7 +30,8 @@ ament_target_dependencies(
   geometry_msgs
   tf2
   tf2_ros
-  tf2_geometry_msgs)
+  tf2_geometry_msgs
+  std_srvs)
 
 # Install Cpp executables
 install(TARGETS massage_moveit_node DESTINATION lib/${PROJECT_NAME})
