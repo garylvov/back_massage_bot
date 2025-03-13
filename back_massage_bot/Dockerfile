@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install -y \
     tree
 
 # Define build arguments for user configuration
-ARG USERNAME
+ARG USERNAME=developer
 ARG USER_UID=1000
 ARG USER_GID=1000
 
@@ -43,9 +43,9 @@ RUN conda init bash && \
 WORKDIR /back_massage_bot
 USER root
 RUN mkdir -p /models/dense_pose && \
-    chown -R ${USERNAME}:${USERNAME} /models
+    chmod -R 777 /models
 RUN mkdir -p /back_massage_bot && \
-    chown -R ${USERNAME}:${USERNAME} /back_massage_bot
+    chmod -R 777 /back_massage_bot
 USER ${USERNAME}
 
 # Create conda environment
@@ -75,8 +75,10 @@ https://raw.githubusercontent.com/facebookresearch/detectron2/refs/heads/main/pr
 
 RUN bash post-entry-hooks.sh
 
-# Copy the rest of the project files
-COPY --chown=${USERNAME}:${USERNAME} back_massage_bot /back_massage_bot
+# Copy the rest of the project files with correct permissions
+USER root
+COPY --chown=${USERNAME}:${USERNAME} --chmod=777 back_massage_bot /back_massage_bot
+USER ${USERNAME}
 
 # Install package
 RUN pip install -r /back_massage_bot/requirements.txt && pip install -e /back_massage_bot
