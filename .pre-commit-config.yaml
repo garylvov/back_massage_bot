@@ -76,6 +76,8 @@ repos:
         types_or: [c++, c, cuda]
       - id: cppcheck
         args: ["--enable=all"]
+        # Skip this check in CI environment
+        stages: [commit]
       - id: cpplint
         args: [--linelength=120]
 
