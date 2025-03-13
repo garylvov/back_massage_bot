@@ -56,8 +56,10 @@ RUN cd /back_massage_bot && pixi run install-densepose
 # Copy post-entry hooks
 COPY --chown=${USERNAME}:${USERNAME} back_massage_bot/post-entry-hooks.sh /back_massage_bot/post-entry-hooks.sh
 
-# Download DensePose models using pixi tasks
-RUN cd /back_massage_bot && pixi run get-all-models
 
-# Run post-entry hooks to set up environment
-RUN bash /back_massage_bot/post-entry-hooks.sh
+# Install package
+RUN pip install -r /back_massage_bot/requirements.txt && pip install -e /back_massage_bot
+# Bug patch
+RUN mamba install -y tinyxml2==10.0.0
+# Ensure conda environment is activated for interactive sessions
+RUN echo "conda activate back_massage_bot" >> ~/.bashrc
