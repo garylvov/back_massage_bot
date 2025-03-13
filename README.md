@@ -66,8 +66,9 @@ back_massage_bot/ # PROJECT_DIR
 |-------------/src/back_massage_bot/ # Python Lib No ROS
 |------------------------------/__init__.py
 |-------------/pyproject.toml
+|-------------/pixi.toml
+|-------------/pixi.lock
 |-------------/requirements.txt
-|-------------/environment.yaml # For Conda
 |-------------/Dockerfile
 |-------------/build.sh
 |-------------/develop.sh
@@ -75,6 +76,8 @@ back_massage_bot/ # PROJECT_DIR
 |-------------/entrypoint.sh
 |-src/ # Where C++ Stuff Lives
 |----/Dockerfile
+|----/pixi.toml
+|----/pixi.lock
 |----/build.sh
 |----/develop.sh
 |----/post-entry-hooks.sh
