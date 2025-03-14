@@ -354,12 +354,12 @@ int main(int argc, char **argv)
         executor.add_node(node);
         
         // Log that we're waiting before initializing MoveGroup
-        RCLCPP_INFO(logger, "Waiting 15 seconds before initializing MoveGroup to ensure all parameters are loaded...");
+        RCLCPP_INFO(logger, "Waiting 5 before initializing MoveGroup to ensure all parameters are loaded...");
         
         // Create a separate thread for delayed initialization
         std::thread init_thread([node, &logger]() {
             // Sleep to allow time for MoveIt to fully initialize
-            std::this_thread::sleep_for(std::chrono::seconds(15));
+            std::this_thread::sleep_for(std::chrono::seconds(5));
             
             try {
                 RCLCPP_INFO(logger, "Attempting to initialize MoveGroup...");

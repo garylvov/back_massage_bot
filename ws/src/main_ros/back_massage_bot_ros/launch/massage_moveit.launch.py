@@ -156,7 +156,7 @@ def generate_launch_description():
     
     # Delay the start of the massage_moveit node to ensure MoveIt is fully initialized
     delayed_massage_moveit_node = TimerAction(
-        period=20.0,  # 20 seconds delay
+        period=5.0,  # 5     seconds delay
         actions=[massage_moveit_node]
     )
     
@@ -192,7 +192,7 @@ def generate_launch_description():
                 "planning_attempts", default_value="10", description="Number of planning attempts before giving up"
             ),
             DeclareLaunchArgument(
-                "goal_position_tolerance", default_value="0.01", description="Position tolerance for the goal (meters)"
+                "goal_position_tolerance", default_value="0.0025", description="Position tolerance for the goal (meters)"
             ),
             DeclareLaunchArgument(
                 "goal_orientation_tolerance",
@@ -204,7 +204,7 @@ def generate_launch_description():
             ),
             DeclareLaunchArgument(
                 "cartesian_path_eef_step",
-                default_value="0.01",
+                default_value="0.001",
                 description="Step size for Cartesian path planning (meters)",
             ),
             DeclareLaunchArgument(
