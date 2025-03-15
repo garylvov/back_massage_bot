@@ -174,7 +174,7 @@ def generate_launch_description():
                 "end_effector_link", default_value="j2n6s300_end_effector", description="Name of the end effector link"
             ),
             DeclareLaunchArgument(
-                "home_position", default_value="[0.227,3.296,1.361,-2.653,-1.449,0.628]", description="Home position joint values"
+                "home_position", default_value="[-0.175, 3.055, 1.991, -1.344, 3.071, 1.536]", description="Home position joint values"
             ),
             # Launch arguments for planning parameters
             DeclareLaunchArgument(
