@@ -56,7 +56,7 @@ WORKDIR /back_massage_bot
 USER root
 RUN mkdir -p /models/ && \
 chmod -R 777 /models && \
-wget -O /models/human3d.ckpt https://omnomnom.vision.rwth-aachen.de/data/human3d/checkpoints/human3d.ckpt 
+wget -O /models/human3d.ckpt https://omnomnom.vision.rwth-aachen.de/data/human3d/checkpoints/human3d.ckpt
 RUN mkdir -p /back_massage_bot && \
 chmod -R 777 /back_massage_bot
 USER ${USERNAME}

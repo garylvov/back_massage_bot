@@ -17,4 +17,4 @@ imageio
 plyfile
 loguru
 albumentations
-# MinkowskiEngine==0.5.4 
+# MinkowskiEngine==0.5.4
