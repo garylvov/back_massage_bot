@@ -4,3 +4,9 @@
 [submodule "ws/src/main_ros/ros_utilities"]
 	path = ws/src/main_ros/ros_utilities
 	url = https://github.com/bdaiinstitute/ros_utilities.git
+[submodule "external/Human3D"]
+	path = external/Human3D
+	url = https://github.com/human-3d/Human3D.git
+[submodule "back_massage_bot/external/Human3D"]
+	path = back_massage_bot/external/Human3D
+	url = https://github.com/human-3d/Human3D.git

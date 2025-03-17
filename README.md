@@ -27,7 +27,7 @@ As a temporary measure, the firewall can be disabled with the following.
 This only is needed if ```ros2 topic echo <TOPIC>``` doesn't work while the topic shows up
 with ```ros2 topic list```, or the ROS 2 daemon keeps crashing.
 ```
-sudo ufw disable # run sudo ufw disable when finished.
+sudo ufw disable # run sudo ufw enable when finished.
 ```
 
 ### Docker Guide (EZPZ)
@@ -37,7 +37,7 @@ Using the stored image from Dockerhub for ROS 2 and Python/C++ development, run 
 bash pull_run_overlay.sh
 ```
 
-For ROS 2 and Python development (we can add C++ if needed), run the following.
+For ROS 2 and Python development, run the following.
 ```
 bash ws/src/main_ros/build.sh && bash ws/src/main_ros/develop.sh # (for pure Python with no ROS, run bash back_massage_bot/develop.sh)
 ```

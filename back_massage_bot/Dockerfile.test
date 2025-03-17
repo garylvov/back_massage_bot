@@ -1,0 +1,109 @@
+FROM nvidia/cuda:12.1.1-devel-ubuntu22.04
+
+SHELL ["/bin/bash", "-c"]
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    ca-certificates \
+    sudo \
+    git \
+    bzip2 \
+    libx11-6 \
+    ninja-build \
+    build-essential \
+    libopenblas-dev \
+    libglib2.0-0 \
+    libgl1-mesa-glx \
+    libsm6 \
+    libxext6 \
+    libxrender1 \
+    libxi6 \
+    libxkbcommon-x11-0 \
+    wget \
+    tree \
+    && rm -rf /var/lib/apt/lists/*
+
+
+# Define build arguments for user configuration
+ARG USERNAME=developer
+ARG USER_UID=1000
+ARG USER_GID=1000
+
+# Create user and configure sudo without password
+RUN groupadd -g ${USER_GID} ${USERNAME} && \
+    useradd -m -u ${USER_UID} -g ${USER_GID} -s /bin/bash ${USERNAME} && \
+    usermod -aG sudo ${USERNAME} && \
+    echo "${USERNAME} ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/${USERNAME}
+
+# Switch to user for subsequent operations
+USER ${USERNAME}
+WORKDIR /home/${USERNAME}
+
+# Begin hack to install MinkowskiEngine with Cuda 12.1 (so that we can use Python 3.10 and then RoboStack for ROS Humble)
+ENV CONDA_AUTO_UPDATE_CONDA=false \
+    PATH=/home/${USERNAME}/miniconda/bin:$PATH
+RUN curl -sLo /tmp/miniconda.sh https://repo.anaconda.com/miniconda/Miniconda3-py310_24.7.1-0-Linux-x86_64.sh \
+    && chmod +x /tmp/miniconda.sh \
+    && /tmp/miniconda.sh -b -p /home/${USERNAME}/miniconda \
+    && rm /tmp/miniconda.sh
+
+RUN conda init bash && \
+echo "conda config --set auto_activate_base false" >> ~/.bashrc
+
+# Create and set working directory with correct permissions
+WORKDIR /back_massage_bot
+USER root
+RUN mkdir -p /models/ && \
+chmod -R 777 /models && \
+wget -O /models/human3d.ckpt https://omnomnom.vision.rwth-aachen.de/data/human3d/checkpoints/human3d.ckpt 
+RUN mkdir -p /back_massage_bot && \
+chmod -R 777 /back_massage_bot
+USER ${USERNAME}
+
+
+# Copy package source code
+COPY --chown=${USERNAME}:${USERNAME} back_massage_bot /back_massage_bot
+
+# Create a modified environment file without problematic packages
+RUN grep -v "omegaconf\|pyyaml" /back_massage_bot/external/Human3D/environment.yaml > /tmp/env.yaml
+
+# Create basic conda environment first
+RUN conda create -n human3d_cuda113 python=3.10.9 -y
+
+# Switch to conda environment for all subsequent commands
+SHELL ["conda", "run", "-n", "human3d_cuda113", "/bin/bash", "-c"]
+
+# Install pip first
+RUN pip install pip==23.0 && pip install PyYAML==6.0 omegaconf==2.0.6
+
+# Now install packages from the environment file
+# We use --file to install from the environment file without creating a new environment
+RUN conda env update -n human3d_cuda113 --file /tmp/env.yaml
+
+# Install PyTorch packages separately
+RUN pip install torch==1.12.1+cu113 torchvision==0.13.1+cu113 --extra-index-url https://download.pytorch.org/whl/cu113
+RUN pip install torch-scatter -f https://data.pyg.org/whl/torch-1.12.1+cu113.html
+RUN pip install 'git+https://github.com/facebookresearch/detectron2.git@710e7795d0eeadf9def0e7ef957eea13532e34cf' --no-deps
+RUN pip install pytorch-lightning==1.7.2
+
+# Continue with the rest of your setup
+RUN cd /back_massage_bot/external/Human3D/third_party/pointnet2/ && python3 setup.py install
+COPY --chown=${USERNAME}:${USERNAME} back_massage_bot/pyproject.toml /back_massage_bot/pyproject.toml
+
+ENV CUDA_HOME=/usr/local/cuda
+ENV TORCH_CUDA_ARCH_LIST="6.0 6.1 6.2 7.0 7.2 7.5 8.0 8.6"
+ENV TORCH_NVCC_FLAGS="-Xfatbin -compress-all"
+RUN git clone https://github.com/NVIDIA/MinkowskiEngine.git /tmp/MinkowskiEngine \
+    && cd /tmp/MinkowskiEngine && git checkout 02fc608bea4c0549b0a7b00ca1bf15dee4a0b228 \
+    && python3 setup.py install --force_cuda --blas=openblas \
+    && cd - \
+    && rm -rf /tmp/MinkowskiEngine
+
+
+
+# Install package
+RUN pip install -r /back_massage_bot/requirements.txt && pip install -e /back_massage_bot
+
+# Ensure conda environment is activated for interactive sessions
+RUN echo "conda activate human3d_cuda113" >> ~/.bashrc

@@ -6,5 +6,5 @@ docker build \
 --build-arg UID=1000 \
 --build-arg GID=1000 \
 --progress=plain \
---file back_massage_bot/Dockerfile \
+--file back_massage_bot/Dockerfile.test \
 .

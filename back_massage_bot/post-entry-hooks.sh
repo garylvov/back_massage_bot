@@ -6,3 +6,5 @@ if [[ "$CONDA_DEFAULT_ENV" != "back_massage_bot" ]]; then
 fi
 
 echo "Activated Conda."
+python3 /back_massage_bot/external/Human3D/third_party/pointnet2/setup.py install
+pip install -e /back_massage_bot

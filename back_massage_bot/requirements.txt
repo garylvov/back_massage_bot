@@ -1,8 +1,20 @@
 numpy
-torch==2.5.1
-torchvision
+torch==2.3.1
+torchvision==0.18.1
 matplotlib
 opencv-python>=4.8.0
 setuptools>=65.0
 open3d>=0.18.0
 # git+https://github.com/facebookresearch/detectron2.git@main#egg=densepose&subdirectory=projects/DensePose
+
+# Additional dependencies
+hydra-core
+python-dotenv
+dotenv
+pyviz3d
+torch-scatter
+imageio
+plyfile
+loguru
+albumentations
+# MinkowskiEngine==0.5.4 
