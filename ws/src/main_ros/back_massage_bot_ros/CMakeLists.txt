@@ -11,14 +11,30 @@ find_package(ament_cmake REQUIRED)
 find_package(ament_cmake_python REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclpy REQUIRED)
+find_package(moveit_ros_planning_interface REQUIRED)
+find_package(geometry_msgs REQUIRED)
+find_package(tf2 REQUIRED)
+find_package(tf2_ros REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
+find_package(std_srvs REQUIRED)
 
-# # Include Cpp "include" directory include_directories(include)
+# Include Cpp "include" directory
+include_directories(include)
 
-# # Create Cpp executable add_executable(cpp_executable src/cpp_node.cpp)
-# ament_target_dependencies(cpp_executable rclcpp)
+# Create Cpp executable
+add_executable(massage_moveit_node src/massage_moveit_node.cpp)
+ament_target_dependencies(
+  massage_moveit_node
+  rclcpp
+  moveit_ros_planning_interface
+  geometry_msgs
+  tf2
+  tf2_ros
+  tf2_geometry_msgs
+  std_srvs)
 
-# # Install Cpp executables install(TARGETS cpp_executable DESTINATION
-# lib/${PROJECT_NAME} )
+# Install Cpp executables
+install(TARGETS massage_moveit_node DESTINATION lib/${PROJECT_NAME})
 
 # Install Python package
 ament_python_install_package(${PROJECT_NAME})
@@ -30,12 +46,13 @@ install(PROGRAMS scripts/rgb_to_segmented_pose.py
 # Install launch files
 install(DIRECTORY launch DESTINATION share/${PROJECT_NAME})
 
-# Enable testing and linters if(BUILD_TESTING) find_package(ament_lint_auto
-# REQUIRED)
-
-# # Skip lint checks temporarily (remove these lines when ready)
-# set(ament_cmake_copyright_FOUND TRUE) set(ament_cmake_cpplint_FOUND TRUE)
-
-# ament_lint_auto_find_test_dependencies() endif()
+# Enable testing and linters
+if(BUILD_TESTING)
+  find_package(ament_lint_auto REQUIRED)
+  # Skip lint checks temporarily (remove these lines when ready)
+  set(AMENT_CMAKE_COPYRIGHT_FOUND TRUE)
+  set(AMENT_CMAKE_CPPLINT_FOUND TRUE)
+  ament_lint_auto_find_test_dependencies()
+endif()
 
 ament_package()
