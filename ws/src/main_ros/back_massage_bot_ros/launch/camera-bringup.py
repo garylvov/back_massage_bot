@@ -17,8 +17,8 @@ def generate_launch_description():
         parameters=[
             {"enable_color": True},
             {"enable_depth": True},
-            # {"enable_infra1": False},
-            # {"enable_infra2": False},
+            {"enable_infra1": True},
+            {"enable_infra2": True},
             {"align_depth": True},  # Align depth to color stream
             {"pointcloud.enable": True},  # Enable point cloud if needed
             {"json_file_path": ""},  # Path to a custom JSON configuration file if required
