@@ -14,7 +14,7 @@ To get started, run the following.
 ```
 git clone https://github.com/garylvov/back_massage_bot/ &&
 cd back_massage_bot && git submodule init && git submodule update && \
-sudo apt install pre-commit && pre-commit install # Optional for enforcing linting
+sudo apt install pre-commit && pre-commit install && sudo apt install cppcheck cpplint clang-format # Optional for enforcing linting
 ```
 #### Project Permissions (USB and Network)
 
