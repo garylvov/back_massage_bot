@@ -1,94 +1,104 @@
-// Copyright (c) 2025, Gary Lvov, Vinay Balaji, Tim Bennet, Xandar Ingare, Ben Yoon
+// Copyright (c) 2025, Gary Lvov, Tim Bennett, Xander Ingare, Ben Yoon, Vinay Balaji
 // All rights reserved.
 //
 // SPDX-License-Identifier: MIT
 
 #include <chrono>  // NOLINT(build/c++11)
 #include <thread>  // NOLINT(build/c++11)
+#include <memory>
+#include <rclcpp/rclcpp.hpp>
 
 #include "back_massage_bot_ros/massage_moveit.hpp"
 #include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"  // For doTransform
 
+using namespace std::chrono_literals;
+
 namespace back_massage_bot_ros {
 
 MassageMoveit::MassageMoveit(const rclcpp::NodeOptions& options) : Node("massage_moveit", options) {
-  // Get parameters (don't declare them if they might be set from the launch file)
-  if (!this->has_parameter("arm_group_name")) {
-    this->declare_parameter("arm_group_name", "arm");
-  }
-  if (!this->has_parameter("end_effector_link")) {
-    this->declare_parameter("end_effector_link", "j2n6s300_end_effector");
-  }
-  if (!this->has_parameter("home_position")) {
-    this->declare_parameter("home_position", std::vector<double>{0.0, 0.0, 0.0, 0.0, 0.0, 0.0});
-  }
+  try {
+    // Get parameters (don't declare them if they might be set from the launch file)
+    if (!this->has_parameter("arm_group_name")) {
+      this->declare_parameter("arm_group_name", "arm");
+    }
+    if (!this->has_parameter("end_effector_link")) {
+      this->declare_parameter("end_effector_link", "j2n6s300_end_effector");
+    }
+    if (!this->has_parameter("home_position")) {
+      this->declare_parameter("home_position", std::vector<double>{0.0, 0.0, 0.0, 0.0, 0.0, 0.0});
+    }
 
-  // Planning parameters
-  if (!this->has_parameter("velocity_scaling_factor")) {
-    this->declare_parameter("velocity_scaling_factor", 0.1);
-  }
-  if (!this->has_parameter("acceleration_scaling_factor")) {
-    this->declare_parameter("acceleration_scaling_factor", 0.1);
-  }
-  if (!this->has_parameter("planning_time")) {
-    this->declare_parameter("planning_time", 5.0);
-  }
-  if (!this->has_parameter("planning_attempts")) {
-    this->declare_parameter("planning_attempts", 10);
-  }
-  if (!this->has_parameter("goal_position_tolerance")) {
-    this->declare_parameter("goal_position_tolerance", 0.01);
-  }
-  if (!this->has_parameter("goal_orientation_tolerance")) {
-    this->declare_parameter("goal_orientation_tolerance", 0.01);
-  }
-  if (!this->has_parameter("planner_id")) {
-    this->declare_parameter("planner_id", "RRTConnect");
-  }
-  if (!this->has_parameter("cartesian_path_eef_step")) {
-    this->declare_parameter("cartesian_path_eef_step", 0.01);
-  }
-  if (!this->has_parameter("cartesian_path_jump_threshold")) {
-    this->declare_parameter("cartesian_path_jump_threshold", 0.0);
-  }
+    // Planning parameters
+    if (!this->has_parameter("velocity_scaling_factor")) {
+      this->declare_parameter("velocity_scaling_factor", 0.1);
+    }
+    if (!this->has_parameter("acceleration_scaling_factor")) {
+      this->declare_parameter("acceleration_scaling_factor", 0.1);
+    }
+    if (!this->has_parameter("planning_time")) {
+      this->declare_parameter("planning_time", 5.0);
+    }
+    if (!this->has_parameter("planning_attempts")) {
+      this->declare_parameter("planning_attempts", 10);
+    }
+    if (!this->has_parameter("goal_position_tolerance")) {
+      this->declare_parameter("goal_position_tolerance", 0.01);
+    }
+    if (!this->has_parameter("goal_orientation_tolerance")) {
+      this->declare_parameter("goal_orientation_tolerance", 0.01);
+    }
+    if (!this->has_parameter("planner_id")) {
+      this->declare_parameter("planner_id", "RRTConnect");
+    }
+    if (!this->has_parameter("cartesian_path_eef_step")) {
+      this->declare_parameter("cartesian_path_eef_step", 0.01);
+    }
+    if (!this->has_parameter("cartesian_path_jump_threshold")) {
+      this->declare_parameter("cartesian_path_jump_threshold", 0.0);
+    }
 
-  // Get parameter values
-  arm_group_name_ = this->get_parameter("arm_group_name").as_string();
-  end_effector_link_ = this->get_parameter("end_effector_link").as_string();
-  home_position_ = this->get_parameter("home_position").as_double_array();
+    // Get parameter values
+    arm_group_name_ = this->get_parameter("arm_group_name").as_string();
+    end_effector_link_ = this->get_parameter("end_effector_link").as_string();
+    home_position_ = this->get_parameter("home_position").as_double_array();
 
-  // Get planning parameter values
-  velocity_scaling_factor_ = this->get_parameter("velocity_scaling_factor").as_double();
-  acceleration_scaling_factor_ = this->get_parameter("acceleration_scaling_factor").as_double();
-  planning_time_ = this->get_parameter("planning_time").as_double();
-  planning_attempts_ = this->get_parameter("planning_attempts").as_int();
-  goal_position_tolerance_ = this->get_parameter("goal_position_tolerance").as_double();
-  goal_orientation_tolerance_ = this->get_parameter("goal_orientation_tolerance").as_double();
-  planner_id_ = this->get_parameter("planner_id").as_string();
-  cartesian_path_eef_step_ = this->get_parameter("cartesian_path_eef_step").as_double();
-  cartesian_path_jump_threshold_ = this->get_parameter("cartesian_path_jump_threshold").as_double();
+    // Get planning parameter values
+    velocity_scaling_factor_ = this->get_parameter("velocity_scaling_factor").as_double();
+    acceleration_scaling_factor_ = this->get_parameter("acceleration_scaling_factor").as_double();
+    planning_time_ = this->get_parameter("planning_time").as_double();
+    planning_attempts_ = this->get_parameter("planning_attempts").as_int();
+    goal_position_tolerance_ = this->get_parameter("goal_position_tolerance").as_double();
+    goal_orientation_tolerance_ = this->get_parameter("goal_orientation_tolerance").as_double();
+    planner_id_ = this->get_parameter("planner_id").as_string();
+    cartesian_path_eef_step_ = this->get_parameter("cartesian_path_eef_step").as_double();
+    cartesian_path_jump_threshold_ = this->get_parameter("cartesian_path_jump_threshold").as_double();
 
-  // Setup TF2
-  tf_buffer_ = std::make_shared<tf2_ros::Buffer>(this->get_clock());
-  tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
+    // Setup TF2
+    tf_buffer_ = std::make_shared<tf2_ros::Buffer>(this->get_clock());
+    tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
 
-  // Setup subscriber for arm dispatch commands
-  arm_dispatch_sub_ = this->create_subscription<geometry_msgs::msg::PoseStamped>(
-      "/arm_dispatch_command", 10, std::bind(&MassageMoveit::arm_dispatch_callback, this, std::placeholders::_1));
+    // Setup subscriber for arm dispatch commands
+    arm_dispatch_sub_ = this->create_subscription<geometry_msgs::msg::PoseStamped>(
+        "/arm_dispatch_command", 10, std::bind(&MassageMoveit::arm_dispatch_callback, this, std::placeholders::_1));
 
-  // Setup services
-  return_home_service_ = this->create_service<std_srvs::srv::Trigger>(
-      "/return_to_home",
-      std::bind(&MassageMoveit::return_home_callback, this, std::placeholders::_1, std::placeholders::_2));
+    // Setup services
+    return_home_service_ = this->create_service<std_srvs::srv::Trigger>(
+        "/return_to_home",
+        std::bind(&MassageMoveit::return_home_callback, this, std::placeholders::_1, std::placeholders::_2));
 
-  stop_service_ = this->create_service<std_srvs::srv::Trigger>(
-      "/stop_arm", std::bind(&MassageMoveit::stop_callback, this, std::placeholders::_1, std::placeholders::_2));
+    stop_service_ = this->create_service<std_srvs::srv::Trigger>(
+        "/stop_arm", std::bind(&MassageMoveit::stop_callback, this, std::placeholders::_1, std::placeholders::_2));
 
-  // Schedule MoveGroup initialization after a delay
-  // This ensures the node is fully initialized before we call shared_from_this()
-  init_timer_ = this->create_wall_timer(std::chrono::seconds(2), std::bind(&MassageMoveit::delayed_init, this));
+    // Schedule MoveGroup initialization after a delay
+    // This ensures the node is fully initialized before we call shared_from_this()
+    init_timer_ = this->create_wall_timer(std::chrono::seconds(15), std::bind(&MassageMoveit::delayed_init, this));
 
-  RCLCPP_INFO(this->get_logger(), "MassageMoveit node initialized and ready");
+    RCLCPP_INFO(this->get_logger(), "MassageMoveit node initialized and ready");
+  } catch (const std::exception& e) {
+    RCLCPP_ERROR(this->get_logger(), "Exception in constructor: %s", e.what());
+  } catch (...) {
+    RCLCPP_ERROR(this->get_logger(), "Unknown exception in constructor");
+  }
 }
 
 MassageMoveit::~MassageMoveit() {
@@ -100,29 +110,47 @@ void MassageMoveit::delayed_init() {
   // This is called after the node is fully initialized
   RCLCPP_INFO(this->get_logger(), "Starting delayed initialization");
 
-  // Cancel the timer so this only runs once
-  init_timer_->cancel();
+  try {
+    // Cancel the timer so this only runs once
+    init_timer_->cancel();
 
-  // Now initialize the MoveGroup
-  initialize_move_group();
+    // Now initialize the MoveGroup
+    initialize_move_group();
+  } catch (const std::exception& e) {
+    RCLCPP_ERROR(this->get_logger(), "Exception in delayed_init: %s", e.what());
+  } catch (...) {
+    RCLCPP_ERROR(this->get_logger(), "Unknown exception in delayed_init");
+  }
 }
 
 void MassageMoveit::initialize_move_group() {
   RCLCPP_INFO(this->get_logger(), "Initializing MoveGroup for '%s'", arm_group_name_.c_str());
 
   try {
-    // Now shared_from_this() should work because the object is fully constructed
-    move_group_ = std::make_shared<moveit::planning_interface::MoveGroupInterface>(shared_from_this(), arm_group_name_);
+    // Create the MoveGroupInterface with the correct constructor parameters
+    RCLCPP_INFO(this->get_logger(), "Creating MoveGroupInterface");
+    
+    // Use the constructor that takes a node pointer, group name, and tf buffer
+    // MoveGroupInterface(const rclcpp::Node::SharedPtr& node, const std::string& group,
+    //                    const std::shared_ptr<tf2_ros::Buffer>&, const rclcpp::Duration&)
+    move_group_ = std::make_shared<moveit::planning_interface::MoveGroupInterface>(
+      shared_from_this(),  // Node pointer
+      arm_group_name_,     // Group name
+      tf_buffer_,          // TF buffer
+      rclcpp::Duration::from_seconds(5.0)  // Wait timeout
+    );
+    
+    RCLCPP_INFO(this->get_logger(), "MoveGroupInterface created successfully");
 
     // Set planning parameters from ROS parameters
+    RCLCPP_INFO(this->get_logger(), "Setting planning parameters");
+    
     move_group_->setMaxVelocityScalingFactor(velocity_scaling_factor_);
     move_group_->setMaxAccelerationScalingFactor(acceleration_scaling_factor_);
     move_group_->setPlanningTime(planning_time_);
     move_group_->setNumPlanningAttempts(planning_attempts_);
     move_group_->setGoalPositionTolerance(goal_position_tolerance_);
     move_group_->setGoalOrientationTolerance(goal_orientation_tolerance_);
-
-    // Set the planner
     move_group_->setPlannerId(planner_id_);
 
     RCLCPP_INFO(this->get_logger(), "MoveGroup initialized successfully with the following parameters:");
@@ -142,6 +170,9 @@ void MassageMoveit::initialize_move_group() {
     RCLCPP_INFO(this->get_logger(), "The node will continue running, but arm control functionality will be disabled.");
     RCLCPP_INFO(this->get_logger(),
                 "To use arm control, please launch MoveIt for your robot first, then restart this node.");
+  } catch (...) {
+    RCLCPP_ERROR(this->get_logger(), "Unknown exception during MoveGroup initialization");
+    RCLCPP_INFO(this->get_logger(), "The node will continue running, but arm control functionality will be disabled.");
   }
 }
 
@@ -305,15 +336,57 @@ bool MassageMoveit::stop_callback(const std::shared_ptr<std_srvs::srv::Trigger::
 }  // namespace back_massage_bot_ros
 
 // Main function
-int main(int argc, char* argv[]) {
-  rclcpp::init(argc, argv);
-
-  rclcpp::NodeOptions options;
-  options.automatically_declare_parameters_from_overrides(true);
-
-  auto node = std::make_shared<back_massage_bot_ros::MassageMoveit>(options);
-
-  rclcpp::spin(node);
-  rclcpp::shutdown();
-  return 0;
+int main(int argc, char **argv)
+{
+    // Initialize ROS
+    rclcpp::init(argc, argv);
+    
+    // Create logger for main function
+    auto logger = rclcpp::get_logger("massage_moveit_main");
+    RCLCPP_INFO(logger, "Starting massage_moveit_node");
+    
+    try {
+        // Create the node with a separate thread for the executor
+        auto node = std::make_shared<back_massage_bot_ros::MassageMoveit>();
+        
+        // Create a multithreaded executor for better performance
+        rclcpp::executors::MultiThreadedExecutor executor;
+        executor.add_node(node);
+        
+        // Log that we're waiting before initializing MoveGroup
+        RCLCPP_INFO(logger, "Waiting 5 before initializing MoveGroup to ensure all parameters are loaded...");
+        
+        // Create a separate thread for delayed initialization
+        std::thread init_thread([node, &logger]() {
+            // Sleep to allow time for MoveIt to fully initialize
+            std::this_thread::sleep_for(std::chrono::seconds(5));
+            
+            try {
+                RCLCPP_INFO(logger, "Attempting to initialize MoveGroup...");
+                node->initialize_move_group();
+                RCLCPP_INFO(logger, "MoveGroup initialization successful!");
+            } catch (const std::exception& e) {
+                RCLCPP_ERROR(logger, "Failed to initialize MoveGroup: %s", e.what());
+                RCLCPP_WARN(logger, "Node will continue running but movement capabilities will be limited");
+            }
+        });
+        
+        // Detach the thread so it can run independently
+        init_thread.detach();
+        
+        RCLCPP_INFO(logger, "Starting executor...");
+        executor.spin();
+        
+        RCLCPP_INFO(logger, "Shutting down...");
+        rclcpp::shutdown();
+        return 0;
+    } catch (const std::exception& e) {
+        RCLCPP_FATAL(logger, "Unhandled exception in main: %s", e.what());
+        rclcpp::shutdown();
+        return 1;
+    } catch (...) {
+        RCLCPP_FATAL(logger, "Unknown exception in main");
+        rclcpp::shutdown();
+        return 1;
+    }
 }

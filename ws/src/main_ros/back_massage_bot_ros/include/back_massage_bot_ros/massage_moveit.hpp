@@ -1,4 +1,4 @@
-// Copyright (c) 2025, Gary Lvov, Vinay Balaji, Tim Bennet, Xandar Ingare, Ben Yoon
+// Copyright (c) 2025, Gary Lvov, Tim Bennett, Xander Ingare, Ben Yoon, Vinay Balaji
 // All rights reserved.
 //
 // SPDX-License-Identifier: MIT
@@ -30,6 +30,9 @@ class MassageMoveit : public rclcpp::Node {
  public:
   explicit MassageMoveit(const rclcpp::NodeOptions& options = rclcpp::NodeOptions());
   virtual ~MassageMoveit();
+  
+  // Make initialize_move_group public so it can be called from main
+  void initialize_move_group();
 
  private:
   // MoveIt interface
@@ -62,8 +65,7 @@ class MassageMoveit : public rclcpp::Node {
   double cartesian_path_jump_threshold_;
 
   // Methods
-  void delayed_init();  // New method for delayed initialization
-  void initialize_move_group();
+  void delayed_init();
   bool move_to_pose(const geometry_msgs::msg::Pose& target_pose);
   bool move_to_joint_positions(const std::vector<double>& joint_positions);
 

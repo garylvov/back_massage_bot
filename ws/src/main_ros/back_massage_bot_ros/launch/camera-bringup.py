@@ -1,4 +1,4 @@
-# Copyright (c) 2025, Gary Lvov, Vinay Balaji, Tim Bennet, Xandar Ingare, Ben Yoon
+# Copyright (c) 2025, Gary Lvov, Tim Bennett, Xander Ingare, Ben Yoon, Vinay Balaji
 # All rights reserved.
 #
 # SPDX-License-Identifier: MIT
@@ -17,8 +17,8 @@ def generate_launch_description():
         parameters=[
             {"enable_color": True},
             {"enable_depth": True},
-            {"enable_infra1": True},
-            {"enable_infra2": True},
+            # {"enable_infra1": False},
+            # {"enable_infra2": False},
             {"align_depth": True},  # Align depth to color stream
             {"pointcloud.enable": True},  # Enable point cloud if needed
             {"json_file_path": ""},  # Path to a custom JSON configuration file if required

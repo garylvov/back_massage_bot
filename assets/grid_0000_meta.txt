@@ -1,0 +1,7 @@
+Grid Resolution: 0.01 meters
+Grid Dimensions: 210x70 cells
+Occupied Cells: 6313
+X Range: -0.7 to 1.4
+Y Range: -0.8 to -0.1
+Z Range: 0.05 to 0.5
+Timestamp: 2025-03-17 05:14:11

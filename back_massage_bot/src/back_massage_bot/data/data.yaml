@@ -1,0 +1,7 @@
+train: ../train/images
+val: ../valid/images
+test: ../test/images
+
+nc: 3
+names: ['back', 'head', 'right_arm', 'left_arm', 'right_leg', 'left_leg', 'glutes']
+ch: 1  # Set channel to 1 for grayscale images

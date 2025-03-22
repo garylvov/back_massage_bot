@@ -42,11 +42,13 @@ RUN conda init bash && \
 # Create and set working directory with correct permissions
 WORKDIR /back_massage_bot
 USER root
-RUN mkdir -p /models/dense_pose && \
+RUN mkdir -p /models/  && \
     chmod -R 777 /models
 RUN mkdir -p /back_massage_bot && \
     chmod -R 777 /back_massage_bot
 USER ${USERNAME}
+
+RUN wget -O /models/yolo11n.pt https://github.com/ultralytics/assets/releases/download/v8.3.0/yolo11n.pt
 
 # Create conda environment
 COPY --chown=${USERNAME}:${USERNAME} back_massage_bot/environment.yml /back_massage_bot/environment.yml
@@ -57,21 +59,7 @@ RUN conda env create -f /back_massage_bot/environment.yml && \
 
 SHELL ["conda", "run", "-n", "back_massage_bot", "/bin/bash", "-c"]
 COPY --chown=${USERNAME}:${USERNAME} back_massage_bot/post-entry-hooks.sh /back_massage_bot/post-entry-hooks.sh
-
-# Install DensePose
-RUN pip install git+https://github.com/facebookresearch/detectron2@main#subdirectory=projects/DensePose
-
-RUN wget -O /models/dense_pose/Base-DensePose-RCNN-FPN.yaml \
-https://raw.githubusercontent.com/facebookresearch/detectron2/refs/heads/main/projects/DensePose/configs/Base-DensePose-RCNN-FPN.yaml
-
-RUN wget -O /models/dense_pose/densepose_rcnn_R_50_FPN_s1x.pkl \
-https://dl.fbaipublicfiles.com/densepose/densepose_rcnn_R_50_FPN_s1x/165712039/model_final_162be9.pkl
-
-RUN wget -O /models/dense_pose/Base-DensePose-RCNN-FPN-Human.yaml \
-https://raw.githubusercontent.com/facebookresearch/detectron2/refs/heads/main/projects/DensePose/configs/cse/Base-DensePose-RCNN-FPN-Human.yaml
-
-RUN wget -O /models/dense_pose/densepose_rcnn_R_50_FPN_s1x.yaml \
-https://raw.githubusercontent.com/facebookresearch/detectron2/refs/heads/main/projects/DensePose/configs/densepose_rcnn_R_50_FPN_s1x.yaml
+RUN
 
 RUN bash post-entry-hooks.sh
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (c) 2025, Gary Lvov, Vinay Balaji, Tim Bennet, Xandar Ingare, Ben Yoon
+# Copyright (c) 2025, Gary Lvov, Tim Bennett, Xander Ingare, Ben Yoon, Vinay Balaji
 # All rights reserved.
 #
 # SPDX-License-Identifier: MIT
@@ -55,6 +55,13 @@ class ImageProcessor:
         try:
             # Convert to CV2 image
             cv_image = self.bridge.imgmsg_to_cv2(self.latest_image, desired_encoding="passthrough")
+            
+            # Check if image is grayscale (1 channel) and convert to RGB if needed
+            if len(cv_image.shape) == 2 or cv_image.shape[2] == 1:
+                self.node.get_logger().info("Converting grayscale image to RGB")
+                # Convert grayscale to 3-channel RGB
+                cv_image = cv2.cvtColor(cv_image, cv2.COLOR_GRAY2BGR)
+            
             cv2.imwrite("test.jpg", cv_image)
             try:
                 cv_image = rgb_to_segmented_pose_model.get_pose_mask(
