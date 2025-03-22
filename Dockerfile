@@ -19,6 +19,7 @@ WORKDIR /ws/src/main_ros
 # Install vim as en example of how to install new things on top of the base image.
 RUN sudo apt-get install -y vim
 
+RUN pip3 install pymeshlab spatialmath-python
 # Alternatively, you could install other things here.
 # You can even use root if you'd like.
 # USER root
