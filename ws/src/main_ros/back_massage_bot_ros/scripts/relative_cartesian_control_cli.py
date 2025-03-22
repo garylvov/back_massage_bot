@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright (c) 2025, Gary Lvov, Vinay Balaji, Tim Bennet, Xandar Ingare, Ben Yoon
+# Copyright (c) 2025, Gary Lvov, Tim Bennett, Xander Ingare, Ben Yoon, Vinay Balaji
 # All rights reserved.
 #
 # SPDX-License-Identifier: MIT

@@ -1,2 +1,4 @@
 #!/usr/bin/env bash
-python3 docker.py -c bmb_ubuntu22_humble:latest -e
+xhost +local: || true  && \
+docker pull garylvov/back_massage_bot:stable && \
+python3 docker.py -c garylvov/back_massage_bot:stable -e

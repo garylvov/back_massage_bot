@@ -1,0 +1,20 @@
+transforms:
+  j2n6s300_link_base:
+    camera_depth_optical_frame:
+      # My personal hot take is that storing a 4x4 homogenous transform is better than quat
+      homogenous_transform: []
+      quat: [0.0, 0.0, 0.0, 1.0]
+      quat_ordering: ["x", "y", "z", "w"]
+      translation: [0.0, 0.0, 0.0]
+
+  j2n6s300_link_6:
+    massage_gun_tip:
+      homogenous_transform: []
+      quat: [0.0, 0.0, 0.0, 1.0]
+      quat_ordering: ["x", "y", "z", "w"]
+      translation: [0.0, 0.0, 0.0]
+  
+point_cloud_crops:
+  j2n6s300_link_base:
+    camera_topic: "/camera/depth/color/points"
+    camera_frame: "camera_depth_optical_frame" # Should grok this from the topic tbh
