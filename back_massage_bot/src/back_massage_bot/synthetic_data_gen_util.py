@@ -2,6 +2,8 @@ import numpy as np
 import cv2
 from typing import List
 from scipy.interpolate import CubicSpline
+import matplotlib.pyplot as plt
+import math
 
 def sample_from_params(params: dict[str, tuple[float, float]],
                     strategy: str = "uniform") -> dict[str, float]:
@@ -272,7 +274,7 @@ def line_relative_to_end_point_at_angle_dist(
     # Create the new end point
     new_p2 = (new_p1[0] + new_dir_x * new_length, new_p1[1] + new_dir_y * new_length)
     
-    return (new_p1, new_p2)
+    return (np.array(new_p1), np.array(new_p2))
 
 def find_ratio_dist(
     p1: tuple[float, float],  # First point (x1, y1) in meters
@@ -305,3 +307,285 @@ def find_ratio_dist(
     distance = length * ratio
     
     return distance
+
+def line_intersects_polygon(
+    vertices: list[tuple[float, float]], 
+    line_start: tuple[float, float], 
+    line_end: tuple[float, float]
+) -> bool:
+    """
+    Check if a line segment intersects with a polygon defined by vertices.
+    A line is considered to intersect if:
+    1. It crosses any edge of the polygon, OR
+    2. Either endpoint of the line is inside the polygon, OR
+    3. The line lies along an edge of the polygon
+    
+    Args:
+        vertices: List of (x, y) points defining the polygon vertices in order
+        line_start: (x, y) coordinates of the line start point
+        line_end: (x, y) coordinates of the line end point
+        
+    Returns:
+        True if the line segment intersects with the polygon, False otherwise
+    """
+    def orientation(p, q, r):
+        """Calculate orientation of triplet (p, q, r)
+        Returns:
+           0: Collinear
+           1: Clockwise
+           2: Counterclockwise
+        """
+        val = (q[1] - p[1]) * (r[0] - q[0]) - (q[0] - p[0]) * (r[1] - q[1])
+        if abs(val) < 1e-10:
+            return 0  # Collinear
+        return 1 if val > 0 else 2  # Clockwise or Counterclockwise
+    
+    def on_segment(p, q, r):
+        """Check if point q lies on line segment 'pr'"""
+        return (q[0] <= max(p[0], r[0]) and q[0] >= min(p[0], r[0]) and
+                q[1] <= max(p[1], r[1]) and q[1] >= min(p[1], r[1]))
+    
+    def do_segments_intersect(p1, q1, p2, q2):
+        """Check if line segments (p1,q1) and (p2,q2) intersect"""
+        # Find the four orientations needed for general and special cases
+        o1 = orientation(p1, q1, p2)
+        o2 = orientation(p1, q1, q2)
+        o3 = orientation(p2, q2, p1)
+        o4 = orientation(p2, q2, q1)
+        
+        # General case
+        if o1 != o2 and o3 != o4:
+            return True
+        
+        # Special Cases
+        # p1, q1 and p2 are collinear and p2 lies on segment p1q1
+        if o1 == 0 and on_segment(p1, p2, q1):
+            return True
+        
+        # p1, q1 and q2 are collinear and q2 lies on segment p1q1
+        if o2 == 0 and on_segment(p1, q2, q1):
+            return True
+        
+        # p2, q2 and p1 are collinear and p1 lies on segment p2q2
+        if o3 == 0 and on_segment(p2, p1, q2):
+            return True
+        
+        # p2, q2 and q1 are collinear and q1 lies on segment p2q2
+        if o4 == 0 and on_segment(p2, q1, q2):
+            return True
+        
+        return False  # No intersection
+    
+    # First check: Is either endpoint inside the polygon?
+    if point_inside_polygon(line_start, vertices) or point_inside_polygon(line_end, vertices):
+        return True
+        
+    # Second check: Does the line cross any edge of the polygon?
+    n = len(vertices)
+    for i in range(n):
+        edge_start = vertices[i]
+        edge_end = vertices[(i + 1) % n]
+        
+        if do_segments_intersect(line_start, line_end, edge_start, edge_end):
+            return True
+    
+    return False
+
+def point_inside_polygon(
+    point: tuple[float, float], 
+    vertices: list[tuple[float, float]]
+) -> bool:
+    """
+    Check if a point is inside a polygon using the ray casting algorithm.
+    
+    Args:
+        point: (x, y) coordinates of the point to check
+        vertices: List of (x, y) points defining the polygon vertices in order
+        
+    Returns:
+        True if the point is inside the polygon, False otherwise
+    """
+    x, y = point
+    n = len(vertices)
+    inside = False
+    
+    p1x, p1y = vertices[0]
+    for i in range(n + 1):
+        p2x, p2y = vertices[i % n]
+        
+        if y > min(p1y, p2y) and y <= max(p1y, p2y) and x <= max(p1x, p2x):
+            if p1y != p2y:
+                x_intersect = (y - p1y) * (p2x - p1x) / (p2y - p1y) + p1x
+            
+            if p1x == p2x or x <= x_intersect:
+                inside = not inside
+        
+        p1x, p1y = p2x, p2y
+    
+    return inside
+
+if __name__ == "__main__":
+    # Test the line_intersects_polygon and point_inside_polygon functions
+    def test_polygon_functions():
+        # Create a test polygon (irregular shape)
+        polygon = [
+            (1, 1),   # Bottom left
+            (4, 0),   # Bottom right
+            (5, 3),   # Right
+            (3, 5),   # Top
+            (0, 3),   # Left
+        ]
+        
+        # Test lines
+        test_lines = [
+            ((0, 0), (6, 0)),     # Line below polygon (no intersection)
+            ((0, 0), (2, 2)),     # Line intersecting once
+            ((2, 2), (4, 4)),     # Line passing through polygon (intersects twice)
+            ((0, 3), (5, 3)),     # Line along one edge
+            ((2.5, 2.5), (3, 3)), # Line completely inside polygon (no intersection with edges)
+            ((6, 0), (6, 6)),     # Line to the right (no intersection)
+        ]
+        
+        # Test points
+        test_points = [
+            (2.5, 2.5),  # Inside
+            (0, 0),      # Outside
+            (1, 1),      # On vertex
+            (2, 0.5),    # On edge
+            (6, 3),      # Outside
+        ]
+        
+        # Set up the plot
+        plt.figure(figsize=(12, 10))
+        
+        # Draw the polygon
+        polygon_x = [p[0] for p in polygon] + [polygon[0][0]]
+        polygon_y = [p[1] for p in polygon] + [polygon[0][1]]
+        plt.plot(polygon_x, polygon_y, 'b-', linewidth=2, label='Polygon')
+        
+        # Fill polygon with light color
+        plt.fill(polygon_x, polygon_y, 'lightblue', alpha=0.3)
+        
+        # Test and draw each line
+        for i, (start, end) in enumerate(test_lines):
+            intersects = line_intersects_polygon(polygon, start, end)
+            line_color = 'r' if intersects else 'g'
+            line_style = '-' if intersects else '--'
+            plt.plot([start[0], end[0]], [start[1], end[1]], 
+                     f'{line_color}{line_style}', linewidth=2, 
+                     label=f'Line {i+1}: {"Intersects" if intersects else "No intersection"}')
+            
+            # Add arrowhead to show direction
+            plt.arrow(start[0], start[1], 
+                     (end[0] - start[0]) * 0.9, (end[1] - start[1]) * 0.9,
+                     head_width=0.15, head_length=0.3, fc=line_color, ec=line_color)
+            
+            # Add small markers for start and end points
+            plt.plot(start[0], start[1], f'{line_color}o', markersize=6)
+            plt.plot(end[0], end[1], f'{line_color}o', markersize=6)
+        
+        # Test and draw each point
+        for i, point in enumerate(test_points):
+            inside = point_inside_polygon(point, polygon)
+            point_color = 'purple' if inside else 'orange'
+            marker = '*' if inside else 'X'
+            plt.plot(point[0], point[1], marker=marker, markersize=10, 
+                     color=point_color, 
+                     label=f'Point {i+1}: {"Inside" if inside else "Outside"}')
+        
+        # Add labels and legend
+        plt.title('Testing line_intersects_polygon and point_inside_polygon', fontsize=14)
+        plt.xlabel('X', fontsize=12)
+        plt.ylabel('Y', fontsize=12)
+        plt.grid(True, linestyle='--', alpha=0.7)
+        plt.legend(loc='upper right', fontsize=10)
+        
+        # Set equal aspect ratio and add some margin
+        plt.axis('equal')
+        plt.xlim(-1, 7)
+        plt.ylim(-1, 7)
+        
+        plt.tight_layout()
+        plt.savefig('polygon_intersection_test.png')
+        plt.show()
+        
+        # Print test results
+        print("\n===== TEST RESULTS =====")
+        print("Line Intersection Tests:")
+        for i, (start, end) in enumerate(test_lines):
+            result = line_intersects_polygon(polygon, start, end)
+            print(f"  Line {i+1} ({start} to {end}): {'INTERSECTS' if result else 'NO INTERSECTION'}")
+        
+        print("\nPoint Inside Tests:")
+        for i, point in enumerate(test_points):
+            result = point_inside_polygon(point, polygon)
+            print(f"  Point {i+1} {point}: {'INSIDE' if result else 'OUTSIDE'}")
+
+    # Test cases for the find_ratio_dist function
+    def test_find_ratio_dist():
+        test_cases = [
+            ((0, 0), (3, 4), 1.0),    # Full distance (5 units)
+            ((0, 0), (3, 4), 0.5),    # Half distance (2.5 units)
+            ((1, 1), (5, 1), 0.75),   # 3/4 of a horizontal line (3 units)
+            ((2, 3), (2, 7), 0.25),   # 1/4 of a vertical line (1 unit)
+        ]
+        
+        print("\n===== RATIO DISTANCE TESTS =====")
+        for p1, p2, ratio in test_cases:
+            distance = find_ratio_dist(p1, p2, ratio)
+            expected = ratio * np.sqrt((p2[0]-p1[0])**2 + (p2[1]-p1[1])**2)
+            print(f"  Points {p1} to {p2}, ratio {ratio}: {distance:.2f} (expected: {expected:.2f})")
+            assert abs(distance - expected) < 1e-10, "Distance calculation error!"
+    
+    # Test cases for line_relative_to_end_point_at_angle_dist
+    def test_line_relative():
+        test_cases = [
+            # p1, p2, angle (degrees), new_line_distance, distance_from_end_point
+            ((0, 0), (10, 0), 90, 5, 0),     # Perpendicular up from end
+            ((0, 0), (0, 10), 90, 5, 0),     # Perpendicular right from end
+            ((0, 0), (10, 0), 45, 7, 2),     # 45 degrees, offset 2 from end
+            ((5, 5), (8, 9), -90, 4, -1),    # 90 degrees clockwise, 1 unit before end
+        ]
+        
+        # Set up plot for line tests
+        plt.figure(figsize=(10, 10))
+        
+        print("\n===== LINE RELATIVE TESTS =====")
+        for i, (p1, p2, angle_deg, new_dist, offset) in enumerate(test_cases):
+            angle_rad = math.radians(angle_deg)
+            new_line = line_relative_to_end_point_at_angle_dist(
+                p1, p2, angle_rad, new_dist, offset
+            )
+            
+            # Original line (blue)
+            plt.plot([p1[0], p2[0]], [p1[1], p2[1]], 'b-', linewidth=2)
+            plt.plot(p1[0], p1[1], 'bo', markersize=6)
+            plt.plot(p2[0], p2[1], 'bo', markersize=6)
+            
+            # New line (red)
+            plt.plot([new_line[0][0], new_line[1][0]], [new_line[0][1], new_line[1][1]], 
+                     'r-', linewidth=2)
+            plt.plot(new_line[0][0], new_line[0][1], 'ro', markersize=6)
+            plt.plot(new_line[1][0], new_line[1][1], 'ro', markersize=6)
+            
+            plt.annotate(f"Test {i+1}", ((p1[0]+p2[0])/2, (p1[1]+p2[1])/2), 
+                         fontsize=12, color='blue')
+            plt.annotate(f"Angle: {angle_deg}°", 
+                         ((new_line[0][0]+new_line[1][0])/2, (new_line[0][1]+new_line[1][1])/2), 
+                         fontsize=10, color='red')
+            
+            print(f"  Test {i+1}: Original ({p1} to {p2}) → New line from {new_line[0]} to {new_line[1]}")
+        
+        plt.title('Testing line_relative_to_end_point_at_angle_dist', fontsize=14)
+        plt.grid(True, linestyle='--', alpha=0.7)
+        plt.axis('equal')
+        plt.tight_layout()
+        plt.savefig('line_relative_test.png')
+        plt.show()
+    
+    # Run all tests
+    print("Running geometry function tests...")
+    test_polygon_functions()
+    test_find_ratio_dist()
+    test_line_relative()
+    print("\nAll tests completed!")
