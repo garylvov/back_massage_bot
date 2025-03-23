@@ -50,6 +50,8 @@ bash pull_run_overlay.sh
 
 You should now have a terminal from where to run commands, with all dependencies installed.
 Your computer directories are symlinked into the container so local changes in the cloned repo are reflected within the container when running. 
+The ``back_massage_bot`` directory is symlinked into the container at ``/back_massage_bot``,
+and the ``ws/src`` directory is symlinked into the container at ``/ws/src``.
 Once inside of the container, you should source the post entry hooks prior to running any commands as following.
 ```
 source post-entry-hooks.sh
@@ -88,7 +90,7 @@ bash build_and_push_image.sh -h
 # Model Training To Find Massage Candidate Regions
 
 We transform the point cloud of the massage table and person into a 2D binary occupancy grid to create a low-dimensional environmental representation, making it easier to train instance segmentation models that identify massage candidate regions on the human body. 
-This approach offers key advantages over direct point cloud segmentation: the low-dimensional nature of these representations enables straightforward synthetic generation of automatically labeled training data, as images are simpler to generate/label than point clouds. Segmentation bounding boxes are transformed to identify massage regions in 3D in the original point cloud.
+This approach offers key advantages over direct point cloud segmentation: the low-dimensional nature of these representations enables straightforward synthetic generation of automatically labeled training data, as binary images are simpler to generate/auto label than point clouds. Segmentation bounding boxes are transformed to identify massage regions in 3D in the original point cloud.
 
 ![plot](assets/cloud_to_grid.gif)
 
@@ -106,13 +108,13 @@ To replicate our training process, generate the synthetic data, and then launch 
 The generate synthetic training images, run the following.
 
 ```
-python3 back_massage_bot/src/back_massage_bot/synthetic_data_gen.py --num_images 100000
+python3 /back_massage_bot/src/back_massage_bot/synthetic_data_gen.py --num_images 100000
 ```
 
 To train the network, run the following. You may wish to adjust the device to reflect your hardware configuration
 
 ```
-python3 back_massage_bot/src/back_massage_bot/train.py --devices 0,1,2,3
+python3 /back_massage_bot/src/back_massage_bot/train.py --devices 0,1,2,3
 ```
 
 We tried to use zero-shot pretrained models, to no success, which motivated our custom yolo fine-tuning.

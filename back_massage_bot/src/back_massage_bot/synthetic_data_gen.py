@@ -3,421 +3,261 @@
 # All rights reserved.
 #
 # SPDX-License-Identifier: MIT
+
+from abc import abstractmethod
 import numpy as np
 import matplotlib.pyplot as plt
-import cv2
+from back_massage_bot.synthetic_data_gen_util import (create_filled_curve_mask, 
+                                                        line_relative_to_end_point_at_angle_dist, 
+                                                        generate_empty_grid, sample_from_params)
+import math
 
-
-bbox_names = ['back', 'head', 'right_arm', 'left_arm', 'right_leg', 'left_leg', 'glutes']
-
-def draw_limb(image, joint1_x, joint1_y, angle1_rad, angle2_rad, 
-              upper_length, lower_length, width, temp_scale, is_leg=False):
-    """Draw a limb (arm or leg) with upper and lower sections."""
-    # Calculate middle joint position
-    joint2_x = int(joint1_x + upper_length * temp_scale * 
-                  (np.sin(angle1_rad) if is_leg else np.cos(angle1_rad)))
-    joint2_y = int(joint1_y + upper_length * temp_scale * 
-                  (np.cos(angle1_rad) if is_leg else np.sin(angle1_rad)))
+class BodyPart:
+    instances = []
     
-    # Calculate end joint position
-    end_angle = angle1_rad - np.pi + angle2_rad if is_leg else angle1_rad + np.pi - angle2_rad
-    joint3_x = int(joint2_x + lower_length * temp_scale * 
-                  (np.sin(end_angle) if is_leg else np.cos(end_angle)))
-    joint3_y = int(joint2_y + lower_length * temp_scale * 
-                  (np.cos(end_angle) if is_leg else np.sin(end_angle)))
-    
-    # Draw upper section
-    cv2.line(image, (joint1_x, joint1_y), (joint2_x, joint2_y), 255, width * temp_scale)
-    
-    # Draw lower section
-    cv2.line(image, (joint2_x, joint2_y), (joint3_x, joint3_y), 255, width * temp_scale)
-    
-    # Return joint positions for bounding box calculation
-    return np.array([[joint1_x, joint1_y], [joint2_x, joint2_y], [joint3_x, joint3_y]])
-
-def calculate_bbox(points, temp_scale, image_size, class_id):
-    """Calculate bounding box from a set of points."""
-    # Scale points back to original resolution
-    points_scaled = points / temp_scale
-    
-    # Find min/max coordinates
-    x_min = np.min(points_scaled[:, 0])
-    y_min = np.min(points_scaled[:, 1])
-    x_max = np.max(points_scaled[:, 0])
-    y_max = np.max(points_scaled[:, 1])
-    
-    # Calculate dimensions and center
-    width = x_max - x_min
-    height = y_max - y_min
-    center_x = x_min + width/2
-    center_y = y_min + height/2
-    
-    # Create bbox dictionary
-    bbox = {
-        'class': class_id,
-        'x_center': center_x / image_size[1],
-        'y_center': center_y / image_size[0],
-        'width': width / image_size[1],
-        'height': height / image_size[0]
-    }
-    
-    return bbox
-
-def generate_synthetic_top_down_massage_occupancy_grid(image_size: tuple[int, int] = (800, 800), 
-                    grid_resolution: float = 0.01,  # meters per pixel
-                    torso_center_bounds: tuple[float, float] = (0.0, 0.1),  # meters from center
-                    head_width_bounds: tuple[float, float] = (0.12, 0.18),  # meters
-                    head_length_bounds: tuple[float, float] = (0.18, 0.25),  # meters
-                    neck_width_bounds: tuple[float, float] = (0.05, 0.08),  # meters
-                    neck_length_bounds: tuple[float, float] = (0.05, 0.1),  # meters
-                    neck_angle_bounds: tuple[float, float] = (-10, 10),  # degrees
-                    shoulder_width_bounds: tuple[float, float] = (0.38, 0.45),  # meters
-                    waist_width_bounds: tuple[float, float] = (0.28, 0.35),  # meters
-                    torso_length_bounds: tuple[float, float] = (0.45, 0.55),  # meters
-                    glutes_width_bounds: tuple[float, float] = (0.28, 0.35),  # meters
-                    glutes_length_bounds: tuple[float, float] = (0.15, 0.22),  # meters
-                    arm_width_bounds: tuple[float, float] = (0.06, 0.09),  # meters
-                    arm_upper_length_bounds: tuple[float, float] = (0.25, 0.35),  # meters
-                    arm_lower_length_bounds: tuple[float, float] = (0.25, 0.35),  # meters
-                    arm_shoulder_angle_bounds: tuple[float, float] = (10, 45),  # degrees
-                    arm_elbow_angle_bounds: tuple[float, float] = (90, 170),  # degrees
-                    leg_width_bounds: tuple[float, float] = (0.07, 0.1),  # meters
-                    leg_upper_length_bounds: tuple[float, float] = (0.35, 0.45),  # meters
-                    leg_lower_length_bounds: tuple[float, float] = (0.35, 0.45),  # meters
-                    leg_hip_angle_bounds: tuple[float, float] = (-10, 30),  # degrees
-                    leg_knee_angle_bounds: tuple[float, float] = (90, 170),  # degrees
-                    populated_cell_single_decimation_prob: float = 0.05,
-                    empty_cell_single_addition_prob: float = 0.005,
-                    empty_cell_cluster_addition_prob: float = 0.2,
-                    empty_cell_cluster_addition_num_pixel_bounds: tuple[int, int] = (5, 20),
-                    border_decimation_width: float = 0.02,  # meters
-                    border_decimation_prob: float = 0.7,
-                    debug_viz = False) -> tuple[np.ndarray, list[dict]]:
-    """Generate top down synthetic occupancy grid of the human body for a massage bot. Bake in some noise from the jump.
-    This could be done as part of an augmentation step in the training pipeline, but for the sake of convenience, we are doing it here.
-    
-    All dimension bounds are in meters and converted to pixels based on grid_resolution.
-    """
-    # Create empty image
-    image = np.zeros(image_size, dtype=np.uint8)
-    
-    # Calculate center of image in pixels
-    center_x = image_size[1] // 2
-    center_y = image_size[0] // 2
-    
-    # Function to convert meters to pixels
-    def m_to_px(meters):
-        return int(meters / grid_resolution)
-    
-    # Random torso center offset from center (in meters, then converted to pixels)
-    torso_center_offset_x = np.random.uniform(torso_center_bounds[0], torso_center_bounds[1])
-    torso_center_x = center_x + m_to_px(torso_center_offset_x)
-    torso_center_y = center_y  # Keep y centered
-    
-    # Generate body part dimensions (convert from meters to pixels)
-    head_width = m_to_px(np.random.uniform(head_width_bounds[0], head_width_bounds[1]))
-    head_length = m_to_px(np.random.uniform(head_length_bounds[0], head_length_bounds[1]))
-    
-    neck_width = m_to_px(np.random.uniform(neck_width_bounds[0], neck_width_bounds[1]))
-    neck_length = m_to_px(np.random.uniform(neck_length_bounds[0], neck_length_bounds[1]))
-    neck_angle = np.random.uniform(neck_angle_bounds[0], neck_angle_bounds[1])
-    
-    shoulder_width = m_to_px(np.random.uniform(shoulder_width_bounds[0], shoulder_width_bounds[1]))
-    waist_width = m_to_px(np.random.uniform(waist_width_bounds[0], waist_width_bounds[1]))
-    torso_length = m_to_px(np.random.uniform(torso_length_bounds[0], torso_length_bounds[1]))
-    
-    glutes_width = m_to_px(np.random.uniform(glutes_width_bounds[0], glutes_width_bounds[1]))
-    glutes_length = m_to_px(np.random.uniform(glutes_length_bounds[0], glutes_length_bounds[1]))
-    
-    arm_width = m_to_px(np.random.uniform(arm_width_bounds[0], arm_width_bounds[1]))
-    arm_upper_length = m_to_px(np.random.uniform(arm_upper_length_bounds[0], arm_upper_length_bounds[1]))
-    arm_lower_length = m_to_px(np.random.uniform(arm_lower_length_bounds[0], arm_lower_length_bounds[1]))
-    
-    # Arm angles (in degrees)
-    right_arm_shoulder_angle = np.random.uniform(arm_shoulder_angle_bounds[0], arm_shoulder_angle_bounds[1])
-    left_arm_shoulder_angle = np.random.uniform(arm_shoulder_angle_bounds[0], arm_shoulder_angle_bounds[1])
-    right_arm_elbow_angle = np.random.uniform(arm_elbow_angle_bounds[0], arm_elbow_angle_bounds[1])
-    left_arm_elbow_angle = np.random.uniform(arm_elbow_angle_bounds[0], arm_elbow_angle_bounds[1])
-    
-    leg_width = m_to_px(np.random.uniform(leg_width_bounds[0], leg_width_bounds[1]))
-    leg_upper_length = m_to_px(np.random.uniform(leg_upper_length_bounds[0], leg_upper_length_bounds[1]))
-    leg_lower_length = m_to_px(np.random.uniform(leg_lower_length_bounds[0], leg_lower_length_bounds[1]))
-    
-    # Leg angles (in degrees)
-    right_leg_hip_angle = np.random.uniform(leg_hip_angle_bounds[0], leg_hip_angle_bounds[1])
-    left_leg_hip_angle = np.random.uniform(leg_hip_angle_bounds[0], leg_hip_angle_bounds[1])
-    right_leg_knee_angle = np.random.uniform(leg_knee_angle_bounds[0], leg_knee_angle_bounds[1])
-    left_leg_knee_angle = np.random.uniform(leg_knee_angle_bounds[0], leg_knee_angle_bounds[1])
-    
-    # Initialize bounding boxes list
-    bboxes = []
-    
-    # Create a temporary drawing image with higher resolution for anti-aliasing
-    temp_scale = 4  # Scale factor for temporary image
-    temp_image = np.zeros((image_size[0] * temp_scale, image_size[1] * temp_scale), dtype=np.uint8)
-    
-    # Draw torso (back)
-    torso_top = int(torso_center_y - torso_length/2) * temp_scale
-    torso_bottom = int(torso_center_y + torso_length/2) * temp_scale
-    torso_center_x_temp = torso_center_x * temp_scale
-    torso_center_y_temp = torso_center_y * temp_scale
-    
-    # Trapezoid shape for torso
-    torso_points = np.array([
-        [int(torso_center_x_temp - shoulder_width/2 * temp_scale), torso_top],
-        [int(torso_center_x_temp + shoulder_width/2 * temp_scale), torso_top],
-        [int(torso_center_x_temp + waist_width/2 * temp_scale), torso_bottom],
-        [int(torso_center_x_temp - waist_width/2 * temp_scale), torso_bottom]
-    ])
-    
-    # Draw torso
-    cv2.fillPoly(temp_image, [torso_points], 255)
-    
-    # Add torso bounding box
-    torso_bbox = {
-        'class': 0,  # 'back'
-        'x_center': torso_center_x / image_size[1],
-        'y_center': torso_center_y / image_size[0],
-        'width': shoulder_width / image_size[1],
-        'height': torso_length / image_size[0]
-    }
-    bboxes.append(torso_bbox)
-    
-    # Draw neck
-    neck_bottom_center_x = torso_center_x * temp_scale
-    neck_bottom_center_y = torso_top
-    neck_angle_rad = np.radians(neck_angle)
-    neck_top_center_x = int(neck_bottom_center_x + neck_length * temp_scale * np.sin(neck_angle_rad))
-    neck_top_center_y = int(neck_bottom_center_y - neck_length * temp_scale * np.cos(neck_angle_rad))
-    
-    # Neck points
-    neck_points = np.array([
-        [int(neck_bottom_center_x - neck_width/2 * temp_scale), neck_bottom_center_y],
-        [int(neck_bottom_center_x + neck_width/2 * temp_scale), neck_bottom_center_y],
-        [int(neck_top_center_x + neck_width/2 * temp_scale), neck_top_center_y],
-        [int(neck_top_center_x - neck_width/2 * temp_scale), neck_top_center_y]
-    ])
-    
-    # Draw neck
-    cv2.fillPoly(temp_image, [neck_points], 255)
-    
-    # Draw head
-    head_center_x = neck_top_center_x
-    head_center_y = neck_top_center_y - head_length/2 * temp_scale
-    
-    # Draw head as ellipse
-    cv2.ellipse(temp_image, 
-                (int(head_center_x), int(head_center_y)), 
-                (int(head_width/2 * temp_scale), int(head_length/2 * temp_scale)), 
-                0, 0, 360, 255, -1)
-    
-    # Add head bounding box
-    head_bbox = {
-        'class': 1,  # 'head'
-        'x_center': (head_center_x / temp_scale) / image_size[1],
-        'y_center': (head_center_y / temp_scale) / image_size[0],
-        'width': head_width / image_size[1],
-        'height': head_length / image_size[0]
-    }
-    bboxes.append(head_bbox)
-    
-    # Draw glutes
-    glutes_center_x = torso_center_x * temp_scale
-    glutes_center_y = torso_bottom + glutes_length/2 * temp_scale
-    
-    # Draw glutes as ellipse
-    cv2.ellipse(temp_image, 
-                (int(glutes_center_x), int(glutes_center_y)), 
-                (int(glutes_width/2 * temp_scale), int(glutes_length/2 * temp_scale)), 
-                0, 0, 360, 255, -1)
-    
-    # Add glutes bounding box
-    glutes_bbox = {
-        'class': 6,  # 'glutes'
-        'x_center': (glutes_center_x / temp_scale) / image_size[1],
-        'y_center': (glutes_center_y / temp_scale) / image_size[0],
-        'width': glutes_width / image_size[1],
-        'height': glutes_length / image_size[0]
-    }
-    bboxes.append(glutes_bbox)
-    
-    # Draw right arm
-    right_shoulder_x = int(torso_center_x_temp + shoulder_width/2 * temp_scale)
-    right_shoulder_y = torso_top
-    
-    # Convert angles to radians
-    right_arm_shoulder_angle_rad = np.radians(right_arm_shoulder_angle)
-    right_arm_elbow_angle_rad = np.radians(right_arm_elbow_angle)
-    
-    # Draw the right arm using the helper function
-    right_arm_points = draw_limb(
-        temp_image, 
-        right_shoulder_x, right_shoulder_y, 
-        right_arm_shoulder_angle_rad, right_arm_elbow_angle_rad,
-        arm_upper_length, arm_lower_length, 
-        arm_width, temp_scale, 
-        is_leg=False
-    )
-    
-    # Calculate right arm bounding box using the helper function
-    right_arm_bbox = calculate_bbox(right_arm_points, temp_scale, image_size, 2)  # 'right_arm'
-    bboxes.append(right_arm_bbox)
-    
-    # Draw left arm
-    left_shoulder_x = int(torso_center_x_temp - shoulder_width/2 * temp_scale)
-    left_shoulder_y = torso_top
-    
-    # Convert angles to radians (mirror for left side)
-    left_arm_shoulder_angle_rad = np.radians(180 - left_arm_shoulder_angle)
-    left_arm_elbow_angle_rad = np.radians(left_arm_elbow_angle)
-    
-    # Draw the left arm using the helper function
-    left_arm_points = draw_limb(
-        temp_image, 
-        left_shoulder_x, left_shoulder_y, 
-        left_arm_shoulder_angle_rad, left_arm_elbow_angle_rad,
-        arm_upper_length, arm_lower_length, 
-        arm_width, temp_scale, 
-        is_leg=False
-    )
-    
-    # Calculate left arm bounding box using the helper function
-    left_arm_bbox = calculate_bbox(left_arm_points, temp_scale, image_size, 3)  # 'left_arm'
-    bboxes.append(left_arm_bbox)
-    
-    # Draw right leg
-    right_hip_x = int(torso_center_x_temp + waist_width/4 * temp_scale)
-    right_hip_y = torso_bottom
-    
-    # Convert angles to radians
-    right_leg_hip_angle_rad = np.radians(right_leg_hip_angle)
-    right_leg_knee_angle_rad = np.radians(right_leg_knee_angle)
-    
-    # Draw the right leg using the helper function
-    right_leg_points = draw_limb(
-        temp_image, 
-        right_hip_x, right_hip_y, 
-        right_leg_hip_angle_rad, right_leg_knee_angle_rad,
-        leg_upper_length, leg_lower_length, 
-        leg_width, temp_scale, 
-        is_leg=True
-    )
-    
-    # Calculate right leg bounding box using the helper function
-    right_leg_bbox = calculate_bbox(right_leg_points, temp_scale, image_size, 4)  # 'right_leg'
-    bboxes.append(right_leg_bbox)
-    
-    # Draw left leg
-    left_hip_x = int(torso_center_x_temp - waist_width/4 * temp_scale)
-    left_hip_y = torso_bottom
-    
-    # Convert angles to radians (mirror for left side)
-    left_leg_hip_angle_rad = np.radians(-left_leg_hip_angle)
-    left_leg_knee_angle_rad = np.radians(left_leg_knee_angle)
-    
-    # Draw the left leg using the helper function
-    left_leg_points = draw_limb(
-        temp_image, 
-        left_hip_x, left_hip_y, 
-        left_leg_hip_angle_rad, left_leg_knee_angle_rad,
-        leg_upper_length, leg_lower_length, 
-        leg_width, temp_scale, 
-        is_leg=True
-    )
-    
-    # Calculate left leg bounding box using the helper function
-    left_leg_bbox = calculate_bbox(left_leg_points, temp_scale, image_size, 5)  # 'left_leg'
-    bboxes.append(left_leg_bbox)
-    
-    # Resize the temporary image back to original size with anti-aliasing
-    image = cv2.resize(temp_image, (image_size[1], image_size[0]), interpolation=cv2.INTER_AREA)
-    
-    # Threshold to create binary image
-    _, image = cv2.threshold(image, 127, 255, cv2.THRESH_BINARY)
-    
-    # Apply border decimation
-    # First, find the edges of the body
-    edges = cv2.Canny(image, 50, 150)
-    
-    # Dilate the edges to create a border region
-    border_width_px = m_to_px(border_decimation_width)
-    kernel = np.ones((border_width_px, border_width_px), np.uint8)
-    border_region = cv2.dilate(edges, kernel, iterations=1) & image
-    
-    # Randomly decimate pixels in the border region
-    border_indices = np.where(border_region > 0)
-    for i in range(len(border_indices[0])):
-        if np.random.random() < border_decimation_prob:
-            y, x = border_indices[0][i], border_indices[1][i]
-            image[y, x] = 0
-    
-    # Apply noise to the image
-    # 1. Remove some populated cells
-    populated_indices = np.where(image > 0)
-    num_populated = len(populated_indices[0])
-    
-    for i in range(num_populated):
-        if np.random.random() < populated_cell_single_decimation_prob:
-            y, x = populated_indices[0][i], populated_indices[1][i]
-            image[y, x] = 0
-    
-    # 2. Add some random single pixels
-    for _ in range(int(image_size[0] * image_size[1] * empty_cell_single_addition_prob)):
-        x = np.random.randint(0, image_size[1])
-        y = np.random.randint(0, image_size[0])
-        image[y, x] = 255
-    
-    # 3. Add some random clusters of pixels
-    if np.random.random() < empty_cell_cluster_addition_prob:
-        num_clusters = np.random.randint(1, 5)
-        for _ in range(num_clusters):
-            cluster_center_x = np.random.randint(0, image_size[1])
-            cluster_center_y = np.random.randint(0, image_size[0])
-            num_pixels = np.random.randint(empty_cell_cluster_addition_num_pixel_bounds[0], 
-                                          empty_cell_cluster_addition_num_pixel_bounds[1])
+    def __init__(self, name: str, 
+                    parent = None, 
+                    children = None, 
+                    is_root: bool = False, 
+                    vertex_mapping: dict[str, tuple[float, float]] = None, 
+                    create_params: dict = None):
+        self.name = name
+        self.root = is_root
+        self.create_params = create_params
+        
+        if children is None:
+            self.children = []
+        else:
+            self.children = children
             
-            for _ in range(num_pixels):
-                offset_x = np.random.randint(-10, 11)
-                offset_y = np.random.randint(-10, 11)
-                x = min(max(0, cluster_center_x + offset_x), image_size[1] - 1)
-                y = min(max(0, cluster_center_y + offset_y), image_size[0] - 1)
-                image[y, x] = 255
+        if parent is not None:
+            self.parent = parent
+            parent.children.append(self)
+        
+        self.vertex_mapping = vertex_mapping if vertex_mapping is not None else {}
+        if not self.vertex_mapping:
+            self.populate_vertex_mapping(self.create_params)
+        
+        self.vertices = self.get_vertices()
     
-    # Visualize if debug mode is on
-    if debug_viz:
-        visualize_occupancy_grid(image, bboxes, image_size, bbox_names)
+    def get_vertices(self):
+        vertices = []
+        for vertex in self.vertex_mapping.values():
+            vertices.append(vertex)
+        return vertices
     
-    return image, bboxes
+    def compute_semantic_mask(self):
+        return {self.name: self.get_vertices()}
+    
+    @abstractmethod
+    def populate_vertex_mapping(self, create_params: dict) -> dict[str, tuple[float, float]]:
+        pass
 
-def visualize_occupancy_grid(image, bboxes, image_size, bbox_names):
-    """Visualize occupancy grid with bounding boxes."""
-    plt.figure(figsize=(10, 10))
-    plt.imshow(image, cmap='gray')
+class Torso(BodyPart):
+    def __init__(self, 
+                parent = None, 
+                children = None,
+                create_params: dict[str, float] = {"torso_length": (0.2, 0.7), 
+                                                    "shoulder_from_bottom_ratio": (0.95, 1.0),
+                                                    "shoulder_width_torso_length_ratio": (0.3, 0.7),
+                                                    "waist_from_bottom_ratio": (0.0, .05),
+                                                    "waist_width_shoulder_width_ratio": (.4, 1.0)}):
+        super().__init__(name = "Torso", 
+                            parent = parent, 
+                            children = children, 
+                            is_root = True,
+                            create_params = create_params)
+        
+    def populate_vertex_mapping(self, create_params: dict) -> dict[str, tuple[float, float]]:
+        create_params = sample_from_params(create_params)
+        self.vertex_mapping = {}
+        self.vertex_mapping["center_top_torso"] = np.array((0, create_params["torso_length"]))
+        self.vertex_mapping["center_bottom_torso"] = np.array((0, 0))
+        
+        for part in ["shoulder", "waist"]:
+            for idx, prefix in enumerate(["left", "right"]):
+                ratio = create_params[f"{part}_from_bottom_ratio"]
+                torso_length = create_params["torso_length"]
+                if part == "shoulder":
+                    width = create_params[f"torso_length"] * create_params[f"shoulder_width_torso_length_ratio"]
+                else:
+                    width = create_params[f"{part}_width_shoulder_width_ratio"] * \
+                        np.linalg.norm(self.vertex_mapping["left_shoulder"] - self.vertex_mapping["right_shoulder"])
+                dist = -1 * ratio * torso_length
+                
+                
+                sign = -1 if idx == 0 else 1
+                # Get both end points from the function
+                _, end_point = line_relative_to_end_point_at_angle_dist(
+                    p1=self.vertex_mapping["center_top_torso"], 
+                    p2=self.vertex_mapping["center_bottom_torso"], 
+                    angle=sign * math.pi / 2, 
+                    distance_from_end_point=dist,
+                    new_line_distance=width / 2
+                )
+                
+                # Store the end point only
+                self.vertex_mapping[f"{prefix}_{part}"] = np.array(end_point)
+        
+        return self.vertex_mapping
     
-    # Draw bounding boxes
-    for bbox in bboxes:
-        class_id = bbox['class']
-        x_center = bbox['x_center'] * image_size[1]
-        y_center = bbox['y_center'] * image_size[0]
-        width = bbox['width'] * image_size[1]
-        height = bbox['height'] * image_size[0]
-        
-        # Calculate corners
-        x_min = int(x_center - width/2)
-        y_min = int(y_center - height/2)
-        
-        # Draw rectangle
-        plt.gca().add_patch(plt.Rectangle((x_min, y_min), width, height, 
-                                         fill=False, edgecolor='red', linewidth=2))
-        
-        # Add label with semi-transparent background (rgba with alpha=0.5)
-        plt.text(x_min, y_min - 5, bbox_names[class_id], 
-                 color='white', fontsize=10, backgroundcolor=(1, 0, 0, 0.5))
     
-    plt.title('Synthetic Body Occupancy Grid with Bounding Boxes')
-    plt.axis('off')
-    plt.tight_layout()
-    plt.show()
+class Head(BodyPart):
+    def __init__(self, name: str = "Head", parent = None, children = None, 
+                create_params: dict[str, float] = {"head_length_to_torso_ratio": (0.28, 0.45),
+                                                  "head_width_to_length_ratio": (0.7, 0.85),
+                                                  "head_vertical_offset_ratio": (0.0, 0.05)}):
+        super().__init__(name = name, parent = parent, children = children, is_root = False,
+                        create_params = create_params)
+
+    def populate_vertex_mapping(self, create_params: dict) -> dict[str, tuple[float, float]]:
+        create_params = sample_from_params(create_params)
+        parent_vertex_mapping = self.parent.vertex_mapping
+        self.vertex_mapping = {}
+        
+        # Get parent top point (where head would normally attach)
+        parent_top = parent_vertex_mapping["center_top_torso"]
+        
+        # Calculate torso length for reference
+        torso_length = np.linalg.norm(parent_vertex_mapping["center_top_torso"] - parent_vertex_mapping["center_bottom_torso"])
+        
+        # Calculate vertical offset - how far down from top the head should be positioned
+        vertical_offset = torso_length * create_params["head_vertical_offset_ratio"]
+        
+        # Calculate head dimensions
+        head_length = torso_length * create_params["head_length_to_torso_ratio"]
+        head_width = head_length * create_params["head_width_to_length_ratio"]
+        
+        # Define head bottom with potential offset from torso top
+        # Move down by subtracting from y-coordinate
+        head_bottom = parent_top - np.array([0, vertical_offset])
+        self.vertex_mapping["center_bottom_head"] = head_bottom
+        
+        # Get head top (above the bottom by head_length)
+        center_top_head = head_bottom + np.array([0, head_length])
+        self.vertex_mapping["center_top_head"] = center_top_head
+        
+        # Get left and right head points at middle height
+        head_middle_height = head_bottom + np.array([0, head_length/2])
+        left_head = head_middle_height + np.array([-head_width/2, 0])
+        right_head = head_middle_height + np.array([head_width/2, 0])
+        
+        self.vertex_mapping["left_head"] = left_head
+        self.vertex_mapping["right_head"] = right_head
+        
+        return self.vertex_mapping
+    
+class DistalAppendage(BodyPart):
+    def __init__(self, name: str, prefix: str, parent = None, children = None):
+        super().__init__(name = prefix + name, parent = parent, children = children, is_root = False)
+
+    def populate_vertex_mapping(self, create_params: dict) -> dict[str, tuple[float, float]]:
+        pass
+
+class ProximalAppendage(BodyPart):
+    def __init__(self, 
+                    name: str, 
+                    prefix: str,
+                    parent = None, children = None,
+                create_params: dict = None):
+
+        super().__init__(name = f"{prefix}_{name}", parent = parent, children = children, 
+                        is_root = False, create_params = create_params)
+
+    def populate_vertex_mapping(self, create_params: dict) -> dict[str, tuple[float, float]]:
+        pass 
+
+
+    
 
 if __name__ == "__main__":
-    generate_synthetic_top_down_massage_occupancy_grid(debug_viz=True)
+    grid = generate_empty_grid()
+    
+    # Create the torso
+    torso = Torso()
+    
+    # Create the head
+    head = Head(parent=torso)
+    
+    # Create left and right upper arms
+    left_arm = ProximalAppendage(name="upper_arm", prefix="left", parent=torso)
+    right_arm = ProximalAppendage(name="upper_arm", prefix="right", parent=torso)
+
+    # # Create left and right thighs with custom leg placement
+    # left_thigh = ProximalAppendage(name="leg", prefix="left", parent=torso, 
+    #                               create_params={"leg_placement_ratio": (0.2, 0.25)})
+    # right_thigh = ProximalAppendage(name="leg", prefix="right", parent=torso, 
+    #                                create_params={"leg_placement_ratio": (0.2, 0.25)})
+    
+    # Display the result
+    plt.figure(figsize=(10, 8))
+    
+    # Function to plot a body part
+    def plot_body_part(body_part, grid):
+        # Get the vertices from the body part with their names
+        vertices = []
+        vertex_names = []
+        for name, vertex in body_part.vertex_mapping.items():
+            vertices.append(vertex)
+            vertex_names.append(name)
+        
+        print(f"{body_part.name} vertices with names:")
+        for name, vertex in zip(vertex_names, vertices):
+            print(f"  {name}: {vertex}")
+        
+        # Create mask using create_filled_curve_mask
+        mask = create_filled_curve_mask(grid.shape, points=vertices, curves_enabled=True, curve_tension=0.1)
+        
+        # Convert body part vertices from meters to pixels and track min/max for bounding box
+        px_values = []
+        py_values = []
+        center_x_pixel = grid.shape[1] // 2
+        center_y_pixel = grid.shape[0] // 2
+        grid_resolution = 0.01
+        
+        for i, v in enumerate(vertices):
+            # Convert from meters to pixels
+            px = int(center_x_pixel + (v[0] / grid_resolution))
+            py = int(center_y_pixel - (v[1] / grid_resolution))
+            px_values.append(px)
+            py_values.append(py)
+            plt.plot(px, py, 'ro')  # Red dot for each vertex
+            
+            # Add vertex label in red
+            plt.text(px + 5, py, vertex_names[i], fontsize=8, color='red')
+        
+        # Calculate bounding box coordinates
+        if px_values:  # Only create bounding box if there are vertices
+            min_x, max_x = min(px_values), max(px_values)
+            min_y, max_y = min(py_values), max(py_values)
+            
+            # Draw bounding box
+            from matplotlib.patches import Rectangle
+            bbox = Rectangle((min_x, min_y), max_x-min_x, max_y-min_y, 
+                            linewidth=2, edgecolor='b', facecolor='none')
+            plt.gca().add_patch(bbox)
+            
+            # Add bounding box label
+            plt.text(min_x, min_y-5, f"{body_part.name}: [{min_x},{min_y},{max_x},{max_y}]", 
+                    color='blue', fontsize=10)
+        
+        return mask
+    
+    # Plot body parts
+    torso_mask = plot_body_part(torso, grid)
+    head_mask = plot_body_part(head, grid)
+    # left_arm_mask = plot_body_part(left_arm, grid)
+    # right_arm_mask = plot_body_part(right_arm, grid)
+    # left_thigh_mask = plot_body_part(left_thigh, grid)
+    # right_thigh_mask = plot_body_part(right_thigh, grid)
+    
+    # Combine masks
+    combined_mask = np.maximum(torso_mask, head_mask)
+    # combined_mask = np.maximum(combined_mask, left_arm_mask)
+    # combined_mask = np.maximum(combined_mask, right_arm_mask)
+    # combined_mask = np.maximum(combined_mask, left_thigh_mask)
+    plt.imshow(combined_mask, cmap='gray')
+    plt.title(f"Body Visualization")
+    plt.colorbar()
+    plt.show()
+    
