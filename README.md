@@ -42,7 +42,7 @@ sudo bash set-permissions.sh
 We use Docker to simplify the installation of this repo. All dependencies are automatically installed in the Docker image from
 this repository alone to prevent painstaking setup steps.
 
-Using the stored image from Dockerhub for ROS 2 and Python/C++ development, run the following. Make sure that all
+Using the [stored image from Dockerhub](https://hub.docker.com/r/garylvov/back_massage_bot/tags) for ROS 2 and Python/C++ development, run the following. Make sure that all
 USB devices are plugged in prior to running the following. If a device is unplugged, then the container needs to be restarted.
 ```
 bash pull_run_overlay.sh
