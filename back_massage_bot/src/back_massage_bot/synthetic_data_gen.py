@@ -7,11 +7,13 @@
 from abc import abstractmethod
 import numpy as np
 import matplotlib.pyplot as plt
-from back_massage_bot.synthetic_data_gen_util import (create_filled_curve_mask, 
-                                                        line_relative_to_end_point_at_angle_dist, 
-                                                        generate_empty_grid, sample_from_params)
+from back_massage_bot.synthetic_data_gen_util import *
 import math
-from scipy import ndimage
+import os
+import argparse
+from PIL import Image
+from tqdm import tqdm
+import uuid
 
 class BodyPart:
     instances = []
@@ -69,6 +71,11 @@ class BodyPart:
                 return part
         
         return None
+
+    @classmethod
+    def reset_instances(cls):
+        """Reset the global instances list to create a fresh body"""
+        cls.instances = []
 
 class ProximalAppendage(BodyPart):
     def __init__(self, 
@@ -251,11 +258,11 @@ class Torso(BodyPart):
     def __init__(self, 
                 parent = None, 
                 children = None,
-                create_params: dict[str, float] = {"torso_length": (0.2, 0.7), 
-                                                    "shoulder_from_bottom_ratio": (0.95, 1.0),
-                                                    "shoulder_width_torso_length_ratio": (0.3, 0.9),
+                create_params: dict[str, float] = {"torso_length": (0.3, 0.9), 
+                                                    "shoulder_from_bottom_ratio": (0.85, 1.0),
+                                                    "shoulder_width_torso_length_ratio": (0.25, 0.9),
                                                     "waist_from_bottom_ratio": (0.0, .05),
-                                                    "waist_width_shoulder_width_ratio": (.4, 1.0)}):
+                                                    "waist_width_shoulder_width_ratio": (.3, 1.0)}):
         super().__init__(name = "Torso", 
                             parent = parent, 
                             children = children, 
@@ -402,12 +409,12 @@ class Thigh(ProximalAppendage):
 class UpperArm(ProximalAppendage):
     def __init__(self, name: str = "upper_arm", prefix: str = None, parent = None, children = None, 
                 create_params: dict[str, float] = {"shoulder_placement_ratio": (0.8, 1.0),
-                                                   "arm_length_to_torso_length_ratio": (0.35, 0.55),
+                                                   "arm_length_to_torso_length_ratio": (0.25, 0.75),
                                                    "proximal_arm_width_to_torso_width_ratio": (0.15, 0.25),
                                                    "distal_arm_width_to_proximal_arm_width_ratio": (0.75, 0.95),
                                                    "proximal_arm_placement_ratio_above_elbow": (0.9, 1.0),
                                                    "distal_arm_placement_ratio_above_elbow": (0.0, 0.1),
-                                                   "angle_between_arm_and_torso": (math.radians(10), math.radians(50))},
+                                                   "angle_between_arm_and_torso": (math.radians(-70), math.radians(70))},
                 variation_factor: float = 0.05):
         super().__init__(name = name, prefix = prefix, parent = parent, children = children, 
                         create_params = create_params, variation_factor = variation_factor)
@@ -477,7 +484,7 @@ class LowerArm(DistalAppendage):
                                                    "forearm_bulge_placement_ratio_above_wrist": (0.3, 0.5),
                                                    "proximal_forearm_placement_ratio_below_elbow": (0.0, 0.1),
                                                    "distal_forearm_placement_ratio_below_elbow": (0.9, 1.0),
-                                                   "angle_between_forearm_and_upper_arm": (math.radians(-20), math.radians(20))},
+                                                   "angle_between_forearm_and_upper_arm": (math.radians(-70), math.radians(70))},
                 variation_factor: float = 0.05):
         super().__init__(
             name = name, 
@@ -522,286 +529,252 @@ class LowerLeg(DistalAppendage):
             create_params = create_params, 
             variation_factor = variation_factor
         )
+                
+def generate_random_body_parts(probs=None):
+    """
+    Generate random body parts based on probability parameters.
+    
+    Args:
+        probs: Dictionary of probabilities for different body parts
+        
+    Returns:
+        Tuple of (body_parts, grid)
+    """
+    if probs is None:
+        probs = {
+            "torso": 0.99,
+            "head": 0.95,
+            "left_arm": 0.95,
+            "right_arm": 0.95,
+            "left_leg": 0.95,
+            "right_leg": 0.95,
+        }
+    
+    grid = np.ones((200, 200))  # Placeholder grid
+    body_parts = []
+    
+    # Create torso if probability check passes
+    if np.random.random() < probs["torso"]:
+        torso = Torso()
+        body_parts.append(torso)
+        
+        # Create head if probability check passes and torso exists
+        if np.random.random() < probs["head"]:
+            head = Head(parent=torso)
+            body_parts.append(head)
+        
+        # Create arms if probability checks pass and torso exists
+        for side, prob_key in [("left", "left_arm"), ("right", "right_arm")]:
+            if np.random.random() < probs[prob_key]:
+                upper_arm = UpperArm(prefix=side, parent=torso)
+                body_parts.append(upper_arm)
+                
+                # Lower arm is conditional on upper arm
+                lower_arm = LowerArm(prefix=side, parent=upper_arm)
+                body_parts.append(lower_arm)
+        
+        # Create legs if probability checks pass and torso exists
+        for side, prob_key in [("left", "left_leg"), ("right", "right_leg")]:
+            if np.random.random() < probs[prob_key]:
+                leg = Thigh(prefix=side, parent=torso)
+                body_parts.append(leg)
+                
+                # Lower leg is conditional on upper leg/thigh
+                lower_leg = LowerLeg(prefix=side, parent=leg)
+                body_parts.append(lower_leg)
+    
+    return body_parts, grid
+
 
 if __name__ == "__main__":
-    grid = generate_empty_grid()
+    # Add command-line arguments
+    parser = argparse.ArgumentParser(description='Generate synthetic body part data')
+    parser.add_argument('--dir', type=str, help='Directory to save generated data')
+    parser.add_argument('--viz', action='store_true', help='Visualize bounding boxes')
+    parser.add_argument('--num_samples', type=int, default=1, help='Number of samples to generate')
+    args = parser.parse_args()
     
-    # Create the torso
-    torso = Torso()
+    # Create output directories if specified
+    if args.dir:
+        os.makedirs(os.path.join(args.dir, 'images'), exist_ok=True)
+        os.makedirs(os.path.join(args.dir, 'labels'), exist_ok=True)
     
-    # Create the head
-    head = Head(parent=torso)
-    
-    # Create left and right upper arms with automatic parameter sharing and slight variations
-    left_arm = UpperArm(prefix="left", parent=torso, variation_factor=0.05)
-    right_arm = UpperArm(prefix="right", parent=torso, variation_factor=0.05)
-
-    # Create left and right lower arms with automatic parameter sharing and slight variations
-    left_lower_arm = LowerArm(prefix="left", parent=left_arm, variation_factor=0.05)
-    right_lower_arm = LowerArm(prefix="right", parent=right_arm, variation_factor=0.05)
-
-    # Create left and right thighs with automatic parameter sharing and slight variations
-    left_thigh = Thigh(prefix="left", parent=torso, variation_factor=0.05)
-    right_thigh = Thigh(prefix="right", parent=torso, variation_factor=0.05)
-    
-    # Create left and right lower legs with automatic parameter sharing and slight variations
-    left_lower_leg = LowerLeg(prefix="left", parent=left_thigh, variation_factor=0.05)
-    right_lower_leg = LowerLeg(prefix="right", parent=right_thigh, variation_factor=0.05)
-    
-    # Display the result
-    plt.figure(figsize=(10, 8))
-    
-    # Function to compute bounding boxes for body parts
-    def compute_bounding_boxes(body_parts, grid, custom_labels=None):
-        from matplotlib.patches import Rectangle
+    # Generate specified number of samples
+    for i in tqdm(range(args.num_samples), desc="Generating samples"):
+        # Reset body parts to ensure independent generation for each sample
+        BodyPart.reset_instances()
         
-        bboxes = []
-        center_x_pixel = grid.shape[1] // 2
-        center_y_pixel = grid.shape[0] // 2
-        grid_resolution = 0.01
+        # Generate unique ID for this sample
+        sample_id = str(uuid.uuid4())[:8]
         
-        # Process individual parts first
-        individual_parts = []
-        for i, part_info in enumerate(body_parts):
-            if isinstance(part_info, tuple):  # Group of parts with custom label
-                continue
-            else:
-                individual_parts.append((part_info, None))
+        # Create an empty grid
+        grid_shape = (200, 200)
+        grid = np.zeros(grid_shape)
         
-        # Then process groups
-        for part_info in body_parts:
-            if isinstance(part_info, tuple):  # Group of parts with custom label
-                parts = part_info[0]
-                group_label = part_info[1]
-                individual_parts.append((parts, group_label))
+        # Generate random body parts
+        body_parts, grid = generate_random_body_parts()
         
-        # Now process everything
-        for parts, group_label in individual_parts:
-            if not isinstance(parts, list):
-                parts = [parts]
-                
-            # Collect all vertices from all parts in the group
-            all_px_values = []
-            all_py_values = []
+        if not body_parts:
+            # Empty image case
+            combined_mask = np.zeros(grid.shape, dtype=bool)
             
-            for body_part in parts:
-                vertices = body_part.get_vertices()
-                for v in vertices:
-                    # Convert from meters to pixels
-                    px = int(center_x_pixel + (v[0] / grid_resolution))
-                    py = int(center_y_pixel - (v[1] / grid_resolution))
-                    all_px_values.append(px)
-                    all_py_values.append(py)
+            if args.viz:
+                plt.figure(figsize=(10, 8))
+                plt.imshow(combined_mask, cmap='gray')
+                plt.title("Empty Body Visualization")
+                plt.colorbar()
+                plt.show()
+        else:
+            # Plot body parts and create masks
+            combined_mask = np.zeros(grid.shape, dtype=bool)
             
-            # Calculate the combined bounding box
-            if all_px_values:
-                min_x, max_x = min(all_px_values), max(all_px_values)
-                min_y, max_y = min(all_py_values), max(all_py_values)
+            # Define grouped parts for bbox computation
+            bbox_groups = []
+            leg_parts = []  # Collect all leg parts (both thighs and lower legs)
+            
+            # Define a local function that gets the mask without plotting vertices
+            def get_part_mask(part, grid):
+                vertices = part.get_vertices()
+                try:
+                    return create_filled_curve_mask(grid.shape, points=vertices, curves_enabled=True, curve_tension=0.1)
+                except Exception as e:
+                    print(f"Error creating mask for {part.name}: {e}")
+                    return np.zeros(grid.shape, dtype=bool)
+            
+            for part in body_parts:
+                # Use our local function that doesn't plot vertices
+                part_mask = get_part_mask(part, grid)
+                combined_mask = np.maximum(combined_mask, part_mask)
                 
-                # Determine the label
-                if group_label:
-                    name = group_label
-                elif len(parts) == 1:
-                    name = parts[0].name
+                # Organize parts for bounding box groups
+                if isinstance(part, Thigh) or isinstance(part, LowerLeg):
+                    leg_parts.append(part)
+                elif not isinstance(part, BodyPart):
+                    continue
                 else:
-                    name = "+".join([part.name for part in parts])
-                
-                bbox_info = {
-                    'name': name,
-                    'coords': (min_x, min_y, max_x, max_y)
-                }
-                bboxes.append(bbox_info)
-        
-        return bboxes
-    
-    # Function to plot a body part
-    def plot_body_part(body_part, grid):
-        # Get the vertices from the body part with their names
-        vertices = []
-        vertex_names = []
-        for name, vertex in body_part.vertex_mapping.items():
-            vertices.append(vertex)
-            vertex_names.append(name)
-        
-        print(f"{body_part.name} vertices with names:")
-        for name, vertex in zip(vertex_names, vertices):
-            print(f"  {name}: {vertex}")
-        
-        # Create mask using create_filled_curve_mask
-        try:
-            mask = create_filled_curve_mask(grid.shape, points=vertices, curves_enabled=True, curve_tension=0.1)
-        except Exception as e:
-            print(f"Error creating mask for {body_part.name}: {e}")
-            mask = np.zeros(grid.shape, dtype=bool)
-        
-        # Convert body part vertices from meters to pixels
-        center_x_pixel = grid.shape[1] // 2
-        center_y_pixel = grid.shape[0] // 2
-        grid_resolution = 0.01
-        
-        for i, v in enumerate(vertices):
-            # Convert from meters to pixels
-            px = int(center_x_pixel + (v[0] / grid_resolution))
-            py = int(center_y_pixel - (v[1] / grid_resolution))
-            plt.plot(px, py, 'ro')  # Red dot for each vertex
+                    bbox_groups.append(part)
             
-            # Add vertex label in red
-            plt.text(px + 5, py, vertex_names[i], fontsize=8, color='red')
-        
-        return mask
-    
-    # Function to draw bounding boxes
-    def draw_bounding_boxes(ax, bboxes):
-        from matplotlib.patches import Rectangle
-        
-        for bbox in bboxes:
-            if bbox:
-                min_x, min_y, max_x, max_y = bbox['coords']
-                box = Rectangle((min_x, min_y), max_x-min_x, max_y-min_y, 
-                                linewidth=2, edgecolor='b', facecolor='none')
-                ax.add_patch(box)
-                ax.text(min_x, min_y-5, f"{bbox['name']}: [{min_x},{min_y},{max_x},{max_y}]", 
-                        color='blue', fontsize=8)
-    
-    # Command Pattern for Image Operations
-    class ImageCommand:
-        """Base class for image processing commands"""
-        def execute(self, image):
-            """Execute the command on the image"""
-            pass
-        
-        def get_name(self):
-            """Get the name of the command for display/labels"""
-            return "Generic Command"
-    
-    class BlurCommand(ImageCommand):
-        def __init__(self, sigma=1.0):
-            self.sigma = sigma
-        
-        def execute(self, image):
-            from scipy import ndimage
-            return ndimage.gaussian_filter(image.astype(float), sigma=self.sigma)
-        
-        def get_name(self):
-            return f"Blur (σ={self.sigma})"
-    
-    class ThresholdCommand(ImageCommand):
-        def __init__(self, threshold_value=0.5):
-            self.threshold_value = threshold_value
-        
-        def execute(self, image):
-            return (image > self.threshold_value).astype(float)
-        
-        def get_name(self):
-            return f"Threshold ({int(self.threshold_value*255)}/255)"
-    
-    class CommandChain:
-        """Chain of commands to be applied in sequence"""
-        def __init__(self, commands=None):
-            self.commands = commands if commands else []
-        
-        def add_command(self, command):
-            self.commands.append(command)
-            return self
-        
-        def execute(self, image):
-            result = image.copy()
-            for command in self.commands:
-                result = command.execute(result)
-            return result
-        
-        def get_name(self):
-            if not self.commands:
-                return "Original"
-            return " → ".join([cmd.get_name() for cmd in self.commands])
-    
-    # Helper function to visualize results of multiple command chains
-    def visualize_command_results(original_image, command_chains, bboxes=None, title=None):
-        n_chains = len(command_chains)
-        rows = max(1, int(np.ceil(n_chains / 3)))
-        cols = min(3, n_chains)
-        
-        plt.figure(figsize=(5*cols, 4*rows))
-        if title:
-            plt.suptitle(title, fontsize=16)
-        
-        for i, chain in enumerate(command_chains):
-            ax = plt.subplot(rows, cols, i+1)
-            result = chain.execute(original_image)
-            plt.imshow(result, cmap='gray')
-            plt.title(chain.get_name())
-            plt.colorbar()
+            # Add all leg parts as a single group if they exist
+            if leg_parts:
+                bbox_groups.append((leg_parts, "legs"))
             
-            # Add bounding boxes if provided
-            if bboxes:
-                draw_bounding_boxes(ax, bboxes)
-        
-        plt.tight_layout(rect=[0, 0, 1, 0.95])  # Make room for the suptitle
-        plt.show()
-    
-    # Plot body parts
-    torso_mask = plot_body_part(torso, grid)
-    head_mask = plot_body_part(head, grid)
-    left_thigh_mask = plot_body_part(left_thigh, grid)
-    right_thigh_mask = plot_body_part(right_thigh, grid)
-    left_arm_mask = plot_body_part(left_arm, grid)
-    right_arm_mask = plot_body_part(right_arm, grid)
-    left_lower_arm_mask = plot_body_part(left_lower_arm, grid)
-    right_lower_arm_mask = plot_body_part(right_lower_arm, grid)
-    left_lower_leg_mask = plot_body_part(left_lower_leg, grid)
-    right_lower_leg_mask = plot_body_part(right_lower_leg, grid)
-    
-    # Compute bounding boxes, keeping arms labeled separately
-    all_bboxes = compute_bounding_boxes([
-        torso,
-        head,
-        ([left_thigh, right_thigh], "proximal_legs"),  # Group thighs together
-        ([left_lower_leg, right_lower_leg], "lower_legs"),  # Group lower legs together
-        left_arm,
-        right_arm,
-        left_lower_arm, 
-        right_lower_arm  # Group forearms together
-    ], grid)
-    
-    # Draw bounding boxes on the main figure
-    draw_bounding_boxes(plt.gca(), all_bboxes)
-    
-    # Combine masks
-    combined_mask = np.maximum(torso_mask, head_mask)
-    combined_mask = np.maximum(combined_mask, left_thigh_mask)
-    combined_mask = np.maximum(combined_mask, right_thigh_mask)
-    combined_mask = np.maximum(combined_mask, left_arm_mask)
-    combined_mask = np.maximum(combined_mask, right_arm_mask)
-    combined_mask = np.maximum(combined_mask, left_lower_arm_mask)
-    combined_mask = np.maximum(combined_mask, right_lower_arm_mask)
-    combined_mask = np.maximum(combined_mask, left_lower_leg_mask)
-    combined_mask = np.maximum(combined_mask, right_lower_leg_mask)
-    
-    plt.imshow(combined_mask, cmap='gray')
-    plt.title(f"Body Visualization")
-    plt.colorbar()
-    plt.show()
-    
-    # Use command pattern to create the requested visualizations
-    
-    # Create basic commands
-    blur_weak = BlurCommand(sigma=.5)
-    threshold_high = ThresholdCommand(threshold_value=0.97)
-    
-    # Create command chains
-    original_chain = CommandChain()
-    blur_weak_chain = CommandChain().add_command(blur_weak)
-    
-    # Create combined blur+threshold chains
-    blur_thresh_low = CommandChain().add_command(blur_weak).add_command(threshold_high)
+            # Compute bounding boxes
+            all_bboxes = []
+            if body_parts:  # Only generate bounding boxes if there are actual body parts
+                all_bboxes = compute_bounding_boxes(bbox_groups, grid)
+                all_bboxes = process_and_filter_bboxes(all_bboxes, combined_mask, grid)
+            
+            # Create binary-only noise effects 
+            # 1. Clusters removing from body (foreground)
+            body_clusters = ClusteredNoiseCommand(
+                density=(0.05, 0.12),     # Higher density 
+                cluster_size=(3, 10),     # Size of clusters
+                value=0.0,                # Value to set (black)
+                target_value=1.0,         # Target white areas (the body)
+                border_focus=0.3,         # Focus some clusters near borders
+                probability=0.8           # 80% chance of applying
+            )
 
-    
-    # Visualize results
-    # First show original and blurred variations
-    visualize_command_results(
-        combined_mask, 
-        [original_chain, blur_weak_chain, blur_thresh_low], 
-        all_bboxes, 
-        title="Original and Blurred Variations"
-    )
+            # 2. Clusters adding to background
+            bg_clusters = ClusteredNoiseCommand(
+                density=(0.02, 0.06),     # Background density
+                cluster_size=(2, 8),      # Size of clusters
+                value=1.0,                # Value to set (white) 
+                target_value=0.0,         # Target black areas (background)
+                border_focus=0.0,         # Uniform distribution
+                probability=0.9           # 90% chance of applying
+            )
+
+            # 3. Lines on body (removing)
+            body_lines = RandomLinesCommand(
+                num_lines=(8, 15),        # Number of lines
+                thickness=(1, 3),         # Line thickness
+                length=(15, 40),          # Line length
+                value=0.0,                # Value to set (black)
+                target_value=1.0,         # Target white areas (body)
+                probability=0.7           # 70% chance of applying
+            )
+
+            # 4. Lines on background (adding)
+            bg_lines = RandomLinesCommand(
+                num_lines=(5, 12),        # Number of lines
+                thickness=(1, 2),         # Line thickness  
+                length=(10, 30),          # Line length
+                value=1.0,                # Value to set (white)
+                target_value=0.0,         # Target black areas (background)
+                probability=0.8           # 80% chance of applying
+            )
+
+            # Create command chain
+            command_chain = CommandChain()
+            command_chain.add_command(BlurCommand(sigma=(0.5, 0.8), probability=0.9))  # Initial blur
+
+            # Add the new pixel flip command to get ~30% flipped pixels
+            # You can target foreground, background, or both
+            command_chain.add_command(RandomPixelFlipCommand(
+                flip_percentage=(0.00, 0.08),  # Target around 30% flipped pixels
+                target_value=None,             # Apply to both foreground and background
+                probability=1.0                # Always apply
+            ))
+
+            # Optionally keep some of your existing noise commands for texture variation
+            if np.random.random() < 0.5:  # 50% chance to add additional noise
+                command_chain.add_command(body_clusters)
+                command_chain.add_command(body_lines)
+                command_chain.add_command(bg_clusters)
+
+            # Add thresholding to ensure binary output  
+            command_chain.add_command(ThresholdCommand(threshold_value=(0.4, 0.6), probability=1.0))
+
+            # Apply the processing chain
+            processed_mask = command_chain.execute(combined_mask)
+            
+            # Visualize if requested
+            if args.viz:
+                # Create a single figure for the final processed mask with bounding boxes
+                plt.figure(figsize=(10, 8))
+                plt.imshow(processed_mask, cmap='gray')
+                plt.title("Body Part Mask with Bounding Boxes")
+                
+                # Draw bounding boxes on the current axes
+                ax = plt.gca()
+                draw_bounding_boxes(ax, all_bboxes)
+                
+                plt.colorbar()
+                plt.tight_layout()
+                plt.show()
+            
+            # Save to files if directory provided
+            if args.dir:
+                # Convert processed_mask to uint8 image (0-255) with proper contrast
+                if processed_mask.dtype == bool:
+                    # Convert boolean to integer then to uint8 with full range
+                    img_array = (processed_mask * 255).astype(np.uint8)
+                else:
+                    # Normalize to 0-255 range for better visibility
+                    min_val = np.min(processed_mask)
+                    max_val = np.max(processed_mask)
+                    if max_val > min_val:  # Avoid division by zero
+                        img_array = (((processed_mask - min_val) / (max_val - min_val)) * 255).astype(np.uint8)
+                    else:
+                        img_array = np.zeros_like(processed_mask, dtype=np.uint8)
+                
+                # Create a Pillow image with proper mode
+                img = Image.fromarray(img_array, mode='L')  # 'L' is for grayscale
+                
+                # Save image in images subdirectory
+                img_path = os.path.join(args.dir, 'images', f'{sample_id}.png')
+                img.save(img_path)
+            
+            # Save labels if there are bounding boxes
+            if all_bboxes:  # Check that we have bounding boxes
+                label_path = os.path.join(args.dir, 'labels', f'{sample_id}.txt')
+                save_yolo_labels(all_bboxes, label_path, grid.shape)
+            else:
+                # Create empty label file if directory provided (important for training)
+                if args.dir:
+                    label_path = os.path.join(args.dir, 'labels', f'{sample_id}.txt')
+                    # Create an empty file by opening and closing it
+                    with open(label_path, 'w') as f:
+                        pass  # Empty file = no labels
     
