@@ -8,12 +8,14 @@ from abc import abstractmethod
 import numpy as np
 import matplotlib.pyplot as plt
 from back_massage_bot.synthetic_data_gen_util import *
+from back_massage_bot.augmentations import *
 import math
 import os
 import argparse
 from PIL import Image
 from tqdm import tqdm
 import uuid
+import multiprocessing as mp
 
 class BodyPart:
     instances = []
@@ -305,9 +307,9 @@ class Torso(BodyPart):
     
 class Head(BodyPart):
     def __init__(self, name: str = "Head", parent = None, children = None, 
-                create_params: dict[str, float] = {"head_length_to_torso_ratio": (0.28, 0.45),
-                                                  "head_width_to_length_ratio": (0.7, 0.85),
-                                                  "head_vertical_offset_ratio": (0.0, 0.05)}):
+                create_params: dict[str, float] = {"head_length_to_torso_ratio": (0.15, 0.45),
+                                                  "head_width_to_length_ratio": (0.7, 1.0),
+                                                  "head_vertical_offset_ratio": (-0.05, 0.1)}):
         super().__init__(name = name, parent = parent, children = children, is_root = False,
                         create_params = create_params)
 
@@ -338,13 +340,48 @@ class Head(BodyPart):
         center_top_head = head_bottom + np.array([0, head_length])
         self.vertex_mapping["center_top_head"] = center_top_head
         
-        # Get left and right head points at middle height
-        head_middle_height = head_bottom + np.array([0, head_length/2])
-        left_head = head_middle_height + np.array([-head_width/2, 0])
-        right_head = head_middle_height + np.array([head_width/2, 0])
+        # Calculate head center
+        head_center = head_bottom + np.array([0, head_length/2])
         
-        self.vertex_mapping["left_head"] = left_head
-        self.vertex_mapping["right_head"] = right_head
+        # Define more points around the elliptical shape to make it smoother
+        # Use parametric equation of ellipse: x = a*cos(t), y = b*sin(t)
+        # where a = width/2, b = length/2
+        a = head_width / 2
+        b = head_length / 2
+        
+        # Add points at various angles around the ellipse
+        angles = [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330]
+        for i, angle in enumerate(angles):
+            theta = math.radians(angle)
+            # Convert to cartesian coordinates
+            x = a * math.cos(theta)
+            y = b * math.sin(theta)
+            
+            # Position relative to head center
+            point = head_center + np.array([x, y])
+            
+            # Name based on position around ellipse
+            if angle == 0:
+                point_name = "right_head"
+            elif angle == 90:
+                point_name = "top_head"
+            elif angle == 180:
+                point_name = "left_head"
+            elif angle == 270:
+                point_name = "bottom_head"
+            else:
+                # Position descriptions for intermediate points
+                quadrant = angle // 90
+                if quadrant == 0:
+                    point_name = f"top_right_head_{angle}"
+                elif quadrant == 1:
+                    point_name = f"top_left_head_{angle}"
+                elif quadrant == 2:
+                    point_name = f"bottom_left_head_{angle}"
+                else:
+                    point_name = f"bottom_right_head_{angle}"
+                
+            self.vertex_mapping[point_name] = point
         
         return self.vertex_mapping
     
@@ -543,7 +580,7 @@ def generate_random_body_parts(probs=None):
     if probs is None:
         probs = {
             "torso": 0.99,
-            "head": 0.95,
+            "head": 1.0,
             "left_arm": 0.95,
             "right_arm": 0.95,
             "left_leg": 0.95,
@@ -585,196 +622,292 @@ def generate_random_body_parts(probs=None):
     
     return body_parts, grid
 
+def adjust_torso_bounding_box(all_bboxes, shrink_bottom_percent=0.25, shrink_top_percent=0.1):
+    """
+    Adjusts the torso bounding box by shrinking it from the top and bottom
+    
+    Args:
+        all_bboxes (list): List of bounding box dictionaries
+        shrink_bottom_percent (float): Percentage to shrink from the bottom (0.5 = 50%)
+        shrink_top_percent (float): Percentage to shrink from the top (0.5 = 50%)
+        
+    Returns:
+        list: Updated bounding boxes
+    """
+    torso_found = False
+    for bbox in all_bboxes:
+        # Case-insensitive check for "torso" in the name
+        if 'name' in bbox and bbox['name'].lower() == 'torso':
+            torso_found = True
+            
+            # Check for different possible key formats
+            if 'coords' in bbox and isinstance(bbox['coords'], tuple) and len(bbox['coords']) == 4:
+                # Format is (x_min, y_min, x_max, y_max)
+                x_min, y_min, x_max, y_max = bbox['coords']
+                height = y_max - y_min
+                
+                # Calculate new boundaries
+                bottom_adjustment = height * shrink_bottom_percent
+                top_adjustment = height * shrink_top_percent
+                
+                # Store original values for debugging
+                original_coords = bbox['coords']
+                
+                # Create new tuple with adjusted values (keeping x coordinates the same)
+                bbox['coords'] = (x_min, y_min + top_adjustment, x_max, y_max - bottom_adjustment)
+            elif 'ymin' in bbox and 'ymax' in bbox:
+                # Get original dimensions
+                y_min, y_max = bbox['ymin'], bbox['ymax']
+                height = y_max - y_min
+                
+                # Calculate new boundaries
+                bottom_adjustment = height * shrink_bottom_percent
+                top_adjustment = height * shrink_top_percent
+                
+                # Update the bounding box
+                bbox['ymin'] = y_min + top_adjustment  # Shrink from top
+                bbox['ymax'] = y_max - bottom_adjustment  # Shrink from bottom
+            elif 'min_y' in bbox and 'max_y' in bbox:
+                # Get original dimensions
+                y_min, y_max = bbox['min_y'], bbox['max_y']
+                height = y_max - y_min
+                
+                # Calculate new boundaries
+                bottom_adjustment = height * shrink_bottom_percent
+                top_adjustment = height * shrink_top_percent
+                
+                # Update the bounding box
+                bbox['min_y'] = y_min + top_adjustment  # Shrink from top
+                bbox['max_y'] = y_max - bottom_adjustment  # Shrink from bottom
+    
+    if not torso_found:
+        print("No torso found in bounding boxes!")
+        if all_bboxes:
+            print(f"Available bounding box names: {[bbox.get('name', 'unnamed') for bbox in all_bboxes]}")
+    
+    return all_bboxes
 
-if __name__ == "__main__":
-    # Add command-line arguments
-    parser = argparse.ArgumentParser(description='Generate synthetic body part data')
+def generate_sample(i, args, return_dict=None):
+    """Generate a single sample - isolates the body part instances"""
+    # Reset body parts to ensure independent generation
+    BodyPart.reset_instances()
+    
+    # Generate unique ID for this sample
+    sample_id = str(uuid.uuid4())[:8]
+    
+    # Create an empty grid
+    grid_shape = (200, 200)
+    grid = np.zeros(grid_shape)
+    
+    # Generate random body parts
+    body_parts, grid = generate_random_body_parts()
+    
+    # Validate body parts and create mask
+    is_valid, combined_mask, bbox_groups = validate_body_parts(body_parts, grid, min_body_pixels=1000)
+    
+    if not is_valid:
+        # Skip invalid samples
+        return False
+    
+    # Compute bounding boxes
+    all_bboxes = compute_bounding_boxes(bbox_groups, grid)
+
+    # AGGRESSIVE ARM FILTERING: Remove nested arms BEFORE any other checks
+    all_bboxes = filter_nested_arms(all_bboxes, max_overlap_ratio=0.3)
+    
+    # Only fine-tune the torso bounding box if the flag is enabled
+    if args.fine_tune_torso:
+        all_bboxes = adjust_torso_bounding_box(all_bboxes)
+    
+    # Skip if no valid bounding boxes after filtering
+    if not all_bboxes:
+        return False
+    
+    # Store original mask for comparison
+    original_mask = combined_mask.copy()
+    
+    # Create binary-only noise effects 
+    # 1. Clusters removing from body (foreground)
+    body_clusters = ClusteredNoiseCommand(
+        density=(0.05, 0.12),     # Higher density 
+        cluster_size=(3, 10),     # Size of clusters
+        value=0.0,                # Value to set (black)
+        target_value=1.0,         # Target white areas (the body)
+        border_focus=0.3,         # Focus some clusters near borders
+        probability=0.8           # 80% chance of applying
+    )
+
+    bg_cluster_max = 8
+    if args.fine_tune_torso:
+        bg_cluster_max = 4
+    # 2. Clusters adding to background
+    bg_clusters = ClusteredNoiseCommand(
+        density=(0.02, 0.06),     # Background density
+        cluster_size=(2, bg_cluster_max),      # Size of clusters
+        value=1.0,                # Value to set (white) 
+        target_value=0.0,         # Target black areas (background)
+        border_focus=0.0,         # Uniform distribution
+        probability=0.9           # 90% chance of applying
+    )
+
+    # 3. Lines on body (removing)
+    body_lines = RandomLinesCommand(
+        num_lines=(8, 15),        # Number of lines
+        thickness=(1, 3),         # Line thickness
+        length=(15, 40),          # Line length
+        value=0.0,                # Value to set (black)
+        target_value=1.0,         # Target white areas (body)
+        probability=0.7           # 70% chance of applying
+    )
+
+    # Create command chain
+    command_chain = CommandChain()
+    command_chain.add_command(BlurCommand(sigma=(0.5, 0.8), probability=0.9))  # Initial blur
+
+    # Add the pixel flip command
+    command_chain.add_command(RandomPixelFlipCommand(
+        flip_percentage=(0.00, 0.08),  # Target around 8% flipped pixels
+        target_value=None,             # Apply to both foreground and background
+        probability=1.0                # Always apply
+    ))
+
+    # Optionally keep some noise commands for texture variation
+    if np.random.random() < 0.5:  # 50% chance to add additional noise
+        command_chain.add_command(body_clusters)
+        command_chain.add_command(body_lines)
+        command_chain.add_command(bg_clusters)
+
+    # Add thresholding to ensure binary output  
+    command_chain.add_command(ThresholdCommand(threshold_value=(0.4, 0.6), probability=1.0))
+
+    # Apply the processing chain
+    processed_mask = command_chain.execute(combined_mask)
+    
+    # Validate the processed mask
+    if not validate_processed_mask(original_mask, processed_mask, min_body_pixels=2000, retention_ratio=0.7):
+        return False
+
+    # Validate that each bounding box contains sufficient pixels
+    if not perform_final_validation(processed_mask, all_bboxes, min_body_pixels=2000, min_density=0.15, min_pixels=100):
+        return False
+
+    # Additional visual sanity check
+    box_contents = []
+    for box in all_bboxes:
+        name = box.get('name', 'unknown')
+        density, foreground_pixels, total_pixels = calculate_box_density(box, processed_mask)
+        box_contents.append((name, foreground_pixels, density))
+
+    # Skip if any box has low density or few pixels
+    if any(density < 0.03 or pixels < 50 for _, pixels, density in box_contents):
+        return False
+    
+    # Visualize if requested
+    if args.viz:
+        # Create a single figure for visualization
+        plt.figure(figsize=(10, 8))
+        plt.imshow(processed_mask, cmap='gray')
+        plt.title(f"Sample {i+1}: Body Part Mask with Bounding Boxes")
+        
+        # Draw bounding boxes
+        ax = plt.gca()
+        draw_bounding_boxes(ax, all_bboxes)
+        
+        plt.colorbar()
+        plt.tight_layout()
+        plt.show()
+    
+    # Save to files if directory provided
+    if args.dir:
+        # Convert to image
+        img_array = (processed_mask * 255).astype(np.uint8)
+        img = Image.fromarray(img_array, mode='L')
+        
+        # Save image
+        img_path = os.path.join(args.dir, 'images', f'{sample_id}.png')
+        img.save(img_path)
+    
+        # Save labels
+        if all_bboxes:
+            label_path = os.path.join(args.dir, 'labels', f'{sample_id}.txt')
+            save_yolo_labels(all_bboxes, label_path, grid.shape)
+    
+    # Store results in shared dictionary if using multiprocessing
+    if return_dict is not None:
+        return_dict[i] = True
+    
+    return True
+
+def parse_args():
+    parser = argparse.ArgumentParser(description='Generate synthetic data for back massage robot')
     parser.add_argument('--dir', type=str, help='Directory to save generated data')
     parser.add_argument('--viz', action='store_true', help='Visualize bounding boxes')
     parser.add_argument('--num_samples', type=int, default=1, help='Number of samples to generate')
-    args = parser.parse_args()
+    parser.add_argument('--num_workers', type=int, default=1, help='Number of parallel workers for generation')
+    parser.add_argument('--fine-tune-torso', action='store_true', 
+                        help='Fine-tune torso bounding box by shrinking 30% from bottom and 20% from top')
+    
+    return parser.parse_args()
+
+if __name__ == "__main__":
+    # Add command-line arguments
+    args = parse_args()
     
     # Create output directories if specified
     if args.dir:
         os.makedirs(os.path.join(args.dir, 'images'), exist_ok=True)
         os.makedirs(os.path.join(args.dir, 'labels'), exist_ok=True)
     
-    # Generate specified number of samples
-    for i in tqdm(range(args.num_samples), desc="Generating samples"):
-        # Reset body parts to ensure independent generation for each sample
-        BodyPart.reset_instances()
+    # Initialize progress tracking
+    total_generated = 0
+    target_samples = args.num_samples
+    
+    # Visualization mode doesn't work well with parallel processing
+    if args.viz:
+        args.num_workers = 1
+    
+    # Initialize multiprocessing if using multiple workers
+    if args.num_workers > 1:
+        # Use a Manager to track progress across processes
+        with mp.Manager() as manager:
+            return_dict = manager.dict()
+            
+            # Create a pool of workers
+            with mp.Pool(processes=args.num_workers) as pool:
+                # Generate samples until we reach the target
+                while total_generated < target_samples:
+                    # Determine how many more samples to try generating
+                    samples_to_generate = min(args.num_workers * 2, target_samples - total_generated + 10)
+                    
+                    # Start parallel generation
+                    results = [pool.apply_async(generate_sample, args=(i, args, return_dict)) 
+                              for i in range(samples_to_generate)]
+                    
+                    # Wait for all processes to complete
+                    for result in results:
+                        result.get()
+                    
+                    # Count successful generations
+                    successful = sum(1 for x in return_dict.values() if x)
+                    total_generated += successful
+                    
+                    print(f"Generated {total_generated}/{target_samples} samples")
+                    
+                    # Clear the return dictionary for the next batch
+                    return_dict.clear()
+                    
+                    # Exit if we've generated enough samples
+                    if total_generated >= target_samples:
+                        break
+    else:
+        # Single process mode
+        pbar = tqdm(total=target_samples, desc="Generating samples")
         
-        # Generate unique ID for this sample
-        sample_id = str(uuid.uuid4())[:8]
-        
-        # Create an empty grid
-        grid_shape = (200, 200)
-        grid = np.zeros(grid_shape)
-        
-        # Generate random body parts
-        body_parts, grid = generate_random_body_parts()
-        
-        if not body_parts:
-            # Empty image case
-            combined_mask = np.zeros(grid.shape, dtype=bool)
-            
-            if args.viz:
-                plt.figure(figsize=(10, 8))
-                plt.imshow(combined_mask, cmap='gray')
-                plt.title("Empty Body Visualization")
-                plt.colorbar()
-                plt.show()
-        else:
-            # Plot body parts and create masks
-            combined_mask = np.zeros(grid.shape, dtype=bool)
-            
-            # Define grouped parts for bbox computation
-            bbox_groups = []
-            leg_parts = []  # Collect all leg parts (both thighs and lower legs)
-            
-            # Define a local function that gets the mask without plotting vertices
-            def get_part_mask(part, grid):
-                vertices = part.get_vertices()
-                try:
-                    return create_filled_curve_mask(grid.shape, points=vertices, curves_enabled=True, curve_tension=0.1)
-                except Exception as e:
-                    print(f"Error creating mask for {part.name}: {e}")
-                    return np.zeros(grid.shape, dtype=bool)
-            
-            for part in body_parts:
-                # Use our local function that doesn't plot vertices
-                part_mask = get_part_mask(part, grid)
-                combined_mask = np.maximum(combined_mask, part_mask)
-                
-                # Organize parts for bounding box groups
-                if isinstance(part, Thigh) or isinstance(part, LowerLeg):
-                    leg_parts.append(part)
-                elif not isinstance(part, BodyPart):
-                    continue
-                else:
-                    bbox_groups.append(part)
-            
-            # Add all leg parts as a single group if they exist
-            if leg_parts:
-                bbox_groups.append((leg_parts, "legs"))
-            
-            # Compute bounding boxes
-            all_bboxes = []
-            if body_parts:  # Only generate bounding boxes if there are actual body parts
-                all_bboxes = compute_bounding_boxes(bbox_groups, grid)
-                all_bboxes = process_and_filter_bboxes(all_bboxes, combined_mask, grid)
-            
-            # Create binary-only noise effects 
-            # 1. Clusters removing from body (foreground)
-            body_clusters = ClusteredNoiseCommand(
-                density=(0.05, 0.12),     # Higher density 
-                cluster_size=(3, 10),     # Size of clusters
-                value=0.0,                # Value to set (black)
-                target_value=1.0,         # Target white areas (the body)
-                border_focus=0.3,         # Focus some clusters near borders
-                probability=0.8           # 80% chance of applying
-            )
-
-            # 2. Clusters adding to background
-            bg_clusters = ClusteredNoiseCommand(
-                density=(0.02, 0.06),     # Background density
-                cluster_size=(2, 8),      # Size of clusters
-                value=1.0,                # Value to set (white) 
-                target_value=0.0,         # Target black areas (background)
-                border_focus=0.0,         # Uniform distribution
-                probability=0.9           # 90% chance of applying
-            )
-
-            # 3. Lines on body (removing)
-            body_lines = RandomLinesCommand(
-                num_lines=(8, 15),        # Number of lines
-                thickness=(1, 3),         # Line thickness
-                length=(15, 40),          # Line length
-                value=0.0,                # Value to set (black)
-                target_value=1.0,         # Target white areas (body)
-                probability=0.7           # 70% chance of applying
-            )
-
-            # 4. Lines on background (adding)
-            bg_lines = RandomLinesCommand(
-                num_lines=(5, 12),        # Number of lines
-                thickness=(1, 2),         # Line thickness  
-                length=(10, 30),          # Line length
-                value=1.0,                # Value to set (white)
-                target_value=0.0,         # Target black areas (background)
-                probability=0.8           # 80% chance of applying
-            )
-
-            # Create command chain
-            command_chain = CommandChain()
-            command_chain.add_command(BlurCommand(sigma=(0.5, 0.8), probability=0.9))  # Initial blur
-
-            # Add the new pixel flip command to get ~30% flipped pixels
-            # You can target foreground, background, or both
-            command_chain.add_command(RandomPixelFlipCommand(
-                flip_percentage=(0.00, 0.08),  # Target around 30% flipped pixels
-                target_value=None,             # Apply to both foreground and background
-                probability=1.0                # Always apply
-            ))
-
-            # Optionally keep some of your existing noise commands for texture variation
-            if np.random.random() < 0.5:  # 50% chance to add additional noise
-                command_chain.add_command(body_clusters)
-                command_chain.add_command(body_lines)
-                command_chain.add_command(bg_clusters)
-
-            # Add thresholding to ensure binary output  
-            command_chain.add_command(ThresholdCommand(threshold_value=(0.4, 0.6), probability=1.0))
-
-            # Apply the processing chain
-            processed_mask = command_chain.execute(combined_mask)
-            
-            # Visualize if requested
-            if args.viz:
-                # Create a single figure for the final processed mask with bounding boxes
-                plt.figure(figsize=(10, 8))
-                plt.imshow(processed_mask, cmap='gray')
-                plt.title("Body Part Mask with Bounding Boxes")
-                
-                # Draw bounding boxes on the current axes
-                ax = plt.gca()
-                draw_bounding_boxes(ax, all_bboxes)
-                
-                plt.colorbar()
-                plt.tight_layout()
-                plt.show()
-            
-            # Save to files if directory provided
-            if args.dir:
-                # Convert processed_mask to uint8 image (0-255) with proper contrast
-                if processed_mask.dtype == bool:
-                    # Convert boolean to integer then to uint8 with full range
-                    img_array = (processed_mask * 255).astype(np.uint8)
-                else:
-                    # Normalize to 0-255 range for better visibility
-                    min_val = np.min(processed_mask)
-                    max_val = np.max(processed_mask)
-                    if max_val > min_val:  # Avoid division by zero
-                        img_array = (((processed_mask - min_val) / (max_val - min_val)) * 255).astype(np.uint8)
-                    else:
-                        img_array = np.zeros_like(processed_mask, dtype=np.uint8)
-                
-                # Create a Pillow image with proper mode
-                img = Image.fromarray(img_array, mode='L')  # 'L' is for grayscale
-                
-                # Save image in images subdirectory
-                img_path = os.path.join(args.dir, 'images', f'{sample_id}.png')
-                img.save(img_path)
-            
-            # Save labels if there are bounding boxes
-            if all_bboxes:  # Check that we have bounding boxes
-                label_path = os.path.join(args.dir, 'labels', f'{sample_id}.txt')
-                save_yolo_labels(all_bboxes, label_path, grid.shape)
-            else:
-                # Create empty label file if directory provided (important for training)
-                if args.dir:
-                    label_path = os.path.join(args.dir, 'labels', f'{sample_id}.txt')
-                    # Create an empty file by opening and closing it
-                    with open(label_path, 'w') as f:
-                        pass  # Empty file = no labels
+        # Keep generating until we reach the target
+        attempts = 0
+        while total_generated < target_samples:
+            if generate_sample(attempts, args):
+                total_generated += 1
+                pbar.update(1)
+            attempts += 1
     

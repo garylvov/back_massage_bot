@@ -97,7 +97,7 @@ This approach offers key advantages over direct point cloud segmentation: the lo
 Our model is a simple fine-tuned ``Yolov11`` from Ultralytics, trained exclusively on synthetic data, with good zero-shot transfer
 performance on real data.
 
-Fine tuned weights are available in the ``back_massage_bot/models`` directory. We trained on 100k synthetically
+Fine tuned weights are available in the ``back_massage_bot/src/back_massage_bot/models`` directory. We trained on 200k synthetically
 generated images on [@garylvov 's beloved 4 GPU rig](https://garylvov.com/projects/minerva/).
 
 All training is done within the Docker container. Training can be done either in the base python only docker image
@@ -108,13 +108,32 @@ To replicate our training process, generate the synthetic data, and then launch 
 The generate synthetic training images, run the following.
 
 ```
-python3 /back_massage_bot/src/back_massage_bot/synthetic_data_gen.py --num_images 100000
+# Generate 100k samples training data on all cores
+python3 /back_massage_bot/src/back_massage_bot/synthetic_data_gen.py --num_workers $(nproc) --dir /back_massage_bot/src/back_massage_bot/data/train --num_samples 100000 
+# Generate validation dataset
+python3 /back_massage_bot/src/back_massage_bot/synthetic_data_gen.py --num_workers $(nproc) --dir /back_massage_bot/src/back_massage_bot/data/valid --num_samples 1000
 ```
 
-To train the network, run the following. You may wish to adjust the device to reflect your hardware configuration
+To train the network, run the following. You may wish to adjust the devices in the script
+as well as the batch size to reflect your hardware configuration. The default configuration is for ``4x 24Gb`` GPUs.
 
 ```
-python3 /back_massage_bot/src/back_massage_bot/train.py --devices 0,1,2,3
+python3 /back_massage_bot/src/back_massage_bot/train.py
+```
+
+We ended up doing some aggressive fine-tuning in a second stage of 100k images (for 200k images total) to get around imperfections in the synthetic data, starting with the previously trained model. We realized that the synthetic dataset overshoots the size of the torso, and doesn't detect the
+head, so in the fine tuning model, we turn off circular noise that could be mistaken for the head, shrink the size of the torso bounding box, and make the ultralytics augmentations less aggressive. We continued from the previous model checkpoint to save training time; it is likely
+that simply running the fine-tuning script from scratch (base pre-trained YOLOv11)would have yielded similar results.
+
+```
+# Get rid of the existing data
+rm -rf /back_massage_bot/src/back_massage_bot/data/train/ && rm -rf /back_massage_bot/src/back_massage_bot/data/valid/
+# Generate 30k samples fine-tune data on all cores
+python3 /back_massage_bot/src/back_massage_bot/synthetic_data_gen.py --num_workers $(nproc) --dir /back_massage_bot/src/back_massage_bot/data/train --num_samples 100000 --fine-tune-torso
+# Generate validation dataset
+python3 /back_massage_bot/src/back_massage_bot/synthetic_data_gen.py --num_workers $(nproc) --dir /back_massage_bot/src/back_massage_bot/data/valid --num_samples 1000 --fine-tune-torso
+# Start fine-tuning (more like retraining tbh ;) ) 
+python3 /back_massage_bot/src/back_massage_bot/fine_tune.py
 ```
 
 We tried to use zero-shot pretrained models, to no success, which motivated our custom yolo fine-tuning.

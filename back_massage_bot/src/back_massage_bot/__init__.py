@@ -7,3 +7,4 @@
 
 # Import and create a namespace for the synthetic data generation utilities
 from . import synthetic_data_gen_util as synthetic_data_gen_util
+from . import augmentations as augmentations

@@ -49,7 +49,7 @@ RUN mkdir -p /back_massage_bot && \
 USER ${USERNAME}
 
 RUN wget -O /models/yolo11n.pt https://github.com/ultralytics/assets/releases/download/v8.3.0/yolo11n.pt
-
+RUN wget -O /models/yolo11m.pt https://github.com/ultralytics/assets/releases/download/v8.3.0/yolo11m.pt
 # Create conda environment
 COPY --chown=${USERNAME}:${USERNAME} back_massage_bot/environment.yml /back_massage_bot/environment.yml
 RUN conda env create -f /back_massage_bot/environment.yml && \

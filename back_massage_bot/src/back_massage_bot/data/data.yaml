@@ -3,5 +3,5 @@ val: ../valid/images
 test: ../test/images
 
 nc: 7
-names: ['back', 'head', 'right_arm', 'left_arm', 'right_leg', 'left_leg', 'glutes']
+names: ["Torso", "Head", "left_upper_arm", "right_upper_arm", "left_lower_arm", "right_lower_arm", "legs"]  # All legs (left and right) grouped together]
 ch: 1  # Set channel to 1 for grayscale images
