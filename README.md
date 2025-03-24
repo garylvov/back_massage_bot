@@ -95,10 +95,20 @@ This approach offers key advantages over direct point cloud segmentation: the lo
 ![plot](assets/cloud_to_grid.gif)
 
 Our model is a simple fine-tuned ``Yolov11`` from Ultralytics, trained exclusively on synthetic data, with good zero-shot transfer
-performance on real data.
+performance on real data. Fine tuned weights are available in the ``back_massage_bot/src/back_massage_bot/models/third_runs_the_charm/weights`` directory. 
 
-Fine tuned weights are available in the ``back_massage_bot/src/back_massage_bot/models/third_runs_the_charm/weights`` directory. We trained on 200k synthetically
-generated images on [@garylvov 's beloved 4 GPU rig](https://garylvov.com/projects/minerva/).
+We trained on 200k synthetically generated images on [@garylvov 's beloved 4 GPU rig](https://garylvov.com/projects/minerva/). 
+On the rig, data generation takes less than five minutes, and training takes less than 3 hours while tuning all possible parameters in the network.
+Although our synthetic data is very noisy, and doesn't look super similar to real data, there is enough information to train a decent model that works zero-shot on real data.
+We generate human-like synthetic data from rough random range approximations of the ratios of a human body, and use a combination of augmentations to make the model robust to noise. The model works best when a person's arms are not in contact with their torso.
+
+
+<p align="center">
+  <img src="assets/region_selector.gif" width="30%" style="max-height: 400px; object-fit: contain;" />
+  <img src="back_massage_bot/src/back_massage_bot/models/third_runs_the_charm/train_batch1.jpg" width="30%" style="max-height: 400px; object-fit: contain;" />
+</p>
+
+
 
 All training is done within the Docker container. Training can be done either in the base python only docker image
 (``bash back_massage_bot/build.sh && bash back_massage_bot/develop.sh``) or in the overall project image (``bash pull_run_overlay.sh``).
@@ -163,8 +173,8 @@ This tool is in a prototype stage, and unfortunately can't yet be released.
 This tool will be released by September 2025.
 See [this page](https://garylvov.com/projects/extrinsic_cal/) for a teaser.
 
-The tool works by constructing a synthetic robot mesh using the robot’s URDF and joint positions, 
-then applies ICP to align the mesh with the depth sensor’s view of the robot to solve for the extrinsic transform.
+The tool works by constructing a synthetic robot mesh using the robot's URDF and joint positions, 
+then applies ICP to align the mesh with the depth sensor's view of the robot to solve for the extrinsic transform.
 
 If the tool is not present on the system (runs within its own docker container), the default config file, 
 ```back_massage_bot/src/back_massage_bot/config/default_transforms.yaml``` is used instead. 
