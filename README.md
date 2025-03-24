@@ -97,7 +97,7 @@ This approach offers key advantages over direct point cloud segmentation: the lo
 Our model is a simple fine-tuned ``Yolov11`` from Ultralytics, trained exclusively on synthetic data, with good zero-shot transfer
 performance on real data.
 
-Fine tuned weights are available in the ``back_massage_bot/src/back_massage_bot/models`` directory. We trained on 200k synthetically
+Fine tuned weights are available in the ``back_massage_bot/src/back_massage_bot/models/third_runs_the_charm/weights`` directory. We trained on 200k synthetically
 generated images on [@garylvov 's beloved 4 GPU rig](https://garylvov.com/projects/minerva/).
 
 All training is done within the Docker container. Training can be done either in the base python only docker image
@@ -123,7 +123,7 @@ python3 /back_massage_bot/src/back_massage_bot/train.py
 
 We ended up doing some aggressive fine-tuning in a second stage of 100k images (for 200k images total) to get around imperfections in the synthetic data, starting with the previously trained model. We realized that the synthetic dataset overshoots the size of the torso, and doesn't detect the
 head, so in the fine tuning model, we turn off circular noise that could be mistaken for the head, shrink the size of the torso bounding box, and make the ultralytics augmentations less aggressive. We continued from the previous model checkpoint to save training time; it is likely
-that simply running the fine-tuning script from scratch (base pre-trained YOLOv11)would have yielded similar results.
+that simply running the fine-tuning script from scratch (base pre-trained YOLOv11)would have yielded similar results. Reducing the ultralytics default augmentations took two tries, and it worked much better when we reduced shearing.
 
 ```
 # Get rid of the existing data
