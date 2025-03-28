@@ -54,3 +54,4 @@ for i, result in enumerate(results):
 
 print(f"Saved all detection results to {output_dir}/")
 
+model.export(format="onnx")
