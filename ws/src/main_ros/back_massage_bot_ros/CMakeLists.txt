@@ -40,7 +40,7 @@ install(TARGETS massage_moveit_node DESTINATION lib/${PROJECT_NAME})
 ament_python_install_package(${PROJECT_NAME})
 
 # Install Python executables
-install(PROGRAMS scripts/rgb_to_segmented_pose.py
+install(PROGRAMS scripts/plan_massage.py
         DESTINATION lib/${PROJECT_NAME})
 
 # Install launch files
