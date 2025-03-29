@@ -41,14 +41,9 @@ from cv_bridge import CvBridge
 # Import visualization utilities
 from utils import (
     create_yolo_markers,
-    create_massage_region_markers,
-    convert_yolo_box_to_world_coords,
     create_top_down_occupancy,
-    get_points_in_detection,
-    create_detailed_back_regions,
     get_best_detections,
     run_yolo_inference,
-    set_marker_timestamps,
     process_detections,
     publish_image
 )
@@ -397,10 +392,6 @@ class PointCloudTransformerAndOccupancyMapper:
                         logger=self.node.get_logger()
                     )
                     
-                    # Make sure to set timestamps on all markers
-                    if self.detection_publisher:
-                        for marker in self.detection_publisher.markers:
-                            marker.header.stamp = current_time
                 else:
                     # Create empty debug visualization if no detections
                     debug_markers = create_yolo_markers(
@@ -411,8 +402,6 @@ class PointCloudTransformerAndOccupancyMapper:
                         self.crop_bounds["z_min"],
                         logger=self.node.get_logger()
                     )
-                    # Set timestamps on all markers
-                    set_marker_timestamps(debug_markers, self.node.get_clock().now().to_msg())
                     self.marker_publisher.publish(debug_markers)
             
             # Increment frame counter

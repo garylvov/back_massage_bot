@@ -812,7 +812,6 @@ def run_yolo_inference(model, grid_image, yolo_low_conf_threshold=0.1, cv_bridge
         if yolo_input_pub and cv_bridge and robot_base_frame:
             try:
                 img_msg = cv_bridge.cv2_to_imgmsg(grid_image, encoding="rgb8")
-                img_msg.header.stamp = None  # Will be set by caller
                 img_msg.header.frame_id = robot_base_frame
                 yolo_input_pub.publish(img_msg)
                 if logger:
@@ -846,7 +845,6 @@ def run_yolo_inference(model, grid_image, yolo_low_conf_threshold=0.1, cv_bridge
             if yolo_output_pub and cv_bridge and robot_base_frame:
                 try:
                     img_msg = cv_bridge.cv2_to_imgmsg(output_img, encoding="rgb8")
-                    img_msg.header.stamp = None  # Will be set by caller
                     img_msg.header.frame_id = robot_base_frame
                     yolo_output_pub.publish(img_msg)
                     if logger:
@@ -884,7 +882,6 @@ def run_yolo_inference(model, grid_image, yolo_low_conf_threshold=0.1, cv_bridge
                 if yolo_output_pub and cv_bridge and robot_base_frame:
                     try:
                         img_msg = cv_bridge.cv2_to_imgmsg(output_img, encoding="rgb8")
-                        img_msg.header.stamp = None  # Will be set by caller
                         img_msg.header.frame_id = robot_base_frame
                         yolo_output_pub.publish(img_msg)
                         if logger:
@@ -902,12 +899,6 @@ def run_yolo_inference(model, grid_image, yolo_low_conf_threshold=0.1, cv_bridge
             import traceback
             logger.error(traceback.format_exc())
         return None
-
-def set_marker_timestamps(marker_array, timestamp):
-    """Helper method to set timestamps on all markers in a MarkerArray"""
-    for marker in marker_array.markers:
-        marker.header.stamp = timestamp
-    return marker_array
 
 def process_detections(best_detections, cropped_points, grid_data, class_colors, robot_base_frame, 
                        detection_publisher=None, marker_publisher=None, crop_bounds=None, logger=None):
@@ -1009,7 +1000,8 @@ def publish_image(image, publisher, robot_base_frame, cv_bridge, timestamp=None,
     """Helper method to publish images with proper headers"""
     try:
         img_msg = cv_bridge.cv2_to_imgmsg(image, encoding="rgb8")
-        img_msg.header.stamp = timestamp if timestamp else None
+        if timestamp:
+            img_msg.header.stamp = timestamp
         img_msg.header.frame_id = robot_base_frame
         publisher.publish(img_msg)
         if log_message and logger:
