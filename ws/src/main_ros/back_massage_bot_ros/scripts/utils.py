@@ -122,283 +122,189 @@ def create_yolo_markers(grid_data, detections, frame_id, grid_resolution, z_heig
     for i in range(grid_width):
         for j in range(grid_height):
             if mask[i, j]:
-                x = x_origin + (i + 0.5) * grid_resolution
-                y = y_origin + (j + 0.5) * grid_resolution
-                
-                point = Point()
-                point.x = x
-                point.y = y
-                point.z = z_height
-                grid_marker.points.append(point)
+                p = Point()
+                p.x = x_origin + i * grid_resolution
+                p.y = y_origin + j * grid_resolution
+                p.z = z_height
+                grid_marker.points.append(p)
     
     markers.markers.append(grid_marker)
     
-    # Create an outline of the grid area
-    outline = Marker()
-    outline.header.frame_id = frame_id
-    # Note: timestamp will be set by the caller
-    outline.ns = "debug_visualization"
-    outline.id = 1
-    outline.type = Marker.LINE_STRIP
-    outline.action = Marker.ADD
-    outline.scale.x = 0.005  # Line width
-    outline.color.a = 1.0
-    outline.color.r = 1.0
-    outline.color.g = 1.0
-    outline.color.b = 1.0
-    outline.pose.orientation.w = 1.0
+    # Define class names for better visualization
+    class_names = {
+        0: "Torso",
+        1: "Head",
+        6: "Legs"
+    }
     
-    # Add the four corners of the grid
-    width = grid_width * grid_resolution
-    height = grid_height * grid_resolution
-    z = z_height + 0.001  # Slightly above min z
-    
-    corners = [
-        (x_origin, y_origin, z),
-        (x_origin + width, y_origin, z),
-        (x_origin + width, y_origin + height, z),
-        (x_origin, y_origin + height, z),
-        (x_origin, y_origin, z)  # Close the loop
-    ]
-    
-    outline.points = [Point(x=x, y=y, z=z) for x, y, z in corners]
-    markers.markers.append(outline)
-    
-    # Check if we have a custom object with both detections and detailed regions
-    detailed_regions = None
-    if hasattr(detections, 'detections') and hasattr(detections, 'detailed_regions'):
-        detailed_regions = detections.detailed_regions
-        detections = detections.detections
-        if logger:
-            logger.info(f"Found custom detection object with detailed regions")
-    
-    # Add detection box markers if we have detections
+    # Add markers for detection boxes
     if detections is not None:
-        # Define default colors for visualization
-        colors = [
-            (1.0, 0.0, 0.0),  # Red
-            (0.0, 1.0, 0.0),  # Green
-            (0.0, 0.0, 1.0),  # Blue
-            (1.0, 1.0, 0.0),  # Yellow
-            (1.0, 0.0, 1.0),  # Magenta
-            (0.0, 1.0, 1.0),  # Cyan
-            (0.7, 0.5, 0.3),  # Brown
-            (0.5, 0.5, 0.5)   # Gray
-        ]
+        marker_id = 1
         
-        # Check if we have a YOLO result object or a filtered dictionary
+        # Handle different types of detection objects
         if hasattr(detections, 'boxes'):
             # It's a YOLO result object
             boxes = detections.boxes
-            for i, box in enumerate(boxes):
-                # Get box coordinates in world frame
-                x1_world, y1_world, x2_world, y2_world = convert_yolo_box_to_world_coords(box, grid_data, logger)
+            for box in boxes:
+                try:
+                    # Get box coordinates
+                    x1_world, y1_world, x2_world, y2_world = convert_yolo_box_to_world_coords(
+                        box, grid_data, logger=logger
+                    )
+                    
+                    # Get class ID and confidence
+                    class_id = int(box.cls.cpu().numpy()[0])
+                    conf = float(box.conf.cpu().numpy()[0])
+                    
+                    # Get class name
+                    class_name = class_names.get(class_id, f"Class{class_id}")
+                    
+                    # Log debug info
+                    if logger:
+                        logger.info(f"Debug marker for detection class={class_id}, conf={conf:.2f}, world=[{x1_world:.2f},{y1_world:.2f},{x2_world:.2f},{y2_world:.2f}]")
+                    
+                    # Create box marker
+                    box_marker = Marker()
+                    box_marker.header.frame_id = frame_id
+                    # Note: timestamp will be set by the caller
+                    box_marker.ns = "debug_visualization"
+                    box_marker.id = marker_id
+                    box_marker.type = Marker.LINE_STRIP
+                    box_marker.action = Marker.ADD
+                    box_marker.scale.x = 0.005  # Line width
+                    box_marker.color.a = 1.0
+                    
+                    # Set color based on class
+                    if class_id == 0:  # Torso
+                        box_marker.color.r = 0.9
+                        box_marker.color.g = 0.2
+                        box_marker.color.b = 0.2
+                    elif class_id == 1:  # Head
+                        box_marker.color.r = 0.2
+                        box_marker.color.g = 0.9
+                        box_marker.color.b = 0.2
+                    elif class_id == 6:  # Legs
+                        box_marker.color.r = 0.7
+                        box_marker.color.g = 0.5
+                        box_marker.color.b = 0.3
+                    else:
+                        box_marker.color.r = 0.5
+                        box_marker.color.g = 0.5
+                        box_marker.color.b = 0.5
+                    
+                    # Create box corners
+                    p1 = Point(x=x1_world, y=y1_world, z=z_height)
+                    p2 = Point(x=x2_world, y=y1_world, z=z_height)
+                    p3 = Point(x=x2_world, y=y2_world, z=z_height)
+                    p4 = Point(x=x1_world, y=y2_world, z=z_height)
+                    
+                    # Add points to form a closed loop
+                    box_marker.points = [p1, p2, p3, p4, p1]
+                    markers.markers.append(box_marker)
+                    
+                    # Add text marker with class name and confidence
+                    text_marker = Marker()
+                    text_marker.header.frame_id = frame_id
+                    # Note: timestamp will be set by the caller
+                    text_marker.ns = "debug_visualization"
+                    text_marker.id = marker_id + 1000  # Offset to avoid ID collision
+                    text_marker.type = Marker.TEXT_VIEW_FACING
+                    text_marker.action = Marker.ADD
+                    text_marker.scale.z = 0.05  # Text height
+                    text_marker.color = box_marker.color
+                    text_marker.color.a = 1.0
+                    
+                    # Position text above the box
+                    text_marker.pose.position.x = (x1_world + x2_world) / 2
+                    text_marker.pose.position.y = (y1_world + y2_world) / 2
+                    text_marker.pose.position.z = z_height + 0.05  # Slightly above the grid
+                    text_marker.pose.orientation.w = 1.0
+                    
+                    # Set text with class name and confidence (using underscores)
+                    text_marker.text = f"{class_name}_{conf:.2f}"
+                    markers.markers.append(text_marker)
+                    
+                    marker_id += 2  # Increment by 2 for box and text
+                    
+                except Exception as e:
+                    if logger:
+                        logger.error(f"Error creating marker for box: {e}")
+                    continue
+        
+        # Add markers for detailed back regions if available
+        if hasattr(detections, 'detailed_regions') and detections.detailed_regions:
+            # Define region names for better visualization
+            region_names = {
+                "spine": "Spine",
+                "left_lower": "Left_Lower_Back",
+                "left_middle": "Left_Middle_Back",
+                "left_upper": "Left_Upper_Back",
+                "right_lower": "Right_Lower_Back",
+                "right_middle": "Right_Middle_Back",
+                "right_upper": "Right_Upper_Back"
+            }
+            
+            # Create markers for each region
+            for region_name, (points, color) in detections.detailed_regions.items():
+                if len(points) == 0:
+                    continue
                 
-                # Log the detection box coordinates for debugging
-                if logger:
-                    class_id = int(box.cls.item())
-                    conf = float(box.conf.item())
-                    logger.info(f"Debug marker for detection class={class_id}, conf={conf:.2f}, world=[{x1_world:.2f},{y1_world:.2f},{x2_world:.2f},{y2_world:.2f}]")
+                # Get region name
+                display_name = region_names.get(region_name, region_name)
                 
-                # Create box marker
-                box_marker = Marker()
-                box_marker.header.frame_id = frame_id
+                # Create region boundary marker
+                region_min = np.min(points, axis=0)
+                region_max = np.max(points, axis=0)
+                
+                # Create box marker for region
+                region_marker = Marker()
+                region_marker.header.frame_id = frame_id
                 # Note: timestamp will be set by the caller
-                box_marker.ns = "debug_visualization"
-                box_marker.id = 10 + i  # Use index to avoid ID collisions
-                box_marker.type = Marker.LINE_STRIP
-                box_marker.action = Marker.ADD
-                box_marker.scale.x = 0.005  # Line width
-                box_marker.color.a = 1.0
+                region_marker.ns = "debug_visualization"
+                region_marker.id = marker_id
+                region_marker.type = Marker.LINE_STRIP
+                region_marker.action = Marker.ADD
+                region_marker.scale.x = 0.003  # Thinner line width
+                region_marker.color.a = 0.8
+                region_marker.color.r = color[0]
+                region_marker.color.g = color[1]
+                region_marker.color.b = color[2]
                 
-                # Get color from the box if available, otherwise use a default color
-                if hasattr(box, 'color'):
-                    color = box.color
-                else:
-                    # Use a default color scheme based on class ID
-                    class_id = int(box.cls.item())
-                    color_idx = class_id % len(colors)
-                    color = colors[color_idx]
+                # Create box corners
+                p1 = Point(x=region_min[0], y=region_min[1], z=z_height + 0.001)  # Slightly above grid
+                p2 = Point(x=region_max[0], y=region_min[1], z=z_height + 0.001)
+                p3 = Point(x=region_max[0], y=region_max[1], z=z_height + 0.001)
+                p4 = Point(x=region_min[0], y=region_max[1], z=z_height + 0.001)
                 
-                box_marker.color.r = color[0]
-                box_marker.color.g = color[1]
-                box_marker.color.b = color[2]
-                box_marker.pose.orientation.w = 1.0
+                # Add points to form a closed loop
+                region_marker.points = [p1, p2, p3, p4, p1]
+                markers.markers.append(region_marker)
                 
-                # Create the box outline - moved up for better visibility
-                z = z_height + 0.001  # Slightly above the grid
-                corners = [
-                    (x1_world, y1_world, z),
-                    (x2_world, y1_world, z),
-                    (x2_world, y2_world, z),
-                    (x1_world, y2_world, z),
-                    (x1_world, y1_world, z)  # Close the loop
-                ]
-                
-                box_marker.points = [Point(x=x, y=y, z=z) for x, y, z in corners]
-                markers.markers.append(box_marker)
-                
-                # Add text marker with class name or ID
+                # Add text marker with region name
                 text_marker = Marker()
                 text_marker.header.frame_id = frame_id
                 # Note: timestamp will be set by the caller
                 text_marker.ns = "debug_visualization"
-                text_marker.id = 100 + i  # Offset to avoid ID collision
+                text_marker.id = marker_id + 1000  # Offset to avoid ID collision
                 text_marker.type = Marker.TEXT_VIEW_FACING
                 text_marker.action = Marker.ADD
-                text_marker.scale.z = 0.05  # Text height
+                text_marker.scale.z = 0.03  # Smaller text height
                 text_marker.color.a = 1.0
                 text_marker.color.r = color[0]
                 text_marker.color.g = color[1]
                 text_marker.color.b = color[2]
                 
-                # Position text above the box
-                text_marker.pose.position.x = (x1_world + x2_world) / 2
-                text_marker.pose.position.y = (y1_world + y2_world) / 2
-                text_marker.pose.position.z = z + 0.05  # Above the box
+                # Position text above the region
+                text_marker.pose.position.x = (region_min[0] + region_max[0]) / 2
+                text_marker.pose.position.y = (region_min[1] + region_max[1]) / 2
+                text_marker.pose.position.z = z_height + 0.03  # Slightly above the grid
                 text_marker.pose.orientation.w = 1.0
                 
-                # Get class name if available
-                if hasattr(box, 'class_name'):
-                    text_marker.text = box.class_name
-                else:
-                    class_id = int(box.cls.item())
-                    text_marker.text = f"Class{class_id}"
-                
+                # Set text with region name and point count (using underscores)
+                text_marker.text = f"{display_name}_{len(points)}pts"
                 markers.markers.append(text_marker)
-        else:
-            # It's a filtered dictionary {class_id: (box, conf)}
-            for i, (class_id, (box, conf)) in enumerate(detections.items()):
-                # Get box coordinates in world frame
-                x1_world, y1_world, x2_world, y2_world = convert_yolo_box_to_world_coords(box, grid_data, logger)
                 
-                # Log the detection box coordinates for debugging
-                if logger:
-                    logger.info(f"Debug marker for detection class={class_id}, conf={conf:.2f}, world=[{x1_world:.2f},{y1_world:.2f},{x2_world:.2f},{y2_world:.2f}]")
-                
-                # Create box marker
-                box_marker = Marker()
-                box_marker.header.frame_id = frame_id
-                # Note: timestamp will be set by the caller
-                box_marker.ns = "debug_visualization"
-                box_marker.id = 10 + i  # Use index to avoid ID collisions
-                box_marker.type = Marker.LINE_STRIP
-                box_marker.action = Marker.ADD
-                box_marker.scale.x = 0.005  # Line width
-                box_marker.color.a = 1.0
-                
-                # Use a default color scheme based on class ID
-                color_idx = class_id % len(colors)
-                color = colors[color_idx]
-                
-                box_marker.color.r = color[0]
-                box_marker.color.g = color[1]
-                box_marker.color.b = color[2]
-                box_marker.pose.orientation.w = 1.0
-                
-                # Create the box outline - moved up for better visibility
-                z = z_height + 0.001  # Slightly above the grid
-                corners = [
-                    (x1_world, y1_world, z),
-                    (x2_world, y1_world, z),
-                    (x2_world, y2_world, z),
-                    (x1_world, y2_world, z),
-                    (x1_world, y1_world, z)  # Close the loop
-                ]
-                
-                box_marker.points = [Point(x=x, y=y, z=z) for x, y, z in corners]
-                markers.markers.append(box_marker)
-                
-                # Add text marker with class name or ID
-                text_marker = Marker()
-                text_marker.header.frame_id = frame_id
-                # Note: timestamp will be set by the caller
-                text_marker.ns = "debug_visualization"
-                text_marker.id = 100 + i  # Offset to avoid ID collision
-                text_marker.type = Marker.TEXT_VIEW_FACING
-                text_marker.action = Marker.ADD
-                text_marker.scale.z = 0.05  # Text height
-                text_marker.color.a = 1.0
-                text_marker.color.r = color[0]
-                text_marker.color.g = color[1]
-                text_marker.color.b = color[2]
-                
-                # Position text above the box
-                text_marker.pose.position.x = (x1_world + x2_world) / 2
-                text_marker.pose.position.y = (y1_world + y2_world) / 2
-                text_marker.pose.position.z = z + 0.05  # Above the box
-                text_marker.pose.orientation.w = 1.0
-                
-                # Use class ID as text
-                text_marker.text = f"Class{class_id}"
-                
-                markers.markers.append(text_marker)
-    
-    # If we have detailed regions, add them to the debug visualization
-    if detailed_regions:
-        # Create markers for each detailed region
-        region_id = 200  # Start IDs at 200 to avoid collision with other markers
-        for region_name, (region_points, region_color) in detailed_regions.items():
-            if len(region_points) == 0:
-                continue
-                
-            # Create a box marker for this region
-            region_min = np.min(region_points, axis=0)
-            region_max = np.max(region_points, axis=0)
-            
-            # Create box marker
-            box_marker = Marker()
-            box_marker.header.frame_id = frame_id
-            # Note: timestamp will be set by the caller
-            box_marker.ns = "debug_visualization"
-            box_marker.id = region_id
-            box_marker.type = Marker.LINE_STRIP
-            box_marker.action = Marker.ADD
-            box_marker.scale.x = 0.003  # Line width (thinner than main boxes)
-            box_marker.color.a = 1.0
-            box_marker.color.r = region_color[0]
-            box_marker.color.g = region_color[1]
-            box_marker.color.b = region_color[2]
-            box_marker.pose.orientation.w = 1.0
-            
-            # Create the box outline
-            z = z_height + 0.002  # Slightly above the other boxes
-            corners = [
-                (region_min[0], region_min[1], z),
-                (region_max[0], region_min[1], z),
-                (region_max[0], region_max[1], z),
-                (region_min[0], region_max[1], z),
-                (region_min[0], region_min[1], z)  # Close the loop
-            ]
-            
-            box_marker.points = [Point(x=x, y=y, z=z) for x, y, z in corners]
-            markers.markers.append(box_marker)
-            
-            # Add text marker with region name
-            text_marker = Marker()
-            text_marker.header.frame_id = frame_id
-            # Note: timestamp will be set by the caller
-            text_marker.ns = "debug_visualization"
-            text_marker.id = region_id + 100  # Offset to avoid ID collision
-            text_marker.type = Marker.TEXT_VIEW_FACING
-            text_marker.action = Marker.ADD
-            text_marker.scale.z = 0.03  # Text height (smaller than main labels)
-            text_marker.color.a = 1.0
-            text_marker.color.r = region_color[0]
-            text_marker.color.g = region_color[1]
-            text_marker.color.b = region_color[2]
-            
-            # Position text in the center of the region
-            text_marker.pose.position.x = (region_min[0] + region_max[0]) / 2
-            text_marker.pose.position.y = (region_min[1] + region_max[1]) / 2
-            text_marker.pose.position.z = z + 0.03  # Above the box
-            text_marker.pose.orientation.w = 1.0
-            
-            # Use the region name directly
-            text_marker.text = region_name
-            markers.markers.append(text_marker)
-            
-            region_id += 1
+                marker_id += 2  # Increment by 2 for box and text
     
     return markers
 
@@ -422,6 +328,12 @@ def create_massage_region_markers(points_by_class, class_colors, robot_base_fram
     for class_id, points in points_by_class.items():
         # Skip empty point sets
         if points is None or len(points) == 0:
+            continue
+            
+        # Skip torso (class 0) if we have detailed regions
+        if class_id == 0 and detailed_regions and len(detailed_regions) > 0:
+            if logger:
+                logger.info("Skipping torso visualization in favor of detailed regions")
             continue
             
         # Get color for this class
@@ -741,20 +653,22 @@ def create_detailed_back_regions(torso_points, legs_points, spine_width_fraction
                 region_points["spine"].append(point)
             # Left side regions (y < spine_min_y)
             elif y < spine_min_y:
+                # Swap lower and upper - upper should be at the top (higher x value)
                 if section_boundaries[0] <= x < section_boundaries[1]:
-                    region_points["left_lower"].append(point)
+                    region_points["left_upper"].append(point)  # Was "left_lower"
                 elif section_boundaries[1] <= x < section_boundaries[2]:
                     region_points["left_middle"].append(point)
                 elif section_boundaries[2] <= x <= section_boundaries[3]:
-                    region_points["left_upper"].append(point)
+                    region_points["left_lower"].append(point)  # Was "left_upper"
             # Right side regions (y > spine_max_y)
             elif y > spine_max_y:
+                # Swap lower and upper - upper should be at the top (higher x value)
                 if section_boundaries[0] <= x < section_boundaries[1]:
-                    region_points["right_lower"].append(point)
+                    region_points["right_upper"].append(point)  # Was "right_lower"
                 elif section_boundaries[1] <= x < section_boundaries[2]:
                     region_points["right_middle"].append(point)
                 elif section_boundaries[2] <= x <= section_boundaries[3]:
-                    region_points["right_upper"].append(point)
+                    region_points["right_lower"].append(point)  # Was "right_upper"
         
         # Create the dictionary of regions with points and colors
         regions = {}

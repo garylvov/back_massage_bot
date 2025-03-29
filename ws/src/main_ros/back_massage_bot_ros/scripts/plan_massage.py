@@ -45,7 +45,8 @@ from utils import (
     get_best_detections,
     run_yolo_inference,
     process_detections,
-    publish_image
+    publish_image,
+    create_detailed_back_regions
 )
 
 class PointCloudTransformerAndOccupancyMapper:
@@ -392,6 +393,18 @@ class PointCloudTransformerAndOccupancyMapper:
                         logger=self.node.get_logger()
                     )
                     
+                    # If we have both torso and legs, create detailed back regions
+                    if points_by_class.get(0) is not None and points_by_class.get(6) is not None:
+                        detailed_regions = create_detailed_back_regions(
+                            points_by_class[0], 
+                            points_by_class[6],
+                            spine_width_fraction=self.spine_width_fraction,
+                            back_regions_count=self.back_regions_count,
+                            logger=self.node.get_logger()
+                        )
+                    else:
+                        detailed_regions = {}
+                
                 else:
                     # Create empty debug visualization if no detections
                     debug_markers = create_yolo_markers(
