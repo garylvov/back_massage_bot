@@ -20,6 +20,9 @@ import open3d as o3d
 from datetime import datetime
 import ultralytics
 import cv2
+import threading
+import queue
+import time
 
 import synchros2.process as ros_process
 import synchros2.scope as ros_scope
@@ -35,13 +38,18 @@ from std_msgs.msg import ColorRGBA
 from geometry_msgs.msg import Point
 from cv_bridge import CvBridge
 
+# Import visualization utilities
+from visualization_utils import (
+    create_detection_debug_markers,
+    create_detection_markers
+)
 
 class PointCloudTransformerAndOccupancyMapper:
     def __init__(
         self,
         input_topic: str = "/depth/color/points",
         output_topic: str = "/massage_planning/cropped_cloud",
-        occupancy_topic: str = "/massage_planning/occupancy_grid",
+        occupancy_topic: str = "/massage_planning/debug_visualization",
         camera_frame: str = "camera_depth_optical_frame",
         robot_base_frame: str = "j2n6s300_link_base",
         tf_prefix: str | None = None,
@@ -103,7 +111,6 @@ class PointCloudTransformerAndOccupancyMapper:
         
         # Create publishers
         self.cloud_publisher = self.node.create_publisher(PointCloud2, self.output_topic, qos)
-        self.segmented_cloud_publisher = self.node.create_publisher(PointCloud2, "/massage_planning/segmented_cloud", qos)
         self.marker_publisher = self.node.create_publisher(MarkerArray, self.occupancy_topic, qos)
         
         # Create CV bridge for image conversion
@@ -121,6 +128,14 @@ class PointCloudTransformerAndOccupancyMapper:
         # Frame counter
         self.frame_counter = 0
         
+        # Create a queue for point cloud messages
+        self.point_cloud_queue = queue.Queue(maxsize=10)
+        
+        # Start the processing thread
+        self.processing_thread = threading.Thread(target=self.process_point_clouds, daemon=True)
+        self.processing_thread.start()
+        self.node.get_logger().info("Started point cloud processing thread")
+        
         # Subscribe to the point cloud topic
         self.subscription = self.node.create_subscription(
             PointCloud2,
@@ -131,7 +146,7 @@ class PointCloudTransformerAndOccupancyMapper:
         
         self.node.get_logger().info(f"Subscribed to {self.input_topic}")
         self.node.get_logger().info(f"Publishing transformed and cropped point cloud to {self.output_topic}")
-        self.node.get_logger().info(f"Publishing occupancy grid visualization to {self.occupancy_topic}")
+        self.node.get_logger().info(f"Publishing visualization to {self.occupancy_topic}")
         self.node.get_logger().info("Waiting for point clouds...")
 
         # Initialize YOLO model for inference
@@ -196,7 +211,7 @@ class PointCloudTransformerAndOccupancyMapper:
     def create_top_down_occupancy(self, points):
         """Create a 2D top-down occupancy grid from the point cloud"""
         try:
-            # Get bounds for the grid
+            # Get abounds for the grid
             x_min = self.crop_bounds["x_min"]
             x_max = self.crop_bounds["x_max"]
             y_min = self.crop_bounds["y_min"]
@@ -279,344 +294,6 @@ class PointCloudTransformerAndOccupancyMapper:
             self.node.get_logger().error(f"Error creating occupancy grid: {str(e)}")
             return None
 
-    def create_grid_markers(self, grid, origin):
-        """Create marker array for visualization of occupancy grid"""
-        marker_array = MarkerArray()
-        
-        # Create a single cube marker for all cells
-        marker = Marker()
-        marker.header.frame_id = self.robot_base_frame
-        marker.header.stamp = self.node.get_clock().now().to_msg()
-        marker.ns = "occupancy_grid"
-        marker.id = 0
-        marker.type = Marker.CUBE_LIST
-        marker.action = Marker.ADD
-        marker.scale.x = self.grid_resolution
-        marker.scale.y = self.grid_resolution
-        marker.scale.z = self.grid_resolution * 0.1  # Thin in z-direction
-        marker.color.a = 0.7  # Semi-transparent
-        marker.color.r = 0.0
-        marker.color.g = 0.7
-        marker.color.b = 0.0
-        marker.pose.orientation.w = 1.0
-        
-        # Add all occupied cells as points
-        x_origin, y_origin = origin
-        points = []
-        for i in range(grid.shape[0]):
-            for j in range(grid.shape[1]):
-                if grid[i, j]:
-                    x = x_origin + (i + 0.5) * self.grid_resolution
-                    y = y_origin + (j + 0.5) * self.grid_resolution
-                    z = self.crop_bounds["z_min"] + self.grid_resolution * 0.05  # Place just above min z
-                    
-                    point = Point()
-                    point.x = x
-                    point.y = y
-                    point.z = z
-                    points.append(point)
-        
-        marker.points = points
-        marker_array.markers.append(marker)
-        
-        # Create an outline of the grid area
-        outline = Marker()
-        outline.header.frame_id = self.robot_base_frame
-        outline.header.stamp = self.node.get_clock().now().to_msg()
-        outline.ns = "occupancy_grid"
-        outline.id = 1
-        outline.type = Marker.LINE_STRIP
-        outline.action = Marker.ADD
-        outline.scale.x = 0.005  # Line width
-        outline.color.a = 1.0
-        outline.color.r = 1.0
-        outline.color.g = 1.0
-        outline.color.b = 1.0
-        outline.pose.orientation.w = 1.0
-        
-        # Add the four corners of the grid
-        width = grid.shape[0] * self.grid_resolution
-        height = grid.shape[1] * self.grid_resolution
-        z = self.crop_bounds["z_min"] + 0.001  # Slightly above min z
-        
-        corners = [
-            (x_origin, y_origin, z),
-            (x_origin + width, y_origin, z),
-            (x_origin + width, y_origin + height, z),
-            (x_origin, y_origin + height, z),
-            (x_origin, y_origin, z)  # Close the loop
-        ]
-        
-        outline.points = [Point(x=x, y=y, z=z) for x, y, z in corners]
-        marker_array.markers.append(outline)
-        
-        return marker_array
-
-    def create_detection_debug_markers(self, grid_data, yolo_result):
-        """Create debug visualization showing both occupancy grid and detection boxes"""
-        marker_array = MarkerArray()
-        
-        # Extract grid data
-        mask = grid_data["mask"]
-        grid_width, grid_height = mask.shape
-        x_origin, y_origin = grid_data["origin"]
-        
-        # Create a marker for the grid
-        grid_marker = Marker()
-        grid_marker.header.frame_id = self.robot_base_frame
-        grid_marker.header.stamp = self.node.get_clock().now().to_msg()
-        grid_marker.ns = "debug_visualization"
-        grid_marker.id = 0
-        grid_marker.type = Marker.POINTS
-        grid_marker.action = Marker.ADD
-        grid_marker.scale.x = 0.01  # Point size
-        grid_marker.scale.y = 0.01
-        grid_marker.scale.z = 0.001  # Very thin in z-direction
-        grid_marker.color.a = 0.3  # Semi-transparent
-        grid_marker.color.r = 0.7
-        grid_marker.color.g = 0.7
-        grid_marker.color.b = 0.7
-        grid_marker.pose.orientation.w = 1.0
-        
-        # Use the actual z-height from the point cloud, but move it up for better visibility
-        z_height = self.crop_bounds["z_min"] #+ 0.45  # Move up by 45cm
-        
-        # Add occupied cells
-        for i in range(grid_width):
-            for j in range(grid_height):
-                if mask[i, j]:
-                    x = x_origin + (i + 0.5) * self.grid_resolution
-                    y = y_origin + (j + 0.5) * self.grid_resolution
-                    
-                    point = Point()
-                    point.x = x
-                    point.y = y
-                    point.z = z_height
-                    grid_marker.points.append(point)
-        
-        marker_array.markers.append(grid_marker)
-        
-        # Create markers for each detection box
-        if yolo_result is not None:
-            # Track which classes we've already processed to avoid duplicates
-            processed_classes = set()
-            
-            # Sort boxes by confidence to get the highest confidence detection for each class
-            boxes_by_class = {}
-            for box in yolo_result.boxes:
-                cls = int(box.cls.item())
-                conf = float(box.conf.item())
-                
-                # Only consider head (1), torso (0), and legs (6)
-                if cls not in [0, 1, 6]:
-                    continue
-                
-                # Keep the highest confidence detection for each class
-                if cls not in boxes_by_class or conf > boxes_by_class[cls][1]:
-                    boxes_by_class[cls] = (box, conf)
-            
-            # Process only the highest confidence detection for each class
-            for cls, (box, conf) in boxes_by_class.items():
-                xyxy = box.xyxy[0].cpu().numpy()  # [x1, y1, x2, y2]
-                
-                # Get original image dimensions from result
-                if hasattr(yolo_result, 'orig_shape'):
-                    original_height, original_width = yolo_result.orig_shape
-                else:
-                    original_height, original_width = grid_height, grid_width
-                
-                # Get YOLO dimensions - use the same logic as in get_points_in_detection
-                if hasattr(box, 'orig_shape'):
-                    yolo_height, yolo_width = box.orig_shape
-                else:
-                    # Fallback to default YOLO dimensions if not available
-                    yolo_width, yolo_height = 640, 640  # Default YOLO v8 dimensions
-                
-                # Calculate scaling factors
-                x_scale = original_width / yolo_width
-                y_scale = original_height / yolo_height
-                
-                # Scale YOLO coordinates to original image coordinates
-                x1_img = int(xyxy[0] * x_scale)
-                x2_img = int(xyxy[2] * x_scale)
-                y1_img = int(xyxy[1] * y_scale)
-                y2_img = int(xyxy[3] * y_scale)
-                
-                # Convert to grid coordinates (flipping y-axis)
-                x1_idx = x1_img
-                x2_idx = x2_img
-                y1_idx = grid_height - y2_img  # Note the swap of y2 and y1 due to flipping
-                y2_idx = grid_height - y1_img
-                
-                # Ensure indices are within bounds
-                x1_idx = max(0, min(grid_width - 1, x1_idx))
-                x2_idx = max(0, min(grid_width - 1, x2_idx))
-                y1_idx = max(0, min(grid_height - 1, y1_idx))
-                y2_idx = max(0, min(grid_height - 1, y2_idx))
-                
-                # Convert to world coordinates
-                x1_world = x_origin + x1_idx * self.grid_resolution
-                y1_world = y_origin + y1_idx * self.grid_resolution
-                x2_world = x_origin + (x2_idx + 1) * self.grid_resolution
-                y2_world = y_origin + (y2_idx + 1) * self.grid_resolution
-                
-                # Log the detection box coordinates for debugging
-                self.node.get_logger().info(f"Debug marker for detection class={cls}, conf={conf:.2f}, grid=[{x1_idx},{y1_idx},{x2_idx},{y2_idx}], world=[{x1_world:.2f},{y1_world:.2f},{x2_world:.2f},{y2_world:.2f}]")
-                
-                # Create box marker
-                box_marker = Marker()
-                box_marker.header.frame_id = self.robot_base_frame
-                box_marker.header.stamp = self.node.get_clock().now().to_msg()
-                box_marker.ns = "debug_visualization"
-                box_marker.id = cls + 1  # Use class as ID to avoid duplicates
-                box_marker.type = Marker.LINE_STRIP
-                box_marker.action = Marker.ADD
-                box_marker.scale.x = 0.005  # Line width
-                box_marker.color.a = 1.0
-                
-                # Set color based on class
-                colors = [
-                    (1.0, 0.0, 0.0),  # Red - Torso
-                    (0.0, 1.0, 0.0),  # Green - Head
-                    (0.7, 0.5, 0.3)   # Brown - Legs
-                ]
-                color_idx = 0 if cls == 0 else (1 if cls == 1 else 2)
-                color = colors[color_idx]
-                box_marker.color.r = color[0]
-                box_marker.color.g = color[1]
-                box_marker.color.b = color[2]
-                box_marker.pose.orientation.w = 1.0
-                
-                # Create the box outline - moved up for better visibility
-                z = z_height + 0.001  # Slightly above the grid
-                corners = [
-                    (x1_world, y1_world, z),
-                    (x2_world, y1_world, z),
-                    (x2_world, y2_world, z),
-                    (x1_world, y2_world, z),
-                    (x1_world, y1_world, z)  # Close the loop
-                ]
-                
-                box_marker.points = [Point(x=x, y=y, z=z) for x, y, z in corners]
-                marker_array.markers.append(box_marker)
-                
-                # Add text marker with class name
-                text_marker = Marker()
-                text_marker.header.frame_id = self.robot_base_frame
-                text_marker.header.stamp = self.node.get_clock().now().to_msg()
-                text_marker.ns = "debug_visualization"
-                text_marker.id = cls + 100  # Offset to avoid ID collision
-                text_marker.type = Marker.TEXT_VIEW_FACING
-                text_marker.action = Marker.ADD
-                text_marker.scale.z = 0.05  # Text height
-                text_marker.color.a = 1.0
-                text_marker.color.r = color[0]
-                text_marker.color.g = color[1]
-                text_marker.color.b = color[2]
-                
-                # Position text above the box
-                text_marker.pose.position.x = (x1_world + x2_world) / 2
-                text_marker.pose.position.y = (y1_world + y2_world) / 2
-                text_marker.pose.position.z = z + 0.05  # Above the box
-                text_marker.pose.orientation.w = 1.0
-                
-                # Get class name
-                class_names = {
-                    0: "Torso",
-                    1: "Head",
-                    6: "Legs"
-                }
-                text_marker.text = class_names.get(cls, f"Class {cls}")
-                marker_array.markers.append(text_marker)
-        
-        return marker_array
-
-    def create_detection_markers(self, points_by_class, class_colors):
-        """Create marker array for visualization of detected regions"""
-        marker_array = MarkerArray()
-        
-        # Only include head (1), torso (0), and legs (6)
-        allowed_classes = {0, 1, 6}
-        
-        # If we have multiple instances of the same class, keep only one
-        filtered_points_by_class = {}
-        
-        for cls, points in points_by_class.items():
-            # Skip classes we don't want to visualize
-            if cls not in allowed_classes or points is None or len(points) == 0:
-                continue
-            
-            # If we already have this class, skip it
-            if cls in filtered_points_by_class:
-                continue
-                
-            # Add this class to our filtered set
-            filtered_points_by_class[cls] = points
-        
-        # Now create markers for the filtered set
-        for cls, points in filtered_points_by_class.items():
-            # Get color for this class
-            color = class_colors.get(cls, (0.5, 0.5, 0.5))  # Default gray if class not found
-            
-            # Create point cloud marker
-            marker = Marker()
-            marker.header.frame_id = self.robot_base_frame
-            marker.header.stamp = self.node.get_clock().now().to_msg()
-            marker.ns = "body_regions"
-            marker.id = cls
-            marker.type = Marker.POINTS
-            marker.action = Marker.ADD
-            marker.scale.x = 0.02  # Point size
-            marker.scale.y = 0.02
-            marker.color.r = color[0]
-            marker.color.g = color[1]
-            marker.color.b = color[2]
-            marker.color.a = 1.0
-            
-            # Add all points for this class
-            for point in points:
-                p = Point()
-                p.x = point[0]
-                p.y = point[1]
-                # Move points up for better visibility
-                p.z = point[2] #+ 0.45  # Match the z-height from debug visualization
-                marker.points.append(p)
-            
-            marker_array.markers.append(marker)
-            
-            # Add text marker with class name
-            text_marker = Marker()
-            text_marker.header.frame_id = self.robot_base_frame
-            text_marker.header.stamp = self.node.get_clock().now().to_msg()
-            text_marker.ns = "body_regions"
-            text_marker.id = cls + 100  # Offset to avoid ID collision
-            text_marker.type = Marker.TEXT_VIEW_FACING
-            text_marker.action = Marker.ADD
-            text_marker.scale.z = 0.05  # Text height
-            text_marker.color.a = 1.0
-            text_marker.color.r = color[0]
-            text_marker.color.g = color[1]
-            text_marker.color.b = color[2]
-            
-            # Calculate centroid of points for text placement
-            if len(points) > 0:
-                centroid = np.mean(points, axis=0)
-                text_marker.pose.position.x = centroid[0]
-                text_marker.pose.position.y = centroid[1]
-                text_marker.pose.position.z = centroid[2] + 0.5  # Above the points
-                text_marker.pose.orientation.w = 1.0
-                
-                # Get class name
-                class_names = {
-                    0: "Torso",
-                    1: "Head",
-                    6: "Legs"
-                }
-                text_marker.text = class_names.get(cls, f"Class {cls}")
-                marker_array.markers.append(text_marker)
-        
-        return marker_array
-
     def run_yolo_inference(self, grid_image):
         """Run YOLO inference directly on the grid image numpy array"""
         if self.model is None:
@@ -691,7 +368,42 @@ class PointCloudTransformerAndOccupancyMapper:
             return None
 
     def point_cloud_callback(self, msg: PointCloud2) -> None:
-        """Process incoming point cloud messages using Open3D"""
+        """Callback for point cloud messages - just adds to queue"""
+        try:
+            # Add the message to the queue, with a timeout to avoid blocking
+            self.point_cloud_queue.put(msg, block=True, timeout=0.1)
+            self.node.get_logger().debug(f"Added point cloud to queue (size: {self.point_cloud_queue.qsize()})")
+        except queue.Full:
+            self.node.get_logger().warn("Point cloud queue is full, dropping message")
+        except Exception as e:
+            self.node.get_logger().error(f"Error in point cloud callback: {str(e)}")
+
+    def process_point_clouds(self):
+        """Process point clouds from the queue in a separate thread"""
+        self.node.get_logger().info("Point cloud processing thread started")
+        
+        while True:
+            try:
+                # Get a message from the queue
+                msg = self.point_cloud_queue.get(block=True)
+                self.node.get_logger().debug("Processing point cloud from queue")
+                
+                # Process the point cloud
+                self.process_point_cloud(msg)
+                
+                # Mark the task as done
+                self.point_cloud_queue.task_done()
+                
+            except Exception as e:
+                self.node.get_logger().error(f"Error in processing thread: {str(e)}")
+                import traceback
+                self.node.get_logger().error(traceback.format_exc())
+                
+                # Sleep briefly to avoid tight loop in case of persistent errors
+                time.sleep(0.1)
+
+    def process_point_cloud(self, msg: PointCloud2) -> None:
+        """Process a single point cloud message using Open3D"""
         try:
             # Try to get the transform if we don't have it yet
             if not self.lookup_transform() and not self.tried_transform_lookup:
@@ -750,11 +462,6 @@ class PointCloudTransformerAndOccupancyMapper:
             if grid_data is None:
                 self.node.get_logger().error("Failed to create occupancy grid")
                 return
-                
-            # Create and publish marker array for visualization
-            marker_array = self.create_grid_markers(grid_data["mask"], grid_data["origin"])
-            self.marker_publisher.publish(marker_array)
-            self.node.get_logger().info(f"Published occupancy grid with {np.sum(grid_data['mask'])} occupied cells")
             
             # Publish the full cropped point cloud (before segmentation)
             header = msg.header
@@ -770,14 +477,23 @@ class PointCloudTransformerAndOccupancyMapper:
             if self.model is not None:
                 yolo_result = self.run_yolo_inference(grid_data["image"])
                 
-                if yolo_result is not None and len(yolo_result.boxes) > 0:
-                    # Create debug visualization showing grid and detection boxes
-                    debug_topic = "/massage_planning/debug_visualization"
-                    debug_publisher = self.node.create_publisher(MarkerArray, debug_topic, 10)
-                    debug_markers = self.create_detection_debug_markers(grid_data, yolo_result)
-                    debug_publisher.publish(debug_markers)
-                    self.node.get_logger().info(f"Published debug visualization to {debug_topic}")
+                # Always create debug visualization showing grid and detection boxes
+                debug_markers = create_detection_debug_markers(
+                    grid_data, 
+                    yolo_result, 
+                    self.robot_base_frame, 
+                    self.grid_resolution, 
+                    self.crop_bounds["z_min"],
+                    logger=self.node.get_logger()
+                )
+                # Set timestamp
+                for marker in debug_markers.markers:
+                    marker.header.stamp = self.node.get_clock().now().to_msg()
                     
+                self.marker_publisher.publish(debug_markers)
+                self.node.get_logger().info(f"Published visualization to {self.occupancy_topic}")
+                
+                if yolo_result is not None and len(yolo_result.boxes) > 0:
                     # Define colors for each class (RGB format)
                     class_colors = {
                         0: (0.9, 0.2, 0.2),  # Torso - red
@@ -815,7 +531,16 @@ class PointCloudTransformerAndOccupancyMapper:
                     
                     # Create markers for detected regions
                     if points_by_class:
-                        detection_markers = self.create_detection_markers(points_by_class, class_colors)
+                        detection_markers = create_detection_markers(
+                            points_by_class, 
+                            class_colors, 
+                            self.robot_base_frame,
+                            logger=self.node.get_logger()
+                        )
+                        # Set timestamp
+                        for marker in detection_markers.markers:
+                            marker.header.stamp = self.node.get_clock().now().to_msg()
+                            
                         if detection_markers.markers:
                             self.detection_publisher.publish(detection_markers)
                             self.node.get_logger().info(f"Published detection markers with {len(detection_markers.markers)} regions")
@@ -823,21 +548,6 @@ class PointCloudTransformerAndOccupancyMapper:
                             self.node.get_logger().warn("No detection markers created")
                     else:
                         self.node.get_logger().warn("No points found in detection regions")
-                    
-                    # Publish the segmented point cloud (only head, torso, legs)
-                    filtered_points = []
-                    if points_by_class:
-                        for cls, points in points_by_class.items():
-                            if cls in [0, 1, 6]:
-                                filtered_points.extend(points)
-                    
-                    if filtered_points:
-                        filtered_points = np.array(filtered_points)
-                        filtered_cloud_msg = pc2.create_cloud_xyz32(header, filtered_points)
-                        self.segmented_cloud_publisher.publish(filtered_cloud_msg)
-                        self.node.get_logger().info(f"Published segmented point cloud with {len(filtered_points)} points")
-                    else:
-                        self.node.get_logger().warn("No points belong to the head, torso, or legs classes")
             
             # Increment frame counter
             self.frame_counter += 1
@@ -954,8 +664,8 @@ def cli() -> argparse.ArgumentParser:
         help="Output topic for the transformed and cropped point cloud"
     )
     parser.add_argument(
-        "--occupancy-topic", type=str, default="/massage_planning/occupancy_grid",
-        help="Output topic for the occupancy grid visualization"
+        "--occupancy-topic", type=str, default="/massage_planning/debug_visualization",
+        help="Output topic for visualization"
     )
     parser.add_argument(
         "--camera-frame", type=str, default="camera_depth_optical_frame",
