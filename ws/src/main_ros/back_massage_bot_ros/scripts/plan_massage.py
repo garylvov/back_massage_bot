@@ -39,9 +39,18 @@ from geometry_msgs.msg import Point
 from cv_bridge import CvBridge
 
 # Import visualization utilities
-from visualization_utils import (
-    create_detection_debug_markers,
-    create_detection_markers
+from utils import (
+    create_yolo_markers,
+    create_massage_region_markers,
+    convert_yolo_box_to_world_coords,
+    create_top_down_occupancy,
+    get_points_in_detection,
+    create_detailed_back_regions,
+    get_best_detections,
+    run_yolo_inference,
+    set_marker_timestamps,
+    process_detections,
+    publish_image
 )
 
 class PointCloudTransformerAndOccupancyMapper:
@@ -63,7 +72,11 @@ class PointCloudTransformerAndOccupancyMapper:
         output_dir: str = "~/pointcloud_plys",
         save_plys: bool = False,
         save_grids: bool = False,
-        model_path: str = "/back_massage_bot/src/back_massage_bot/models/third_runs_the_charm/weights/best.pt"
+        model_path: str = "/back_massage_bot/src/back_massage_bot/models/third_runs_the_charm/weights/best.pt",
+        yolo_default_size: tuple = (640, 640),  # Default YOLO input size (width, height)
+        yolo_low_conf_threshold: float = 0.1,  # Lower confidence threshold for fallback detection
+        spine_width_fraction: float = 5.0,  # Spine width as fraction of torso width (1/5)
+        back_regions_count: int = 3  # Number of vertical regions to divide the back into
     ):
         # Get node and tf listener from current scope
         self.node = ros_scope.node()
@@ -88,6 +101,23 @@ class PointCloudTransformerAndOccupancyMapper:
         self.save_plys = save_plys
         self.save_grids = save_grids
         self.output_dir = os.path.expanduser(output_dir)
+        self.yolo_default_size = yolo_default_size
+        self.yolo_low_conf_threshold = yolo_low_conf_threshold
+        self.spine_width_fraction = spine_width_fraction
+        self.back_regions_count = back_regions_count
+        
+        # Define topic names for visualization and debugging
+        self.regions_topic = "/massage_planning/body_regions"
+        self.yolo_input_topic = "/massage_planning/yolo_input"
+        self.yolo_output_topic = "/massage_planning/yolo_output"
+        self.grid_image_topic = "/massage_planning/grid_image"
+        
+        # Define colors for body regions
+        self.class_colors = {
+            0: (0.9, 0.2, 0.2),  # Torso - red
+            1: (0.2, 0.9, 0.2),  # Head - green
+            6: (0.7, 0.5, 0.3)   # legs - brown
+        }
         
         # Create a unique directory for this run if needed
         if self.save_plys or self.save_grids:
@@ -100,6 +130,9 @@ class PointCloudTransformerAndOccupancyMapper:
                 self.grid_dir = os.path.join(self.run_dir, "grids")
                 os.makedirs(self.grid_dir, exist_ok=True)
                 self.node.get_logger().info(f"Will save grid images to {self.grid_dir}")
+        else:
+            self.run_dir = None
+            self.grid_dir = None
         
         # Apply namespace prefix if provided
         if tf_prefix:
@@ -117,9 +150,9 @@ class PointCloudTransformerAndOccupancyMapper:
         self.cv_bridge = CvBridge()
         
         # Create image publishers for debugging
-        self.yolo_input_pub = self.node.create_publisher(Image, "/massage_planning/yolo_input", qos)
-        self.yolo_output_pub = self.node.create_publisher(Image, "/massage_planning/yolo_output", qos)
-        self.grid_image_pub = self.node.create_publisher(Image, "/massage_planning/grid_image", qos)
+        self.yolo_input_pub = self.node.create_publisher(Image, self.yolo_input_topic, qos)
+        self.yolo_output_pub = self.node.create_publisher(Image, self.yolo_output_topic, qos)
+        self.grid_image_pub = self.node.create_publisher(Image, self.grid_image_topic, qos)
         
         # Cache for the transform - only look it up once
         self.transform_matrix = None
@@ -165,7 +198,6 @@ class PointCloudTransformerAndOccupancyMapper:
             self.node.get_logger().error(traceback.format_exc())
         
         # Create additional publisher for detected regions
-        self.regions_topic = "/massage_planning/body_regions"
         self.detection_publisher = self.node.create_publisher(MarkerArray, self.regions_topic, qos)
         self.node.get_logger().info(f"Will publish detected regions to {self.regions_topic}")
 
@@ -207,165 +239,6 @@ class PointCloudTransformerAndOccupancyMapper:
         except Exception as e:
             self.node.get_logger().error(f"Failed to get transform: {str(e)}")
             return False
-
-    def create_top_down_occupancy(self, points):
-        """Create a 2D top-down occupancy grid from the point cloud"""
-        try:
-            # Get abounds for the grid
-            x_min = self.crop_bounds["x_min"]
-            x_max = self.crop_bounds["x_max"]
-            y_min = self.crop_bounds["y_min"]
-            y_max = self.crop_bounds["y_max"]
-            
-            # Calculate grid size
-            grid_width = int(np.ceil((x_max - x_min) / self.grid_resolution))
-            grid_height = int(np.ceil((y_max - y_min) / self.grid_resolution))
-            
-            # Create empty binary mask - this is our occupancy grid
-            # IMPORTANT: This grid has (0,0) at the bottom-left in robot coordinates
-            mask = np.zeros((grid_width, grid_height), dtype=bool)
-            
-            # Create array to store a representative point for each occupied cell
-            representative_points = np.empty((grid_width, grid_height), dtype=object)
-            for i in range(grid_width):
-                for j in range(grid_height):
-                    representative_points[i, j] = None
-            
-            # Fill grid cells
-            for point in points:
-                # Calculate grid cell indices
-                x_idx = int((point[0] - x_min) / self.grid_resolution)
-                y_idx = int((point[1] - y_min) / self.grid_resolution)
-                
-                # Check if the indices are within grid bounds
-                if 0 <= x_idx < grid_width and 0 <= y_idx < grid_height:
-                    mask[x_idx, y_idx] = True
-                    # Store the first point we find for each cell (or could be replaced with criteria like lowest z)
-                    if representative_points[x_idx, y_idx] is None:
-                        representative_points[x_idx, y_idx] = point
-            
-            self.node.get_logger().info(f"Created binary mask with dimensions {grid_width}x{grid_height}")
-            
-            # Create an image for YOLO with the same dimensions as our grid
-            # IMPORTANT: YOLO expects images with (0,0) at the top-left
-            grid_image = np.zeros((grid_height, grid_width, 3), dtype=np.uint8)
-            
-            # Log the mask shape and grid image shape
-            self.node.get_logger().info(f"Mask shape: {mask.shape}, Grid image shape: {grid_image.shape}")
-            
-            # Fill the grid image
-            # CRITICAL: We need to flip the y-axis when converting from our grid to the image
-            # Our grid has (0,0) at bottom-left, but the image has (0,0) at top-left
-            for i in range(grid_width):
-                for j in range(grid_height):
-                    if mask[i, j]:
-                        # Flip y-axis for the image (j → grid_height-1-j)
-                        grid_image[grid_height-1-j, i] = [255, 255, 255]  # White for occupied cells
-            
-            # Save grid image if requested
-            if self.save_grids:
-                grid_image_path = os.path.join(self.grid_dir, f"grid_{self.frame_counter:04d}.png")
-                try:
-                    import cv2
-                    cv2.imwrite(grid_image_path, grid_image)
-                    self.node.get_logger().info(f"Saved grid image to {grid_image_path}")
-                except Exception as e:
-                    self.node.get_logger().error(f"Failed to save grid image: {str(e)}")
-            
-            # Publish the grid image used for YOLO detection
-            try:
-                bridge = CvBridge()
-                grid_img_msg = bridge.cv2_to_imgmsg(grid_image, encoding="rgb8")
-                grid_img_msg.header.stamp = self.node.get_clock().now().to_msg()
-                grid_img_msg.header.frame_id = self.robot_base_frame
-                self.grid_image_pub.publish(grid_img_msg)
-                self.node.get_logger().info("Published original grid image used for YOLO detection")
-            except Exception as e:
-                self.node.get_logger().error(f"Error publishing grid image: {str(e)}")
-            
-            return {
-                "mask": mask,  # Binary mask for occupied/unoccupied cells
-                "points": representative_points,  # Representative point for each cell
-                "origin": (x_min, y_min),
-                "image": grid_image,  # Image representation for YOLO
-                "grid_dims": (grid_width, grid_height)  # Grid dimensions
-            }
-        except Exception as e:
-            self.node.get_logger().error(f"Error creating occupancy grid: {str(e)}")
-            return None
-
-    def run_yolo_inference(self, grid_image):
-        """Run YOLO inference directly on the grid image numpy array"""
-        if self.model is None:
-            self.node.get_logger().warn("YOLO model not available, skipping inference")
-            return None
-        
-        try:
-            # Get original image dimensions
-            original_height, original_width = grid_image.shape[:2]
-            self.node.get_logger().info(f"Original grid image dimensions: {original_width}x{original_height}")
-            
-            # Publish the input image for visualization
-            input_img_msg = self.cv_bridge.cv2_to_imgmsg(grid_image, encoding="rgb8")
-            input_img_msg.header.stamp = self.node.get_clock().now().to_msg()
-            input_img_msg.header.frame_id = self.robot_base_frame
-            self.yolo_input_pub.publish(input_img_msg)
-            self.node.get_logger().info("Published YOLO input image")
-            
-            # Run inference directly on the numpy array
-            self.node.get_logger().info(f"Running YOLO inference on grid image array")
-            results = self.model(grid_image)
-            
-            # Check if we got any detections
-            if len(results) > 0 and len(results[0].boxes) > 0:
-                # Store original image dimensions in the result for later use
-                results[0].orig_shape = grid_image.shape[:2]  # (height, width)
-                
-                self.node.get_logger().info(f"YOLO detected {len(results[0].boxes)} objects")
-                for i, box in enumerate(results[0].boxes):
-                    cls = int(box.cls.item())
-                    conf = float(box.conf.item())
-                    xyxy = box.xyxy[0].cpu().numpy()
-                    self.node.get_logger().info(f"Detection {i}: class={cls}, conf={conf:.2f}, box={xyxy}")
-                
-                # Create output image with detection boxes
-                output_img = results[0].plot()
-                output_img_msg = self.cv_bridge.cv2_to_imgmsg(output_img, encoding="rgb8")
-                output_img_msg.header.stamp = self.node.get_clock().now().to_msg()
-                output_img_msg.header.frame_id = self.robot_base_frame
-                self.yolo_output_pub.publish(output_img_msg)
-                self.node.get_logger().info("Published YOLO output image with detections")
-                
-                return results[0]
-            else:
-                self.node.get_logger().warn("YOLO detected no objects")
-                
-                # Try with lower confidence threshold
-                self.node.get_logger().info("Trying YOLO with increased confidence threshold")
-                results = self.model(grid_image, conf=0.1)  # Lower confidence threshold
-                
-                if len(results) > 0 and len(results[0].boxes) > 0:
-                    # Store original image dimensions in the result for later use
-                    results[0].orig_shape = grid_image.shape[:2]  # (height, width)
-                    
-                    self.node.get_logger().info(f"YOLO detected {len(results[0].boxes)} objects with lower threshold")
-                    
-                    # Create output image with detection boxes
-                    output_img = results[0].plot()
-                    output_img_msg = self.cv_bridge.cv2_to_imgmsg(output_img, encoding="rgb8")
-                    output_img_msg.header.stamp = self.node.get_clock().now().to_msg()
-                    output_img_msg.header.frame_id = self.robot_base_frame
-                    self.yolo_output_pub.publish(output_img_msg)
-                    self.node.get_logger().info("Published YOLO output image with detections (lower threshold)")
-                    
-                    return results[0]
-                
-                return None
-        except Exception as e:
-            self.node.get_logger().error(f"Error during YOLO inference: {str(e)}")
-            import traceback
-            self.node.get_logger().error(traceback.format_exc())
-            return None
 
     def point_cloud_callback(self, msg: PointCloud2) -> None:
         """Callback for point cloud messages - just adds to queue"""
@@ -456,12 +329,32 @@ class PointCloudTransformerAndOccupancyMapper:
                 self.node.get_logger().warn("No points remain after cropping")
                 return
             
-            # Create top-down occupancy grid from cropped points
-            grid_data = self.create_top_down_occupancy(cropped_points)
+            # Create top-down occupancy grid from cropped points using the utility function
+            grid_data = create_top_down_occupancy(
+                cropped_points, 
+                self.crop_bounds, 
+                self.grid_resolution,
+                save_grids=self.save_grids,
+                grid_dir=self.grid_dir,
+                frame_counter=self.frame_counter,
+                logger=self.node.get_logger()
+            )
             
             if grid_data is None:
                 self.node.get_logger().error("Failed to create occupancy grid")
                 return
+            
+            # Publish the grid image used for YOLO detection
+            current_time = self.node.get_clock().now().to_msg()
+            publish_image(
+                grid_data["image"], 
+                self.grid_image_pub, 
+                self.robot_base_frame, 
+                self.cv_bridge,
+                timestamp=current_time,
+                log_message="Published original grid image used for YOLO detection",
+                logger=self.node.get_logger()
+            )
             
             # Publish the full cropped point cloud (before segmentation)
             header = msg.header
@@ -473,81 +366,54 @@ class PointCloudTransformerAndOccupancyMapper:
             self.cloud_publisher.publish(cropped_cloud_msg)
             self.node.get_logger().info(f"Published cropped point cloud with {len(cropped_points)} points")
             
-            # Run YOLO inference directly on the grid image
+            # Run YOLO inference directly on the grid image using the utility function
             if self.model is not None:
-                yolo_result = self.run_yolo_inference(grid_data["image"])
-                
-                # Always create debug visualization showing grid and detection boxes
-                debug_markers = create_detection_debug_markers(
-                    grid_data, 
-                    yolo_result, 
-                    self.robot_base_frame, 
-                    self.grid_resolution, 
-                    self.crop_bounds["z_min"],
+                yolo_result = run_yolo_inference(
+                    self.model, 
+                    grid_data["image"],
+                    yolo_low_conf_threshold=self.yolo_low_conf_threshold,
+                    cv_bridge=self.cv_bridge,
+                    yolo_input_pub=self.yolo_input_pub,
+                    yolo_output_pub=self.yolo_output_pub,
+                    robot_base_frame=self.robot_base_frame,
                     logger=self.node.get_logger()
                 )
-                # Set timestamp
-                for marker in debug_markers.markers:
-                    marker.header.stamp = self.node.get_clock().now().to_msg()
-                    
-                self.marker_publisher.publish(debug_markers)
-                self.node.get_logger().info(f"Published visualization to {self.occupancy_topic}")
                 
-                if yolo_result is not None and len(yolo_result.boxes) > 0:
-                    # Define colors for each class (RGB format)
-                    class_colors = {
-                        0: (0.9, 0.2, 0.2),  # Torso - red
-                        1: (0.2, 0.9, 0.2),  # Head - green
-                        6: (0.7, 0.5, 0.3)   # legs - brown
-                    }
+                if yolo_result is not None:
+                    # Get the best detection for each class using the utility function
+                    best_detections = get_best_detections(yolo_result, logger=self.node.get_logger())
                     
-                    # Filter boxes to get the highest confidence detection for each class
-                    boxes_by_class = {}
-                    for box in yolo_result.boxes:
-                        cls = int(box.cls.item())
-                        conf = float(box.conf.item())
-                        
-                        # Only consider head (1), torso (0), and legs (6)
-                        if cls not in [0, 1, 6]:
-                            continue
-                        
-                        # Keep the highest confidence detection for each class
-                        if cls not in boxes_by_class or conf > boxes_by_class[cls][1]:
-                            boxes_by_class[cls] = (box, conf)
+                    # Process detections and create markers using the utility function
+                    current_time = self.node.get_clock().now().to_msg()
+                    points_by_class, detailed_regions = process_detections(
+                        best_detections, 
+                        cropped_points, 
+                        grid_data, 
+                        self.class_colors, 
+                        self.robot_base_frame,
+                        detection_publisher=self.detection_publisher,
+                        marker_publisher=self.marker_publisher,
+                        crop_bounds=self.crop_bounds,
+                        logger=self.node.get_logger()
+                    )
                     
-                    # Extract points for each detection
-                    points_by_class = {}
-                    for cls, (box, conf) in boxes_by_class.items():
-                        detection_points = self.get_points_in_detection(
-                            cropped_points, 
-                            grid_data["mask"], 
-                            grid_data["points"], 
-                            grid_data["origin"], 
-                            box
-                        )
-                        
-                        if detection_points is not None and len(detection_points) > 0:
-                            points_by_class[cls] = detection_points
-                    
-                    # Create markers for detected regions
-                    if points_by_class:
-                        detection_markers = create_detection_markers(
-                            points_by_class, 
-                            class_colors, 
-                            self.robot_base_frame,
-                            logger=self.node.get_logger()
-                        )
-                        # Set timestamp
-                        for marker in detection_markers.markers:
-                            marker.header.stamp = self.node.get_clock().now().to_msg()
-                            
-                        if detection_markers.markers:
-                            self.detection_publisher.publish(detection_markers)
-                            self.node.get_logger().info(f"Published detection markers with {len(detection_markers.markers)} regions")
-                        else:
-                            self.node.get_logger().warn("No detection markers created")
-                    else:
-                        self.node.get_logger().warn("No points found in detection regions")
+                    # Make sure to set timestamps on all markers
+                    if self.detection_publisher:
+                        for marker in self.detection_publisher.markers:
+                            marker.header.stamp = current_time
+                else:
+                    # Create empty debug visualization if no detections
+                    debug_markers = create_yolo_markers(
+                        grid_data, 
+                        None,  # No detections
+                        self.robot_base_frame, 
+                        self.grid_resolution, 
+                        self.crop_bounds["z_min"],
+                        logger=self.node.get_logger()
+                    )
+                    # Set timestamps on all markers
+                    set_marker_timestamps(debug_markers, self.node.get_clock().now().to_msg())
+                    self.marker_publisher.publish(debug_markers)
             
             # Increment frame counter
             self.frame_counter += 1
@@ -557,98 +423,6 @@ class PointCloudTransformerAndOccupancyMapper:
             import traceback
             self.node.get_logger().error(traceback.format_exc())
 
-    def get_points_in_detection(self, points, mask, representative_points, origin, detection_box):
-        """Extract points that fall within a detection bounding box"""
-        try:
-            # Get bounding box coordinates from YOLO result (in YOLO image coordinates)
-            xyxy = detection_box.xyxy[0].cpu().numpy()  # [x1, y1, x2, y2]
-            
-            # Get grid dimensions
-            grid_width, grid_height = mask.shape
-            
-            # Get the original grid image dimensions - these are what we fed to YOLO
-            # The grid image dimensions match our grid dimensions but with height/width swapped
-            # because we created the image with shape (grid_height, grid_width)
-            original_img_height, original_img_width = grid_height, grid_width
-            
-            # Get the YOLO processed image dimensions from the detection box
-            # These are the dimensions YOLO resized our input to for processing
-            if hasattr(detection_box, 'orig_shape'):
-                yolo_height, yolo_width = detection_box.orig_shape
-                self.node.get_logger().info(f"Using YOLO dimensions from result: {yolo_width}x{yolo_height}")
-            else:
-                # Fallback to default YOLO dimensions if not available
-                yolo_width, yolo_height = 640, 640  # Default YOLO v8 dimensions
-                self.node.get_logger().info(f"Using default YOLO dimensions: {yolo_width}x{yolo_height}")
-            
-            # Get the original coordinates from the detection box (in YOLO image coordinates)
-            x1_yolo, y1_yolo, x2_yolo, y2_yolo = xyxy
-            
-            # Log the original YOLO coordinates
-            self.node.get_logger().info(f"Original YOLO coordinates: [{x1_yolo:.1f}, {y1_yolo:.1f}, {x2_yolo:.1f}, {y2_yolo:.1f}]")
-            
-            # Calculate scaling factors between YOLO dimensions and original image dimensions
-            x_scale = original_img_width / yolo_width
-            y_scale = original_img_height / yolo_height
-            
-            # Scale YOLO coordinates back to original image coordinates
-            x1_img = int(x1_yolo * x_scale)
-            x2_img = int(x2_yolo * x_scale)
-            y1_img = int(y1_yolo * y_scale)
-            y2_img = int(y2_yolo * y_scale)
-            
-            self.node.get_logger().info(f"Scaled to original image: [{x1_img}, {y1_img}, {x2_img}, {y2_img}]")
-            
-            # Convert image coordinates to grid indices
-            # For x-axis: Direct mapping (image x → grid x)
-            x1_idx = x1_img
-            x2_idx = x2_img
-            
-            # For y-axis: Flip the y-axis (image has origin at top-left, grid at bottom-left)
-            # This means y1_img (top of box) maps to grid_height - y1_img (from bottom)
-            y1_idx = grid_height - y2_img  # Note the swap of y2 and y1 due to flipping
-            y2_idx = grid_height - y1_img
-            
-            # Ensure indices are within bounds
-            x1_idx = max(0, min(grid_width - 1, x1_idx))
-            x2_idx = max(0, min(grid_width - 1, x2_idx))
-            y1_idx = max(0, min(grid_height - 1, y1_idx))
-            y2_idx = max(0, min(grid_height - 1, y2_idx))
-            
-            # Make sure x1 < x2 and y1 < y2
-            x1_idx, x2_idx = min(x1_idx, x2_idx), max(x1_idx, x2_idx)
-            y1_idx, y2_idx = min(y1_idx, y2_idx), max(y1_idx, y2_idx)
-            
-            # Log the converted grid indices
-            self.node.get_logger().info(f"Detection box: YOLO={xyxy}, Grid=[{x1_idx},{y1_idx},{x2_idx},{y2_idx}]")
-            
-            # Calculate real-world coordinates for debugging
-            x_origin, y_origin = origin
-            x1_world = x_origin + x1_idx * self.grid_resolution
-            y1_world = y_origin + y1_idx * self.grid_resolution
-            x2_world = x_origin + (x2_idx + 1) * self.grid_resolution
-            y2_world = y_origin + (y2_idx + 1) * self.grid_resolution
-            self.node.get_logger().info(f"World coordinates: [{x1_world:.2f}, {y1_world:.2f}, {x2_world:.2f}, {y2_world:.2f}]")
-            
-            # Create a mask for this detection
-            detection_mask = np.zeros_like(mask)
-            detection_mask[x1_idx:x2_idx+1, y1_idx:y2_idx+1] = mask[x1_idx:x2_idx+1, y1_idx:y2_idx+1]
-            
-            # Get representative points for this detection
-            detection_points = []
-            for i in range(x1_idx, x2_idx+1):
-                for j in range(y1_idx, y2_idx+1):
-                    if detection_mask[i, j] and representative_points[i, j] is not None:
-                        detection_points.append(representative_points[i, j])
-            
-            self.node.get_logger().info(f"Found {len(detection_points)} points in detection region")
-            return np.array(detection_points) if detection_points else None
-            
-        except Exception as e:
-            self.node.get_logger().error(f"Error extracting points for detection: {str(e)}")
-            import traceback
-            self.node.get_logger().error(traceback.format_exc())
-            return None
 
 def cli() -> argparse.ArgumentParser:
     """Create command line argument parser"""
@@ -719,6 +493,15 @@ def cli() -> argparse.ArgumentParser:
         "--save-grids", action="store_true",
         help="Save occupancy grid as PNG images"
     )
+    parser.add_argument(
+        "--model-path", type=str, 
+        default="/back_massage_bot/src/back_massage_bot/models/third_runs_the_charm/weights/best.pt",
+        help="Path to YOLO model weights"
+    )
+    parser.add_argument(
+        "--yolo-low-conf", type=float, default=0.1,
+        help="Lower confidence threshold for YOLO fallback detection"
+    )
     return parser
 
 
@@ -741,7 +524,9 @@ def main(args: argparse.Namespace) -> None:
         grid_resolution=args.grid_resolution,
         output_dir=args.output_dir,
         save_plys=args.save_plys,
-        save_grids=args.save_grids
+        save_grids=args.save_grids,
+        model_path=args.model_path,
+        yolo_low_conf_threshold=args.yolo_low_conf
     )
     wait_for_shutdown()
 
