@@ -23,6 +23,7 @@ import cv2
 import threading
 import queue
 import time
+import rclpy
 
 import synchros2.process as ros_process
 import synchros2.scope as ros_scope
@@ -34,9 +35,12 @@ from geometry_msgs.msg import TransformStamped
 from synchros2.context import wait_for_shutdown
 from synchros2.utilities import namespace_with
 from visualization_msgs.msg import Marker, MarkerArray
-from std_msgs.msg import ColorRGBA
-from geometry_msgs.msg import Point
+from std_msgs.msg import ColorRGBA, String
 from cv_bridge import CvBridge
+from std_srvs.srv import Trigger, Empty
+from geometry_msgs.msg import PoseStamped
+import tf2_ros
+from tf2_geometry_msgs import PoseStamped as TF2PoseStamped
 
 # Import only the utilities we actually need
 from utils import (
@@ -186,7 +190,7 @@ class PointCloudTransformerAndOccupancyMapper:
         self.node.get_logger().info(f"Publishing transformed and cropped point cloud to {self.output_topic}")
         self.node.get_logger().info(f"Publishing visualization to {self.occupancy_topic}")
         self.node.get_logger().info("Waiting for point clouds...")
-
+        
         # Initialize YOLO model for inference
         self.node.get_logger().info(f"Attempting to load YOLO model from {model_path}")
         if not os.path.exists(model_path):
@@ -205,6 +209,49 @@ class PointCloudTransformerAndOccupancyMapper:
         # Create additional publisher for detected regions
         self.detection_publisher = self.node.create_publisher(MarkerArray, self.regions_topic, qos)
         self.node.get_logger().info(f"Will publish detected regions to {self.regions_topic}")
+        
+        # Add these to the __init__ method
+        self.plan_and_execute_service = self.node.create_service(
+            Trigger, 
+            '/plan_and_execute_massage', 
+            self.plan_and_execute_callback
+        )
+        
+        # Create services for each of the 6 back regions
+        self.region_services = {}
+        for region in ["left_upper", "left_middle", "left_lower", 
+                      "right_upper", "right_middle", "right_lower"]:
+            service_name = f'/massage_region/{region}'
+            self.region_services[region] = self.node.create_service(
+                Empty,
+                service_name,
+                lambda req, resp, region=region: self.region_service_callback(req, resp, region)
+            )
+            self.node.get_logger().info(f"Created service for region: {service_name}")
+        
+        self.region_selection_sub = self.node.create_subscription(
+            String,
+            '/massage_region_selection',
+            self.region_selection_callback,
+            10
+        )
+        
+        self.arm_dispatch_pub = self.node.create_publisher(
+            PoseStamped,
+            '/arm_dispatch_command',
+            10
+        )
+        
+        self.return_home_client = self.node.create_client(
+            Trigger,
+            '/return_to_home'
+        )
+        
+        self.selected_region = None
+        self.tf_broadcaster = tf2_ros.TransformBroadcaster(self.node)
+        
+        # Default to left_upper if no region is selected
+        self.selected_region = "left_upper"
 
     def lookup_transform(self) -> bool:
         """Look up the transform between camera and robot base frame, return True if successful"""
@@ -542,8 +589,6 @@ class PointCloudTransformerAndOccupancyMapper:
             
             # This quaternion represents the rotation from the robot base frame to the tool frame
             # where the tool Z-axis points into the body (negative Y in robot frame)
-            # The current quaternion [0.7071068, 0.0, 0.7071068, 0.0] is making arrows point up
-            # To make them point down (into the body), we need to rotate 90° around Z in the opposite direction
             into_body_orientation = [0.7071068, 0.0, -0.7071068, 0.0]  # Quaternion [x,y,z,w] for -90° around Z
             
             # Add orientation to all points in the motion plan
@@ -561,16 +606,49 @@ class PointCloudTransformerAndOccupancyMapper:
                     row_with_orientation.append((point, into_body_orientation))
                 motion_plan_with_orientation['rows'].append(row_with_orientation)
             
-            # Add orientation to connections
+            # Add orientation to connections with intermediate higher points
             for start_point, end_point in motion_plan['connections']:
-                # Each connection becomes a tuple of ((start_pos, start_orient), (end_pos, end_orient))
+                # Create an intermediate point that's higher than both start and end points
+                # to avoid potential collisions during transitions between rows
+                intermediate_z_offset = 0.10  # 10cm higher
+                
+                # Find the maximum z value between start and end points
+                max_z = max(start_point[2], end_point[2])
+                
+                # Create the intermediate point
+                intermediate_point = [
+                    (start_point[0] + end_point[0]) / 2.0,  # Midpoint in x
+                    (start_point[1] + end_point[1]) / 2.0,  # Midpoint in y
+                    max_z + intermediate_z_offset           # Higher z
+                ]
+                
+                # Add the connection with the intermediate point
                 motion_plan_with_orientation['connections'].append(
-                    ((start_point, into_body_orientation), (end_point, into_body_orientation))
+                    ((start_point, into_body_orientation), (intermediate_point, into_body_orientation))
+                )
+                motion_plan_with_orientation['connections'].append(
+                    ((intermediate_point, into_body_orientation), (end_point, into_body_orientation))
                 )
             
-            # Add orientation to all points
-            for point in motion_plan['all_points']:
-                motion_plan_with_orientation['all_points'].append((point, into_body_orientation))
+            # Rebuild the all_points list to include the intermediate points
+            all_points_with_orientation = []
+            
+            # First, add all row points in order
+            for row in motion_plan_with_orientation['rows']:
+                all_points_with_orientation.extend(row)
+            
+            # Then add the connection points
+            for i in range(0, len(motion_plan_with_orientation['connections']), 2):
+                if i+1 < len(motion_plan_with_orientation['connections']):
+                    # Add the intermediate point
+                    intermediate_point = motion_plan_with_orientation['connections'][i][1]
+                    all_points_with_orientation.append(intermediate_point)
+                    
+                    # Add the end point of the second connection (which is the start of the next row)
+                    next_row_start = motion_plan_with_orientation['connections'][i+1][1]
+                    all_points_with_orientation.append(next_row_start)
+            
+            motion_plan_with_orientation['all_points'] = all_points_with_orientation
             
             # Store the motion plan with the region color
             region_motion_plans[region_name] = (motion_plan_with_orientation, region_color)
@@ -601,6 +679,181 @@ class PointCloudTransformerAndOccupancyMapper:
                 logger.info(f"Published section-based numbered point markers for region {region_name} (stride={point_stride})")
         
         return region_motion_plans
+
+    def plan_and_execute_callback(self, request, response):
+        """Callback for the plan and execute massage service"""
+        self.node.get_logger().info("Received request to plan and execute massage")
+        
+        # Check if we have motion plans
+        if not hasattr(self, 'latest_region_motion_plans') or not self.latest_region_motion_plans:
+            self.node.get_logger().error("No motion plans available. Please wait for point cloud processing.")
+            response.success = False
+            response.message = "No motion plans available. Please wait for point cloud processing."
+            return response
+        
+        # Check if we have a selected region
+        if not self.selected_region:
+            self.node.get_logger().error("No region selected. Please select a region first.")
+            response.success = False
+            response.message = "No region selected. Please select a region first."
+            return response
+        
+        # Execute the motion plan for the selected region
+        success = self.execute_motion_plan(self.selected_region)
+        
+        # Return home after execution
+        self.call_return_home_service()
+        
+        # Set response
+        response.success = success
+        if success:
+            response.message = f"Successfully executed massage for region: {self.selected_region}"
+        else:
+            response.message = f"Failed to execute massage for region: {self.selected_region}"
+        
+        return response
+    
+    def region_service_callback(self, request, response, region):
+        """Callback for region-specific services"""
+        try:
+            self.node.get_logger().info(f"Received request to massage region: {region}")
+            
+            # Set the selected region
+            self.selected_region = region
+            
+            # Check if we have motion plans
+            if not hasattr(self, 'latest_region_motion_plans') or not self.latest_region_motion_plans:
+                self.node.get_logger().error("No motion plans available. Please wait for point cloud processing.")
+                return response
+            
+            # Check if the region exists in our motion plans
+            if region not in self.latest_region_motion_plans:
+                self.node.get_logger().error(f"Region {region} not found in motion plans. Available regions: {list(self.latest_region_motion_plans.keys())}")
+                return response
+            
+            # Execute the motion plan for the selected region
+            success = self.execute_motion_plan(region)
+            
+            # Return home after execution
+            self.call_return_home_service()
+            
+            return response
+        except Exception as e:
+            self.node.get_logger().error(f"Error in region service callback: {str(e)}")
+            import traceback
+            self.node.get_logger().error(traceback.format_exc())
+            return response
+
+    def call_return_home_service(self):
+        """Call the return to home service"""
+        self.node.get_logger().info("Calling return to home service")
+        
+        try:
+            # Create a request
+            request = Trigger.Request()
+            
+            # Call the service
+            future = self.return_home_client.call_async(request)
+            
+            # Wait for the response
+            rclpy.spin_until_future_complete(self.node, future)
+            
+            # Check the response
+            response = future.result()
+            if response.success:
+                self.node.get_logger().info("Successfully returned to home position")
+            else:
+                self.node.get_logger().error(f"Failed to return to home position: {response.message}")
+                
+        except Exception as e:
+            self.node.get_logger().error(f"Error calling return to home service: {str(e)}")
+
+    def execute_motion_plan(self, region_name):
+        """Execute the motion plan for a specific region"""
+        try:
+            # Get the motion plan for the selected region
+            motion_plan, region_color = self.latest_region_motion_plans[region_name]
+            
+            # Extract the points with orientation
+            points_with_orientation = motion_plan['all_points']
+            
+            if not points_with_orientation:
+                self.node.get_logger().warn(f"No points in motion plan for region: {region_name}")
+                return False
+            
+            self.node.get_logger().info(f"Executing motion plan for {region_name} with {len(points_with_orientation)} points")
+            
+            # Publish the planned path to TF for visualization
+            self.publish_motion_plan_to_tf(region_name, points_with_orientation)
+            
+            # Execute each point in the motion plan
+            for i, (point, orientation) in enumerate(points_with_orientation):
+                # Create a PoseStamped message
+                pose_msg = PoseStamped()
+                pose_msg.header.frame_id = self.robot_base_frame
+                pose_msg.header.stamp = self.node.get_clock().now().to_msg()
+                
+                # Set position
+                pose_msg.pose.position.x = point[0]
+                pose_msg.pose.position.y = point[1]
+                pose_msg.pose.position.z = point[2]
+                
+                # Set orientation
+                pose_msg.pose.orientation.x = orientation[0]
+                pose_msg.pose.orientation.y = orientation[1]
+                pose_msg.pose.orientation.z = orientation[2]
+                pose_msg.pose.orientation.w = orientation[3]
+                
+                # Publish the pose command
+                self.arm_dispatch_pub.publish(pose_msg)
+                self.node.get_logger().info(f"Moving to point {i+1}/{len(points_with_orientation)} in {region_name}")
+                
+                # Wait for the arm to reach the position (simple delay-based approach)
+                # In a more sophisticated implementation, you would wait for feedback from the arm
+                time.sleep(2.0)  # Adjust this delay based on your robot's speed
+            
+            return True
+            
+        except Exception as e:
+            self.node.get_logger().error(f"Error executing motion plan: {str(e)}")
+            import traceback
+            self.node.get_logger().error(traceback.format_exc())
+            return False
+
+    def publish_motion_plan_to_tf(self, region_name, points_with_orientation):
+        """Publish the motion plan points to TF for visualization"""
+        try:
+            # Create transforms for each point in the motion plan
+            for i, (point, orientation) in enumerate(points_with_orientation):
+                # Create a transform
+                transform = geometry_msgs.msg.TransformStamped()
+                transform.header.stamp = self.node.get_clock().now().to_msg()
+                transform.header.frame_id = self.robot_base_frame
+                transform.child_frame_id = f"massage_point_{region_name}_{i}"
+                
+                # Set translation
+                transform.transform.translation.x = point[0]
+                transform.transform.translation.y = point[1]
+                transform.transform.translation.z = point[2]
+                
+                # Set rotation
+                transform.transform.rotation.x = orientation[0]
+                transform.transform.rotation.y = orientation[1]
+                transform.transform.rotation.z = orientation[2]
+                transform.transform.rotation.w = orientation[3]
+                
+                # Publish the transform
+                self.tf_broadcaster.sendTransform(transform)
+            
+            self.node.get_logger().info(f"Published {len(points_with_orientation)} points to TF for region: {region_name}")
+            
+        except Exception as e:
+            self.node.get_logger().error(f"Error publishing motion plan to TF: {str(e)}")
+
+    def region_selection_callback(self, msg):
+        """Callback for region selection messages"""
+        self.selected_region = msg.data
+        self.node.get_logger().info(f"Selected region for massage: {self.selected_region}")
 
 def cli() -> argparse.ArgumentParser:
     """Create command line argument parser"""
@@ -681,7 +934,7 @@ def cli() -> argparse.ArgumentParser:
         help="Lower confidence threshold for YOLO fallback detection"
     )
     parser.add_argument(
-        "--point-stride", type=int, default=10,
+        "--point-stride", type=int, default=5,
         help="Stride for point numbering visualization (default: 5)"
     )
     parser.add_argument(
