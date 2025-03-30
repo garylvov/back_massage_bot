@@ -38,15 +38,18 @@ from std_msgs.msg import ColorRGBA
 from geometry_msgs.msg import Point
 from cv_bridge import CvBridge
 
-# Import visualization utilities
+# Import only the utilities we actually need
 from utils import (
     create_yolo_markers,
     create_top_down_occupancy,
     get_best_detections,
     run_yolo_inference,
-    process_detections,
     publish_image,
-    create_detailed_back_regions
+    create_detailed_back_regions,
+    get_points_in_detection,
+    create_massage_region_markers,
+    create_numbered_point_markers,
+    create_massage_motion_plan
 )
 
 class PointCloudTransformerAndOccupancyMapper:
@@ -385,9 +388,8 @@ class PointCloudTransformerAndOccupancyMapper:
                     # Get the best detection for each class using the utility function
                     best_detections = get_best_detections(yolo_result, logger=self.node.get_logger())
                     
-                    # Process detections and create markers using the utility function
-                    current_time = self.node.get_clock().now().to_msg()
-                    points_by_class, detailed_regions = process_detections(
+                    # STEP 1: Identify regions - separate this from planning
+                    points_by_class, detailed_regions = self.identify_massage_regions(
                         best_detections,
                         cropped_points,
                         grid_data,
@@ -396,24 +398,21 @@ class PointCloudTransformerAndOccupancyMapper:
                         detection_publisher=self.detection_publisher,
                         marker_publisher=self.marker_publisher,
                         crop_bounds=self.crop_bounds,
-                        logger=self.node.get_logger(),
-                        visualize_point_order=True,  # Enable point order visualization
-                        point_stride=self.point_stride,  # Use the configured stride
-                        massage_gun_tip_transform=self.massage_gun_tip_transform,  # Add the transform
-                        visualize_path=self.visualize_path  # Whether to visualize the path
+                        logger=self.node.get_logger()
                     )
                     
-                    # If we have both torso and legs, create detailed back regions
-                    if points_by_class.get(0) is not None and points_by_class.get(6) is not None:
-                        detailed_regions = create_detailed_back_regions(
-                            points_by_class[0], 
-                            points_by_class[6],
-                            spine_width_fraction=self.spine_width_fraction,
-                            back_regions_count=self.back_regions_count,
-                            logger=self.node.get_logger()
-                        )
-                    else:
-                        detailed_regions = {}
+                    # STEP 2: Create motion plans for each region
+                    region_motion_plans = self.create_region_motion_plans(
+                        detailed_regions,
+                        point_stride=self.point_stride,
+                        massage_gun_tip_transform=self.massage_gun_tip_transform,
+                        visualize_path=self.visualize_path
+                    )
+                    
+                    # Store the results for later use
+                    self.latest_points_by_class = points_by_class
+                    self.latest_detailed_regions = detailed_regions
+                    self.latest_region_motion_plans = region_motion_plans
                 
                 else:
                     # Create empty debug visualization if no detections
@@ -435,6 +434,173 @@ class PointCloudTransformerAndOccupancyMapper:
             import traceback
             self.node.get_logger().error(traceback.format_exc())
 
+    def identify_massage_regions(self, best_detections, cropped_points, grid_data, class_colors, 
+                                robot_base_frame, detection_publisher=None, marker_publisher=None, 
+                                crop_bounds=None, logger=None):
+        """
+        Identify massage regions from YOLO detections
+        
+        Args:
+            best_detections: Dictionary of best detections for each class
+            cropped_points: Array of 3D points from the cropped point cloud
+            grid_data: Dictionary with grid information
+            class_colors: Dictionary mapping class IDs to RGB color tuples
+            robot_base_frame: Frame ID for the markers
+            detection_publisher: Publisher for detection markers
+            marker_publisher: Publisher for debug markers
+            crop_bounds: Dictionary with crop bounds
+            logger: Optional ROS logger for debug messages
+            
+        Returns:
+            Tuple of (points_by_class, detailed_regions)
+        """
+        # Extract points for each detection
+        points_by_class = {}
+        
+        for class_instance_id, (box, conf) in best_detections.items():
+            detection_points = get_points_in_detection(
+                cropped_points, 
+                grid_data, 
+                box,
+                structured_pattern=True,  # Always use structured pattern
+                logger=logger
+            )
+            
+            if detection_points is not None and len(detection_points) > 0:
+                points_by_class[class_instance_id] = detection_points
+        
+        # Check if we have both torso and legs to create detailed back regions
+        detailed_regions = {}
+        
+        if 0 in points_by_class and 6 in points_by_class:
+            # Create detailed back regions
+            detailed_regions = create_detailed_back_regions(
+                points_by_class[0],  # torso points
+                points_by_class[6],  # legs points
+                spine_width_fraction=self.spine_width_fraction,
+                back_regions_count=self.back_regions_count,
+                logger=logger
+            )
+        
+        # Create markers for detected regions
+        if points_by_class or detailed_regions:
+            detection_markers = create_massage_region_markers(
+                points_by_class, 
+                class_colors, 
+                robot_base_frame,
+                detailed_regions=detailed_regions,
+                logger=logger
+            )
+            
+            # Publish detection markers if publisher is provided
+            if detection_publisher:
+                detection_publisher.publish(detection_markers)
+                if logger:
+                    logger.info("Published detection markers")
+        
+        return points_by_class, detailed_regions
+
+    def create_region_motion_plans(self, detailed_regions, point_stride=5, 
+                                  massage_gun_tip_transform=None, visualize_path=True):
+        """
+        Create motion plans for each detected back region
+        
+        Args:
+            detailed_regions: Dictionary of detailed back regions
+            point_stride: Stride for point selection in motion planning
+            massage_gun_tip_transform: Optional [x,y,z] translation to apply to points
+            visualize_path: Whether to visualize the massage gun tip path
+            
+        Returns:
+            Dictionary mapping region names to motion plans with position and orientation
+        """
+        region_motion_plans = {}
+        logger = self.node.get_logger()
+        
+        # Create motion plans for each region
+        for region_name, (region_points, region_color) in detailed_regions.items():
+            # Skip the spine region for motion planning
+            if region_name == "spine":
+                logger.info(f"Skipping motion planning for spine region")
+                continue
+            
+            # Create motion plan for this region
+            motion_plan = create_massage_motion_plan(
+                region_points,
+                stride=point_stride,
+                massage_gun_tip_transform=massage_gun_tip_transform,
+                logger=logger
+            )
+            
+            # Create orientation for each point - pointing into the body (perpendicular to back)
+            # In the robot base frame, the back is roughly in the XY plane with Z pointing up
+            # We want the Z-axis of the tool to point into the body (negative Y direction)
+            # This means:
+            # - Tool Z-axis points in negative Y direction (into the body)
+            # - Tool X-axis points in positive X direction (up the body)
+            # - Tool Y-axis points in positive Z direction (to the right when facing the back)
+            
+            # This quaternion represents the rotation from the robot base frame to the tool frame
+            # where the tool Z-axis points into the body (negative Y in robot frame)
+            # The current quaternion [0.7071068, 0.0, 0.7071068, 0.0] is making arrows point up
+            # To make them point down (into the body), we need to rotate 90° around Z in the opposite direction
+            into_body_orientation = [0.7071068, 0.0, -0.7071068, 0.0]  # Quaternion [x,y,z,w] for -90° around Z
+            
+            # Add orientation to all points in the motion plan
+            motion_plan_with_orientation = {
+                'rows': [],
+                'connections': [],
+                'all_points': []
+            }
+            
+            # Add orientation to each row
+            for row in motion_plan['rows']:
+                row_with_orientation = []
+                for point in row:
+                    # Each point becomes a tuple of (position, orientation)
+                    row_with_orientation.append((point, into_body_orientation))
+                motion_plan_with_orientation['rows'].append(row_with_orientation)
+            
+            # Add orientation to connections
+            for start_point, end_point in motion_plan['connections']:
+                # Each connection becomes a tuple of ((start_pos, start_orient), (end_pos, end_orient))
+                motion_plan_with_orientation['connections'].append(
+                    ((start_point, into_body_orientation), (end_point, into_body_orientation))
+                )
+            
+            # Add orientation to all points
+            for point in motion_plan['all_points']:
+                motion_plan_with_orientation['all_points'].append((point, into_body_orientation))
+            
+            # Store the motion plan with the region color
+            region_motion_plans[region_name] = (motion_plan_with_orientation, region_color)
+            
+            # Visualize the motion plan if requested
+            if visualize_path:
+                # Create a unique namespace for each region
+                namespace = f"numbered_points_region_{region_name}"
+                
+                logger.info(f"Creating markers for region {region_name} with color {region_color}")
+                
+                # Create numbered point markers with section-based numbering
+                numbered_markers = create_numbered_point_markers(
+                    region_points,
+                    self.robot_base_frame,
+                    marker_namespace=namespace,
+                    stride=point_stride,
+                    section_based=True,  # Enable section-based numbering
+                    logger=logger,
+                    massage_gun_tip_transform=massage_gun_tip_transform,
+                    visualize_path=visualize_path,
+                    region_color=region_color,
+                    orientation=into_body_orientation  # Pass orientation to visualization
+                )
+                
+                # Publish numbered point markers
+                self.marker_publisher.publish(numbered_markers)
+                logger.info(f"Published section-based numbered point markers for region {region_name} (stride={point_stride})")
+        
+        return region_motion_plans
 
 def cli() -> argparse.ArgumentParser:
     """Create command line argument parser"""
