@@ -30,7 +30,7 @@ def get_points_in_detection(points, grid_data, detection_box, structured_pattern
         
         # Log the world coordinates
         if logger:
-            logger.info(f"World coordinates: [{x1_world:.2f}, {y1_world:.2f}, {x2_world:.2f}, {y2_world:.2f}]")
+            logger.debug(f"World coordinates: [{x1_world:.2f}, {y1_world:.2f}, {x2_world:.2f}, {y2_world:.2f}]")
         
         # If we don't want structured pattern, just filter points directly
         if not structured_pattern:
@@ -43,7 +43,7 @@ def get_points_in_detection(points, grid_data, detection_box, structured_pattern
                     filtered_points.append(point)
             
             if logger:
-                logger.info(f"Found {len(filtered_points)} points in detection region")
+                logger.debug(f"Found {len(filtered_points)} points in detection region")
             
             return np.array(filtered_points) if filtered_points else None
         
@@ -109,7 +109,7 @@ def get_points_in_detection(points, grid_data, detection_box, structured_pattern
                             structured_points.append(avg_point)
             
             if logger:
-                logger.info(f"Found {len(structured_points)} structured points in detection region")
+                logger.debug(f"Found {len(structured_points)} structured points in detection region")
             
             return np.array(structured_points) if structured_points else None
         
@@ -139,8 +139,14 @@ def create_detailed_back_regions(torso_points, legs_points, spine_width_fraction
         Dictionary mapping region names to (points, color) tuples
     """
     try:
+        # Check if we have enough points
+        if torso_points is None or len(torso_points) < 10:
+            if logger:
+                logger.warn("Not enough torso points to create detailed back regions")
+            return {}
+        
         if logger:
-            logger.info(f"Creating detailed back regions from {len(torso_points)} torso points")
+            logger.debug(f"Creating detailed back regions from {len(torso_points)} torso points")
         
         # Define more distinct colors for detailed back regions
         back_region_colors = {
@@ -176,9 +182,9 @@ def create_detailed_back_regions(torso_points, legs_points, spine_width_fraction
             section_boundaries.append(torso_min[0] + i * section_height)
         
         if logger:
-            logger.info(f"Torso bounds: X=[{torso_min[0]:.2f}, {torso_max[0]:.2f}], Y=[{torso_min[1]:.2f}, {torso_max[1]:.2f}]")
-            logger.info(f"Spine region: Y=[{spine_min_y:.2f}, {spine_max_y:.2f}]")
-            logger.info(f"Height sections: {section_boundaries}")
+            logger.debug(f"Torso bounds: X=[{torso_min[0]:.2f}, {torso_max[0]:.2f}], Y=[{torso_min[1]:.2f}, {torso_max[1]:.2f}]")
+            logger.debug(f"Spine region: Y=[{spine_min_y:.2f}, {spine_max_y:.2f}]")
+            logger.debug(f"Height sections: {section_boundaries}")
         
         # Initialize region points dictionary
         region_points = {
@@ -215,7 +221,7 @@ def create_detailed_back_regions(torso_points, legs_points, spine_width_fraction
             rows.append(current_row)
         
         if logger:
-            logger.info(f"Identified {len(rows)} rows in the torso point set")
+            logger.debug(f"Identified {len(rows)} rows in the torso point set")
         
         # Process each row while preserving the ordering
         for row_idx, row in enumerate(rows):
@@ -259,7 +265,7 @@ def create_detailed_back_regions(torso_points, legs_points, spine_width_fraction
             if points:  # Only include regions with points
                 regions[name] = (np.array(points), back_region_colors[name])
                 if logger:
-                    logger.info(f"Region '{name}' has {len(points)} points with color {back_region_colors[name]}")
+                    logger.debug(f"Region '{name}' has {len(points)} points with color {back_region_colors[name]}")
         
         return regions
         
@@ -300,7 +306,7 @@ def run_yolo_inference(model, grid_image, yolo_low_conf_threshold=0.1, cv_bridge
         # Get original image dimensions
         original_height, original_width = grid_image.shape[:2]
         if logger:
-            logger.info(f"Original grid image dimensions: {original_width}x{original_height}")
+            logger.debug(f"Original grid image dimensions: {original_width}x{original_height}")
         
         # Publish the input image for visualization if publishers are provided
         if yolo_input_pub and cv_bridge and robot_base_frame:
@@ -309,15 +315,15 @@ def run_yolo_inference(model, grid_image, yolo_low_conf_threshold=0.1, cv_bridge
                 img_msg.header.frame_id = robot_base_frame
                 yolo_input_pub.publish(img_msg)
                 if logger:
-                    logger.info("Published YOLO input image")
+                    logger.debug("Published YOLO input image")
             except Exception as e:
                 if logger:
                     logger.error(f"Error publishing input image: {str(e)}")
         
         # Run inference directly on the numpy array
         if logger:
-            logger.info(f"Running YOLO inference on grid image array")
-        results = model(grid_image)
+            logger.debug(f"Running YOLO inference on grid image array")
+        results = model(grid_image, verbose=False)
         
         # Check if we got any detections
         if len(results) > 0 and len(results[0].boxes) > 0:
@@ -325,12 +331,12 @@ def run_yolo_inference(model, grid_image, yolo_low_conf_threshold=0.1, cv_bridge
             results[0].orig_shape = grid_image.shape[:2]  # (height, width)
             
             if logger:
-                logger.info(f"YOLO detected {len(results[0].boxes)} objects")
+                logger.debug(f"YOLO detected {len(results[0].boxes)} objects")
                 for i, box in enumerate(results[0].boxes):
                     class_instance_id = int(box.cls.item())
                     conf = float(box.conf.item())
                     xyxy = box.xyxy[0].cpu().numpy()
-                    logger.info(f"Detection {i}: class={class_instance_id}, conf={conf:.2f}, box={xyxy}")
+                    logger.debug(f"Detection {i}: class={class_instance_id}, conf={conf:.2f}, box={xyxy}")
             
             # Create output image with detection boxes
             output_img = results[0].plot()
@@ -342,7 +348,7 @@ def run_yolo_inference(model, grid_image, yolo_low_conf_threshold=0.1, cv_bridge
                     img_msg.header.frame_id = robot_base_frame
                     yolo_output_pub.publish(img_msg)
                     if logger:
-                        logger.info("Published YOLO output image with detections")
+                        logger.debug("Published YOLO output image with detections")
                 except Exception as e:
                     if logger:
                         logger.error(f"Error publishing output image: {str(e)}")
@@ -354,20 +360,20 @@ def run_yolo_inference(model, grid_image, yolo_low_conf_threshold=0.1, cv_bridge
             
             # Try with lower confidence threshold
             if logger:
-                logger.info(f"Trying YOLO with increased confidence threshold ({yolo_low_conf_threshold})")
-            results = model(grid_image, conf=yolo_low_conf_threshold)
+                logger.debug(f"Trying YOLO with increased confidence threshold ({yolo_low_conf_threshold})")
+            results = model(grid_image, conf=yolo_low_conf_threshold, verbose=False)
             
             if len(results) > 0 and len(results[0].boxes) > 0:
                 # Store original image dimensions in the result for later use
                 results[0].orig_shape = grid_image.shape[:2]  # (height, width)
                 
                 if logger:
-                    logger.info(f"YOLO detected {len(results[0].boxes)} objects with lower threshold")
+                    logger.debug(f"YOLO detected {len(results[0].boxes)} objects with lower threshold")
                     for i, box in enumerate(results[0].boxes):
                         class_instance_id = int(box.cls.item())
                         conf = float(box.conf.item())
                         xyxy = box.xyxy[0].cpu().numpy()
-                        logger.info(f"Detection {i}: class={class_instance_id}, conf={conf:.2f}, box={xyxy}")
+                        logger.debug(f"Detection {i}: class={class_instance_id}, conf={conf:.2f}, box={xyxy}")
                 
                 # Create output image with detection boxes
                 output_img = results[0].plot()
@@ -379,7 +385,7 @@ def run_yolo_inference(model, grid_image, yolo_low_conf_threshold=0.1, cv_bridge
                         img_msg.header.frame_id = robot_base_frame
                         yolo_output_pub.publish(img_msg)
                         if logger:
-                            logger.info("Published YOLO output image with detections (lower threshold)")
+                            logger.debug("Published YOLO output image with detections (lower threshold)")
                     except Exception as e:
                         if logger:
                             logger.error(f"Error publishing output image: {str(e)}")
@@ -462,7 +468,7 @@ def convert_yolo_box_to_world_coords(box, grid_data, logger=None):
     
     # Log the conversion if logger is provided
     if logger:
-        logger.info(f"Converted YOLO box {xyxy} to world coords: [{x1_world:.2f},{y1_world:.2f},{x2_world:.2f},{y2_world:.2f}]")
+        logger.debug(f"Converted YOLO box {xyxy} to world coords: [{x1_world:.2f},{y1_world:.2f},{x2_world:.2f},{y2_world:.2f}]")
     
     return (x1_world, y1_world, x2_world, y2_world)
 
@@ -549,7 +555,7 @@ def create_yolo_markers(grid_data, detections, frame_id, grid_resolution, z_heig
                     
                     # Log debug info
                     if logger:
-                        logger.info(f"Debug marker for detection class={class_id}, conf={conf:.2f}, world=[{x1_world:.2f},{y1_world:.2f},{x2_world:.2f},{y2_world:.2f}]")
+                        logger.debug(f"Debug marker for detection class={class_id}, conf={conf:.2f}, world=[{x1_world:.2f},{y1_world:.2f},{x2_world:.2f},{y2_world:.2f}]")
                     
                     # Create box marker
                     box_marker = Marker()
@@ -721,7 +727,7 @@ def create_massage_region_markers(points_by_class, class_colors, robot_base_fram
         # Skip torso (class 0) if we have detailed regions
         if class_id == 0 and detailed_regions and len(detailed_regions) > 0:
             if logger:
-                logger.info("Skipping torso visualization in favor of detailed regions")
+                logger.debug("Skipping torso visualization in favor of detailed regions")
             continue
             
         # Get color for this class
@@ -877,14 +883,14 @@ def create_top_down_occupancy(points, crop_bounds, grid_resolution, save_grids=F
                     representative_points[x_idx, y_idx] = point
         
         if logger:
-            logger.info(f"Created binary mask with dimensions {grid_width}x{grid_height}")
+            logger.debug(f"Created binary mask with dimensions {grid_width}x{grid_height}")
         
         # Create an image for YOLO with the same dimensions as our grid
         # IMPORTANT: YOLO expects images with (0,0) at the top-left
         grid_image = np.zeros((grid_height, grid_width, 3), dtype=np.uint8)
         
         if logger:
-            logger.info(f"Mask shape: {mask.shape}, Grid image shape: {grid_image.shape}")
+            logger.debug(f"Mask shape: {mask.shape}, Grid image shape: {grid_image.shape}")
         
         # Fill the grid image
         # CRITICAL: We need to flip the y-axis when converting from our grid to the image
@@ -902,7 +908,7 @@ def create_top_down_occupancy(points, crop_bounds, grid_resolution, save_grids=F
                 import cv2
                 cv2.imwrite(grid_image_path, grid_image)
                 if logger:
-                    logger.info(f"Saved grid image to {grid_image_path}")
+                    logger.debug(f"Saved grid image to {grid_image_path}")
             except Exception as e:
                 if logger:
                     logger.error(f"Failed to save grid image: {str(e)}")
@@ -1221,7 +1227,7 @@ def create_numbered_point_markers(points, frame_id, marker_namespace="numbered_p
                 markers.markers.append(arrow_marker)
         
         if logger:
-            logger.info(f"Created {len(markers.markers)} markers for {len(points)} numbered points (stride={stride}, section_based={section_based})")
+            logger.debug(f"Created {len(markers.markers)} markers for {len(points)} numbered points (stride={stride}, section_based={section_based})")
         
         return markers
         
@@ -1280,7 +1286,7 @@ def create_massage_motion_plan(points, stride=5, massage_gun_tip_transform=None,
             rows.append(current_row)
         
         if logger:
-            logger.info(f"Motion planning: Identified {len(rows)} rows in the point set")
+            logger.debug(f"Motion planning: Identified {len(rows)} rows in the point set")
         
         # Process each row to create the motion plan
         motion_plan = {
@@ -1348,8 +1354,8 @@ def create_massage_motion_plan(points, stride=5, massage_gun_tip_transform=None,
                 motion_plan['connections'].append((last_point, first_point))
         
         if logger:
-            logger.info(f"Created motion plan with {len(motion_plan['rows'])} rows and {len(motion_plan['connections'])} connections")
-            logger.info(f"Total points in motion plan: {len(motion_plan['all_points'])}")
+            logger.debug(f"Created motion plan with {len(motion_plan['rows'])} rows and {len(motion_plan['connections'])} connections")
+            logger.debug(f"Total points in motion plan: {len(motion_plan['all_points'])}")
         
         return motion_plan
         
@@ -1363,15 +1369,21 @@ def create_massage_motion_plan(points, stride=5, massage_gun_tip_transform=None,
 def publish_image(image, publisher, robot_base_frame, cv_bridge, timestamp=None, log_message=None, logger=None):
     """Helper method to publish images with proper headers"""
     try:
-        img_msg = cv_bridge.cv2_to_imgmsg(image, encoding="rgb8")
-        if timestamp:
-            img_msg.header.stamp = timestamp
+        # Convert image to ROS message
+        if timestamp is None:
+            timestamp = rospy.Time.now()
+        
+        img_msg = cv_bridge.cv2_to_imgmsg(image, encoding="bgr8")
+        img_msg.header.stamp = timestamp
         img_msg.header.frame_id = robot_base_frame
+        
+        # Publish the image
         publisher.publish(img_msg)
+        
+        # Log if requested
         if log_message and logger:
-            logger.info(log_message)
-        return True
+            logger.debug(log_message)
+            
     except Exception as e:
         if logger:
             logger.error(f"Error publishing image: {str(e)}")
-        return False 

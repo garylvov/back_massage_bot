@@ -31,14 +31,13 @@ from rclpy.qos import QoSProfile, QoSReliabilityPolicy
 from scipy.spatial.transform import Rotation
 from sensor_msgs.msg import PointCloud2, Image
 import sensor_msgs_py.point_cloud2 as pc2
-from geometry_msgs.msg import TransformStamped
+from geometry_msgs.msg import TransformStamped, PoseStamped
 from synchros2.context import wait_for_shutdown
 from synchros2.utilities import namespace_with
 from visualization_msgs.msg import Marker, MarkerArray
 from std_msgs.msg import ColorRGBA, String
 from cv_bridge import CvBridge
 from std_srvs.srv import Trigger, Empty
-from geometry_msgs.msg import PoseStamped
 import tf2_ros
 from tf2_geometry_msgs import PoseStamped as TF2PoseStamped
 
@@ -133,12 +132,12 @@ class PointCloudTransformerAndOccupancyMapper:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             self.run_dir = os.path.join(self.output_dir, f"run_{timestamp}")
             os.makedirs(self.run_dir, exist_ok=True)
-            self.node.get_logger().info(f"Created output directory at {self.run_dir}")
+            self.node.get_logger().debug(f"Created output directory at {self.run_dir}")
             
             if self.save_grids:
                 self.grid_dir = os.path.join(self.run_dir, "grids")
                 os.makedirs(self.grid_dir, exist_ok=True)
-                self.node.get_logger().info(f"Will save grid images to {self.grid_dir}")
+                self.node.get_logger().debug(f"Will save grid images to {self.grid_dir}")
         else:
             self.run_dir = None
             self.grid_dir = None
@@ -176,7 +175,7 @@ class PointCloudTransformerAndOccupancyMapper:
         # Start the processing thread
         self.processing_thread = threading.Thread(target=self.process_point_clouds, daemon=True)
         self.processing_thread.start()
-        self.node.get_logger().info("Started point cloud processing thread")
+        self.node.get_logger().debug("Started point cloud processing thread")
         
         # Subscribe to the point cloud topic
         self.subscription = self.node.create_subscription(
@@ -186,9 +185,9 @@ class PointCloudTransformerAndOccupancyMapper:
             qos
         )
         
-        self.node.get_logger().info(f"Subscribed to {self.input_topic}")
-        self.node.get_logger().info(f"Publishing transformed and cropped point cloud to {self.output_topic}")
-        self.node.get_logger().info(f"Publishing visualization to {self.occupancy_topic}")
+        self.node.get_logger().debug(f"Subscribed to {self.input_topic}")
+        self.node.get_logger().debug(f"Publishing transformed and cropped point cloud to {self.output_topic}")
+        self.node.get_logger().debug(f"Publishing visualization to {self.occupancy_topic}")
         self.node.get_logger().info("Waiting for point clouds...")
         
         # Initialize YOLO model for inference
@@ -199,6 +198,8 @@ class PointCloudTransformerAndOccupancyMapper:
         try:
             self.model = ultralytics.YOLO(model_path)
             self.model.args['data'] = "data/data.yaml"
+            # Disable verbose output from YOLO
+            self.model.args['verbose'] = False
             self.node.get_logger().info(f"Successfully loaded YOLO model from {model_path}")
         except Exception as e:
             self.model = None
@@ -208,7 +209,7 @@ class PointCloudTransformerAndOccupancyMapper:
         
         # Create additional publisher for detected regions
         self.detection_publisher = self.node.create_publisher(MarkerArray, self.regions_topic, qos)
-        self.node.get_logger().info(f"Will publish detected regions to {self.regions_topic}")
+        self.node.get_logger().debug(f"Will publish detected regions to {self.regions_topic}")
         
         # Add these to the __init__ method
         self.plan_and_execute_service = self.node.create_service(
@@ -227,7 +228,7 @@ class PointCloudTransformerAndOccupancyMapper:
                 service_name,
                 lambda req, resp, region=region: self.region_service_callback(req, resp, region)
             )
-            self.node.get_logger().info(f"Created service for region: {service_name}")
+            self.node.get_logger().debug(f"Created service for region: {service_name}")
         
         self.region_selection_sub = self.node.create_subscription(
             String,
@@ -285,7 +286,7 @@ class PointCloudTransformerAndOccupancyMapper:
             self.transform_matrix = np.eye(4)
             self.transform_matrix[:3, :3] = rot_matrix
             self.transform_matrix[:3, 3] = [translation.x, translation.y, translation.z]
-            self.node.get_logger().info(f"Successfully cached transform from {self.camera_frame} to {self.robot_base_frame}")
+            self.node.get_logger().debug(f"Successfully cached transform from {self.camera_frame} to {self.robot_base_frame}")
             return True
             
         except Exception as e:
@@ -299,13 +300,21 @@ class PointCloudTransformerAndOccupancyMapper:
             self.point_cloud_queue.put(msg, block=True, timeout=0.1)
             self.node.get_logger().debug(f"Added point cloud to queue (size: {self.point_cloud_queue.qsize()})")
         except queue.Full:
-            self.node.get_logger().warn("Point cloud queue is full, dropping message")
+            # Only log queue full warning occasionally to reduce verbosity
+            if hasattr(self, 'last_queue_warning_time'):
+                current_time = time.time()
+                if current_time - self.last_queue_warning_time > 5.0:  # Only warn every 5 seconds
+                    self.node.get_logger().warn("Point cloud queue is full, dropping messages")
+                    self.last_queue_warning_time = current_time
+            else:
+                self.last_queue_warning_time = time.time()
+                self.node.get_logger().warn("Point cloud queue is full, dropping message")
         except Exception as e:
             self.node.get_logger().error(f"Error in point cloud callback: {str(e)}")
 
     def process_point_clouds(self):
         """Process point clouds from the queue in a separate thread"""
-        self.node.get_logger().info("Point cloud processing thread started")
+        self.node.get_logger().debug("Point cloud processing thread started")
         
         while True:
             try:
@@ -353,7 +362,7 @@ class PointCloudTransformerAndOccupancyMapper:
             # Transform point cloud to robot base frame if we have the transform
             if self.transform_matrix is not None:
                 pcd = pcd.transform(self.transform_matrix)
-                self.node.get_logger().info(f"Transformed point cloud to {self.robot_base_frame} frame")
+                self.node.get_logger().debug(f"Transformed point cloud to {self.robot_base_frame} frame")
             else:
                 self.node.get_logger().warn("Using point cloud in original frame - transform not available")
             
@@ -416,7 +425,7 @@ class PointCloudTransformerAndOccupancyMapper:
             cropped_points = np.array(cropped_points)
             cropped_cloud_msg = pc2.create_cloud_xyz32(header, cropped_points)
             self.cloud_publisher.publish(cropped_cloud_msg)
-            self.node.get_logger().info(f"Published cropped point cloud with {len(cropped_points)} points")
+            self.node.get_logger().debug(f"Published cropped point cloud with {len(cropped_points)} points")
             
             # Run YOLO inference directly on the grid image using the utility function
             if self.model is not None:
@@ -543,7 +552,7 @@ class PointCloudTransformerAndOccupancyMapper:
             if detection_publisher:
                 detection_publisher.publish(detection_markers)
                 if logger:
-                    logger.info("Published detection markers")
+                    logger.debug("Published detection markers")
         
         return points_by_class, detailed_regions
 
@@ -568,7 +577,7 @@ class PointCloudTransformerAndOccupancyMapper:
         for region_name, (region_points, region_color) in detailed_regions.items():
             # Skip the spine region for motion planning
             if region_name == "spine":
-                logger.info(f"Skipping motion planning for spine region")
+                logger.debug(f"Skipping motion planning for spine region")
                 continue
             
             # Create motion plan for this region
@@ -658,7 +667,7 @@ class PointCloudTransformerAndOccupancyMapper:
                 # Create a unique namespace for each region
                 namespace = f"numbered_points_region_{region_name}"
                 
-                logger.info(f"Creating markers for region {region_name} with color {region_color}")
+                logger.debug(f"Creating markers for region {region_name} with color {region_color}")
                 
                 # Create numbered point markers with section-based numbering
                 numbered_markers = create_numbered_point_markers(
@@ -676,43 +685,58 @@ class PointCloudTransformerAndOccupancyMapper:
                 
                 # Publish numbered point markers
                 self.marker_publisher.publish(numbered_markers)
-                logger.info(f"Published section-based numbered point markers for region {region_name} (stride={point_stride})")
+                logger.debug(f"Published section-based numbered point markers for region {region_name} (stride={point_stride})")
         
         return region_motion_plans
 
     def plan_and_execute_callback(self, request, response):
         """Callback for the plan and execute massage service"""
-        self.node.get_logger().info("Received request to plan and execute massage")
-        
-        # Check if we have motion plans
-        if not hasattr(self, 'latest_region_motion_plans') or not self.latest_region_motion_plans:
-            self.node.get_logger().error("No motion plans available. Please wait for point cloud processing.")
-            response.success = False
-            response.message = "No motion plans available. Please wait for point cloud processing."
+        try:
+            self.node.get_logger().info("Received request to plan and execute massage")
+            
+            # Check if we have motion plans
+            if not hasattr(self, 'latest_region_motion_plans') or not self.latest_region_motion_plans:
+                self.node.get_logger().error("No motion plans available. Please wait for point cloud processing.")
+                response.success = False
+                response.message = "No motion plans available. Please wait for point cloud processing."
+                return response
+            
+            # Check if we have a selected region
+            if not self.selected_region:
+                self.node.get_logger().error("No region selected. Please select a region first.")
+                response.success = False
+                response.message = "No region selected. Please select a region first."
+                return response
+            
+            # Check if the selected region exists in our motion plans
+            if self.selected_region not in self.latest_region_motion_plans:
+                self.node.get_logger().error(f"Region {self.selected_region} not found in motion plans. Available regions: {list(self.latest_region_motion_plans.keys())}")
+                response.success = False
+                response.message = f"Region {self.selected_region} not found in motion plans. Available regions: {list(self.latest_region_motion_plans.keys())}"
+                return response
+            
+            # Execute the motion plan for the selected region
+            success = self.execute_motion_plan(self.selected_region)
+            
+            # Return home after execution
+            self.call_return_home_service()
+            
+            # Set response
+            response.success = success
+            if success:
+                response.message = f"Successfully executed massage for region: {self.selected_region}"
+            else:
+                response.message = f"Failed to execute massage for region: {self.selected_region}"
+            
             return response
-        
-        # Check if we have a selected region
-        if not self.selected_region:
-            self.node.get_logger().error("No region selected. Please select a region first.")
+        except Exception as e:
+            self.node.get_logger().error(f"Error in plan and execute callback: {str(e)}")
+            import traceback
+            self.node.get_logger().error(traceback.format_exc())
             response.success = False
-            response.message = "No region selected. Please select a region first."
+            response.message = f"Error executing massage: {str(e)}"
             return response
-        
-        # Execute the motion plan for the selected region
-        success = self.execute_motion_plan(self.selected_region)
-        
-        # Return home after execution
-        self.call_return_home_service()
-        
-        # Set response
-        response.success = success
-        if success:
-            response.message = f"Successfully executed massage for region: {self.selected_region}"
-        else:
-            response.message = f"Failed to execute massage for region: {self.selected_region}"
-        
-        return response
-    
+
     def region_service_callback(self, request, response, region):
         """Callback for region-specific services"""
         try:
@@ -749,24 +773,29 @@ class PointCloudTransformerAndOccupancyMapper:
         self.node.get_logger().info("Calling return to home service")
         
         try:
+            # Check if service is available
+            if not self.return_home_client.service_is_ready():
+                self.node.get_logger().error("Return to home service is not available")
+                return False
+                
             # Create a request
             request = Trigger.Request()
             
-            # Call the service
+            # Call the service (non-blocking)
             future = self.return_home_client.call_async(request)
             
-            # Wait for the response
-            rclpy.spin_until_future_complete(self.node, future)
+            # We can't use spin_until_future_complete in synchros2 framework
+            # Instead, we'll just log that we've sent the request
+            self.node.get_logger().info("Sent return to home request (async)")
             
-            # Check the response
-            response = future.result()
-            if response.success:
-                self.node.get_logger().info("Successfully returned to home position")
-            else:
-                self.node.get_logger().error(f"Failed to return to home position: {response.message}")
+            # Return true to indicate we've sent the request
+            return True
                 
         except Exception as e:
             self.node.get_logger().error(f"Error calling return to home service: {str(e)}")
+            import traceback
+            self.node.get_logger().error(traceback.format_exc())
+            return False
 
     def execute_motion_plan(self, region_name):
         """Execute the motion plan for a specific region"""
@@ -826,7 +855,7 @@ class PointCloudTransformerAndOccupancyMapper:
             # Create transforms for each point in the motion plan
             for i, (point, orientation) in enumerate(points_with_orientation):
                 # Create a transform
-                transform = geometry_msgs.msg.TransformStamped()
+                transform = TransformStamped()
                 transform.header.stamp = self.node.get_clock().now().to_msg()
                 transform.header.frame_id = self.robot_base_frame
                 transform.child_frame_id = f"massage_point_{region_name}_{i}"
@@ -845,7 +874,7 @@ class PointCloudTransformerAndOccupancyMapper:
                 # Publish the transform
                 self.tf_broadcaster.sendTransform(transform)
             
-            self.node.get_logger().info(f"Published {len(points_with_orientation)} points to TF for region: {region_name}")
+            self.node.get_logger().debug(f"Published {len(points_with_orientation)} points to TF for region: {region_name}")
             
         except Exception as e:
             self.node.get_logger().error(f"Error publishing motion plan to TF: {str(e)}")
