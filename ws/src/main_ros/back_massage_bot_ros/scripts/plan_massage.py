@@ -72,7 +72,10 @@ class PointCloudTransformerAndOccupancyMapper:
         yolo_default_size: tuple = (640, 640),  # Default YOLO input size (width, height)
         yolo_low_conf_threshold: float = 0.1,  # Lower confidence threshold for fallback detection
         spine_width_fraction: float = 5.0,  # Spine width as fraction of torso width (1/5)
-        back_regions_count: int = 3  # Number of vertical regions to divide the back into
+        back_regions_count: int = 3,  # Number of vertical regions to divide the back into
+        point_stride: int = 5,  # Stride for point numbering visualization
+        massage_gun_tip_transform: list = [0.0, 0.0, 0.05],  # Default 5cm upward offset
+        visualize_path: bool = True  # Whether to visualize the massage gun tip path
     ):
         # Get node and tf listener from current scope
         self.node = ros_scope.node()
@@ -101,6 +104,9 @@ class PointCloudTransformerAndOccupancyMapper:
         self.yolo_low_conf_threshold = yolo_low_conf_threshold
         self.spine_width_fraction = spine_width_fraction
         self.back_regions_count = back_regions_count
+        self.point_stride = point_stride
+        self.massage_gun_tip_transform = massage_gun_tip_transform
+        self.visualize_path = visualize_path
         
         # Define topic names for visualization and debugging
         self.regions_topic = "/massage_planning/body_regions"
@@ -382,15 +388,19 @@ class PointCloudTransformerAndOccupancyMapper:
                     # Process detections and create markers using the utility function
                     current_time = self.node.get_clock().now().to_msg()
                     points_by_class, detailed_regions = process_detections(
-                        best_detections, 
-                        cropped_points, 
-                        grid_data, 
-                        self.class_colors, 
+                        best_detections,
+                        cropped_points,
+                        grid_data,
+                        self.class_colors,
                         self.robot_base_frame,
                         detection_publisher=self.detection_publisher,
                         marker_publisher=self.marker_publisher,
                         crop_bounds=self.crop_bounds,
-                        logger=self.node.get_logger()
+                        logger=self.node.get_logger(),
+                        visualize_point_order=True,  # Enable point order visualization
+                        point_stride=self.point_stride,  # Use the configured stride
+                        massage_gun_tip_transform=self.massage_gun_tip_transform,  # Add the transform
+                        visualize_path=self.visualize_path  # Whether to visualize the path
                     )
                     
                     # If we have both torso and legs, create detailed back regions
@@ -504,6 +514,26 @@ def cli() -> argparse.ArgumentParser:
         "--yolo-low-conf", type=float, default=0.1,
         help="Lower confidence threshold for YOLO fallback detection"
     )
+    parser.add_argument(
+        "--point-stride", type=int, default=10,
+        help="Stride for point numbering visualization (default: 5)"
+    )
+    parser.add_argument(
+        "--massage-gun-tip-x", type=float, default=0.0,
+        help="X component of massage gun tip transform (default: 0.0)"
+    )
+    parser.add_argument(
+        "--massage-gun-tip-y", type=float, default=0.0,
+        help="Y component of massage gun tip transform (default: 0.0)"
+    )
+    parser.add_argument(
+        "--massage-gun-tip-z", type=float, default=0.15,
+        help="Z component of massage gun tip transform (default: 0.05)"
+    )
+    parser.add_argument(
+        "--no-visualize-path", action="store_true",
+        help="Disable visualization of massage gun tip path"
+    )
     return parser
 
 
@@ -528,7 +558,10 @@ def main(args: argparse.Namespace) -> None:
         save_plys=args.save_plys,
         save_grids=args.save_grids,
         model_path=args.model_path,
-        yolo_low_conf_threshold=args.yolo_low_conf
+        yolo_low_conf_threshold=args.yolo_low_conf,
+        point_stride=args.point_stride,
+        massage_gun_tip_transform=[args.massage_gun_tip_x, args.massage_gun_tip_y, args.massage_gun_tip_z],
+        visualize_path=not args.no_visualize_path
     )
     wait_for_shutdown()
 

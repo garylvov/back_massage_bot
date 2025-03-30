@@ -9,8 +9,6 @@ be easily adapted to other arms as long as they support Cartesian planning with 
 and other sensors, as long as they provide point cloud information. The base vision and motion planning code in ``back_massage_bot`` wouldn't need to change 
 at all; only the ROS 2 integration in ``ws/src/main_ros`` and would have to be adapted to build and launch the new platform.
 
-This repository provides a high level overview of the project, but you can also read [our final report here](garylvov.com)
-if this README is not enough info. (TODO: Add report link).
 
 # Installation
 
@@ -161,11 +159,13 @@ synthetic data and our point cloud.
 
 # Motion Planning on Massage Candidate Regions
 
-TODO: We use MoveIt. Our motion planning does rely on knowing two extrinsic transforms (see the next section for more information).
+
+Our motion planning does rely on knowing two extrinsic transforms (see the next section for more information).
 
 
 
 # Extrinsic Determination (Depth Camera to Robot Transform, and Massage Gun to Robot Transform)
+TODO: Update to reflect default values being set in script directly and from TF lookup directly.
 
 The depth camera to robot extrinsic transform, needed to transform percieved points from the camera to points 
 to visit with the robot arm, is found by a tool that @garylvov created. 
@@ -191,9 +191,7 @@ The default file also includes a niave crop of the massage table in the robot's 
 # Hardware Setup
 
 We set up a camera on a tripod, as high as possible, facing downwards towards a person laying on a massage
-table to get as close to a top-down view as possible. The robot arm is placed at a rough known location relative to the massage table.
-TODO: Add more information here
-
+table to get as close to a top-down view as possible. The robot arm is placed at a rough known location relative to the massage table.\
 We modified a massage gun to be powered by wire so that we don't need to rechage the battery.
 
 We designed/3D printed two adapters found in ```hardware/CAD``` to mount a massage gun to the 
@@ -232,7 +230,6 @@ back_massage_bot/ # PROJECT_DIR
 |-------------/develop.sh # To run python only dev
 |-------------/post-entry-hooks.sh
 |-------------/entrypoint.sh
-|-src/ # Where C++ Stuff Lives
 |----/Dockerfile
 |----/build.sh
 |----/develop.sh

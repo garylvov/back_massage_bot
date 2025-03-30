@@ -532,8 +532,63 @@ def create_top_down_occupancy(points, crop_bounds, grid_resolution, save_grids=F
             logger.error(f"Error creating occupancy grid: {str(e)}")
         return None
 
-def get_points_in_detection(points, grid_data, detection_box, logger=None):
-    """Extract points that fall within a detection bounding box"""
+def world_to_grid_coords(x_world, y_world, grid_data):
+    """
+    Convert world coordinates to grid indices
+    
+    Args:
+        x_world: X coordinate in world frame
+        y_world: Y coordinate in world frame
+        grid_data: Dictionary with grid information
+        
+    Returns:
+        Tuple of (i_idx, j_idx) grid indices
+    """
+    x_origin, y_origin = grid_data["origin"]
+    grid_resolution = grid_data.get("resolution", 0.01)
+    grid_width, grid_height = grid_data["mask"].shape
+    
+    # Convert to grid indices and ensure they're within bounds
+    i_idx = max(0, min(grid_width - 1, int((x_world - x_origin) / grid_resolution)))
+    j_idx = max(0, min(grid_height - 1, int((y_world - y_origin) / grid_resolution)))
+    
+    return i_idx, j_idx
+
+def grid_to_world_coords(i_idx, j_idx, grid_data):
+    """
+    Convert grid indices to world coordinates
+    
+    Args:
+        i_idx: Grid index in i direction (x)
+        j_idx: Grid index in j direction (y)
+        grid_data: Dictionary with grid information
+        
+    Returns:
+        Tuple of (x_world, y_world) world coordinates
+    """
+    x_origin, y_origin = grid_data["origin"]
+    grid_resolution = grid_data.get("resolution", 0.01)
+    
+    # Convert grid indices to world coordinates
+    x_world = x_origin + i_idx * grid_resolution
+    y_world = y_origin + j_idx * grid_resolution
+    
+    return x_world, y_world
+
+def get_points_in_detection(points, grid_data, detection_box, structured_pattern=True, logger=None):
+    """
+    Extract points that fall within a detection bounding box, optionally in a structured pattern
+    
+    Args:
+        points: Array of 3D points
+        grid_data: Dictionary with grid information
+        detection_box: YOLO detection box
+        structured_pattern: If True, return points in alternating row pattern
+        logger: Optional ROS logger for debug messages
+        
+    Returns:
+        Numpy array of points within the detection box, optionally structured
+    """
     try:
         # Convert the YOLO box to world coordinates
         x1_world, y1_world, x2_world, y2_world = convert_yolo_box_to_world_coords(
@@ -546,22 +601,92 @@ def get_points_in_detection(points, grid_data, detection_box, logger=None):
         if logger:
             logger.info(f"World coordinates: [{x1_world:.2f}, {y1_world:.2f}, {x2_world:.2f}, {y2_world:.2f}]")
         
-        # Filter points that fall within the bounding box
-        filtered_points = []
-        for point in points:
-            x, y, z = point
-            if (x1_world <= x <= x2_world and 
-                y1_world <= y <= y2_world):
-                filtered_points.append(point)
+        # If we don't want structured pattern, just filter points directly
+        if not structured_pattern:
+            # Filter points that fall within the bounding box
+            filtered_points = []
+            for point in points:
+                x, y, z = point
+                if (x1_world <= x <= x2_world and 
+                    y1_world <= y <= y2_world):
+                    filtered_points.append(point)
+            
+            if logger:
+                logger.info(f"Found {len(filtered_points)} points in detection region")
+            
+            return np.array(filtered_points) if filtered_points else None
         
-        if logger:
-            logger.info(f"Found {len(filtered_points)} points in detection region")
-        
-        return np.array(filtered_points) if filtered_points else None
+        # For structured pattern, we need to use the grid
+        else:
+            # Extract grid data
+            mask = grid_data["mask"]
+            grid_width, grid_height = mask.shape
+            x_origin, y_origin = grid_data["origin"]
+            grid_resolution = grid_data.get("resolution", 0.01)
+            
+            # Convert world coordinates to grid indices
+            x1_idx = max(0, min(grid_width - 1, int((x1_world - x_origin) / grid_resolution)))
+            x2_idx = max(0, min(grid_width - 1, int((x2_world - x_origin) / grid_resolution)))
+            y1_idx = max(0, min(grid_height - 1, int((y1_world - y_origin) / grid_resolution)))
+            y2_idx = max(0, min(grid_height - 1, int((y2_world - y_origin) / grid_resolution)))
+            
+            # Create a grid for the detection region
+            region_grid = np.zeros((grid_width, grid_height), dtype=bool)
+            
+            # Mark cells that contain points from the detection region
+            for point in points:
+                x, y, z = point
+                if (x1_world <= x <= x2_world and y1_world <= y <= y2_world):
+                    i = int((x - x_origin) / grid_resolution)
+                    j = int((y - y_origin) / grid_resolution)
+                    if 0 <= i < grid_width and 0 <= j < grid_height:
+                        region_grid[i, j] = True
+            
+            # Create a mapping from grid cells to representative points
+            cell_to_points = {}
+            for point in points:
+                x, y, z = point
+                if (x1_world <= x <= x2_world and y1_world <= y <= y2_world):
+                    i = int((x - x_origin) / grid_resolution)
+                    j = int((y - y_origin) / grid_resolution)
+                    if 0 <= i < grid_width and 0 <= j < grid_height:
+                        if (i, j) not in cell_to_points:
+                            cell_to_points[(i, j)] = []
+                        cell_to_points[(i, j)].append(point)
+            
+            # Create structured points using alternating pattern
+            structured_points = []
+            
+            # Process each row in the detection region with alternating direction
+            for i in range(x1_idx, x2_idx + 1):
+                # Determine direction for this row
+                # Even rows (0, 2, 4...) go left to right, odd rows go right to left
+                if i % 2 == 0:
+                    # Left to right
+                    j_range = range(y1_idx, y2_idx + 1)
+                else:
+                    # Right to left
+                    j_range = range(y2_idx, y1_idx - 1, -1)
+                
+                # Process each cell in the row
+                for j in j_range:
+                    if region_grid[i, j]:
+                        if (i, j) in cell_to_points:
+                            # Use the average of all points in this cell
+                            cell_points = cell_to_points[(i, j)]
+                            avg_point = np.mean(cell_points, axis=0)
+                            structured_points.append(avg_point)
+            
+            if logger:
+                logger.info(f"Found {len(structured_points)} structured points in detection region")
+            
+            return np.array(structured_points) if structured_points else None
         
     except Exception as e:
         if logger:
             logger.error(f"Error extracting points in detection: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
         return None
 
 def create_detailed_back_regions(torso_points, legs_points, spine_width_fraction=5.0, back_regions_count=3, logger=None):
@@ -586,15 +711,15 @@ def create_detailed_back_regions(torso_points, legs_points, spine_width_fraction
         if logger:
             logger.info(f"Creating detailed back regions from {len(torso_points)} torso points")
         
-        # Define colors for detailed back regions
+        # Define more distinct colors for detailed back regions
         back_region_colors = {
             "spine": (0.7, 0.7, 0.7),  # Gray
-            "left_lower": (0.8, 0.2, 0.2),  # Dark red
-            "left_middle": (1.0, 0.4, 0.4),  # Medium red
-            "left_upper": (1.0, 0.6, 0.6),  # Light red
-            "right_lower": (0.2, 0.2, 0.8),  # Dark blue
-            "right_middle": (0.4, 0.4, 1.0),  # Medium blue
-            "right_upper": (0.6, 0.6, 1.0)  # Light blue
+            "left_lower": (0.9, 0.1, 0.1),  # Bright red
+            "left_middle": (0.1, 0.8, 0.1),  # Bright green
+            "left_upper": (0.1, 0.1, 0.9),  # Bright blue
+            "right_lower": (0.9, 0.6, 0.1),  # Orange
+            "right_middle": (0.9, 0.1, 0.9),  # Magenta
+            "right_upper": (0.1, 0.9, 0.9)  # Cyan
         }
         
         # Get the bounding box of the torso
@@ -653,33 +778,30 @@ def create_detailed_back_regions(torso_points, legs_points, spine_width_fraction
                 region_points["spine"].append(point)
             # Left side regions (y < spine_min_y)
             elif y < spine_min_y:
-                # Swap lower and upper - upper should be at the top (higher x value)
+                # Determine vertical region (lower, middle, upper)
                 if section_boundaries[0] <= x < section_boundaries[1]:
-                    region_points["left_upper"].append(point)  # Was "left_lower"
+                    region_points["left_lower"].append(point)
                 elif section_boundaries[1] <= x < section_boundaries[2]:
                     region_points["left_middle"].append(point)
                 elif section_boundaries[2] <= x <= section_boundaries[3]:
-                    region_points["left_lower"].append(point)  # Was "left_upper"
+                    region_points["left_upper"].append(point)
             # Right side regions (y > spine_max_y)
             elif y > spine_max_y:
-                # Swap lower and upper - upper should be at the top (higher x value)
+                # Determine vertical region (lower, middle, upper)
                 if section_boundaries[0] <= x < section_boundaries[1]:
-                    region_points["right_upper"].append(point)  # Was "right_lower"
+                    region_points["right_lower"].append(point)
                 elif section_boundaries[1] <= x < section_boundaries[2]:
                     region_points["right_middle"].append(point)
                 elif section_boundaries[2] <= x <= section_boundaries[3]:
-                    region_points["right_lower"].append(point)  # Was "right_upper"
+                    region_points["right_upper"].append(point)
         
         # Create the dictionary of regions with points and colors
         regions = {}
         for name, points in region_points.items():
             if points:  # Only include regions with points
                 regions[name] = (np.array(points), back_region_colors[name])
-        
-        # Log the number of points in each region
-        if logger:
-            for name, (points, _) in regions.items():
-                logger.info(f"Region '{name}' has {len(points)} points")
+                if logger:
+                    logger.info(f"Region '{name}' has {len(points)} points with color {back_region_colors[name]}")
         
         return regions
         
@@ -814,16 +936,342 @@ def run_yolo_inference(model, grid_image, yolo_low_conf_threshold=0.1, cv_bridge
             logger.error(traceback.format_exc())
         return None
 
+def create_numbered_point_markers(points, frame_id, marker_namespace="numbered_points", z_offset=0.01, 
+                                 stride=5, section_based=False, logger=None, 
+                                 massage_gun_tip_transform=None, visualize_path=False, region_color=None):
+    """
+    Create markers to visualize numbered points showing the order of structured points
+    
+    Args:
+        points: Array of 3D points
+        frame_id: Frame ID for the markers
+        marker_namespace: Namespace for the markers
+        z_offset: Height offset for the text markers
+        stride: Show every Nth point (default: 5)
+        section_based: If True, reset numbering for each section (row) of points
+        logger: Optional ROS logger for debug messages
+        massage_gun_tip_transform: Optional [x,y,z] translation to apply to points for massage gun tip
+        visualize_path: If True, create a path visualization for massage gun tip points
+        region_color: Optional color to use for this region's visualization
+        
+    Returns:
+        MarkerArray with numbered point visualization
+    """
+    try:
+        if points is None or len(points) == 0:
+            if logger:
+                logger.warn("No points to visualize")
+            return MarkerArray()
+            
+        markers = MarkerArray()
+        
+        # Define region-specific colors if not provided
+        if region_color is None:
+            # Extract region name from namespace if possible
+            region_name = marker_namespace.split('_')[-1] if '_' in marker_namespace else ""
+            
+            # Generate a color based on the region name or use a default
+            if region_name == "upper_back":
+                region_color = (0.2, 0.8, 0.2)  # Green
+            elif region_name == "mid_back":
+                region_color = (0.2, 0.2, 0.8)  # Blue
+            elif region_name == "lower_back":
+                region_color = (0.8, 0.2, 0.2)  # Red
+            elif region_name == "left_back":
+                region_color = (0.8, 0.8, 0.2)  # Yellow
+            elif region_name == "right_back":
+                region_color = (0.8, 0.2, 0.8)  # Purple
+            elif region_name == "spine":
+                region_color = (0.2, 0.8, 0.8)  # Cyan
+            else:
+                # Generate a pseudo-random color based on the namespace string
+                import hashlib
+                hash_val = int(hashlib.md5(marker_namespace.encode()).hexdigest(), 16)
+                r = ((hash_val & 0xFF0000) >> 16) / 255.0
+                g = ((hash_val & 0x00FF00) >> 8) / 255.0
+                b = (hash_val & 0x0000FF) / 255.0
+                region_color = (r, g, b)
+        
+        # Skip creating markers for original points - only show translated points
+        
+        # For section-based numbering, we need to identify rows
+        if section_based:
+            # Group points by rows (based on x-coordinate)
+            # First, sort points by x-coordinate to identify rows
+            points_with_indices = list(enumerate(points))
+            points_with_indices.sort(key=lambda p: p[1][0])  # Sort by x-coordinate
+            
+            # Identify row boundaries by looking for significant changes in x-coordinate
+            rows = []
+            current_row = [points_with_indices[0]]
+            current_x = points_with_indices[0][1][0]
+            
+            for i, (idx, point) in enumerate(points_with_indices[1:], 1):
+                if abs(point[0] - current_x) > 0.02:  # 2cm threshold for new row
+                    # Found a new row
+                    rows.append(current_row)
+                    current_row = [(idx, point)]
+                    current_x = point[0]
+                else:
+                    current_row.append((idx, point))
+            
+            # Add the last row
+            if current_row:
+                rows.append(current_row)
+            
+            if logger:
+                logger.info(f"Identified {len(rows)} rows in the point set")
+            
+            # Create line markers for each row with translated points
+            for row_idx, row in enumerate(rows):
+                # Sort points within this row by y-coordinate
+                # For even rows, sort left to right (increasing y)
+                # For odd rows, sort right to left (decreasing y)
+                if row_idx % 2 == 0:
+                    row.sort(key=lambda p: p[1][1])  # Sort by y-coordinate (increasing)
+                else:
+                    row.sort(key=lambda p: -p[1][1])  # Sort by y-coordinate (decreasing)
+                
+                # Apply stride to get the points we'll use
+                strided_row = [row[i] for i in range(0, len(row), stride)]
+                if len(row) > 0 and (len(row) - 1) % stride != 0:
+                    strided_row.append(row[-1])  # Add the last point if not already included
+                
+                # Skip if no points after stride
+                if not strided_row:
+                    continue
+                
+                # Create translated points for this row
+                translated_points = []
+                for _, point in strided_row:
+                    if massage_gun_tip_transform:
+                        translated_point = [
+                            point[0] + massage_gun_tip_transform[0],
+                            point[1] + massage_gun_tip_transform[1],
+                            point[2] + massage_gun_tip_transform[2]
+                        ]
+                        translated_points.append(translated_point)
+                    else:
+                        translated_points.append(point)
+                
+                # Create a marker for the translated points
+                points_marker = Marker()
+                points_marker.header.frame_id = frame_id
+                points_marker.ns = f"{marker_namespace}_row_{row_idx}_translated_points"
+                points_marker.id = row_idx + 1000
+                points_marker.type = Marker.POINTS
+                points_marker.action = Marker.ADD
+                points_marker.scale.x = 0.015  # Larger point size
+                points_marker.scale.y = 0.015
+                points_marker.color.a = 1.0
+                points_marker.color.r = region_color[0]
+                points_marker.color.g = region_color[1]
+                points_marker.color.b = region_color[2]
+                
+                # Add all translated points
+                for point in translated_points:
+                    p = Point()
+                    p.x = point[0]
+                    p.y = point[1]
+                    p.z = point[2]
+                    points_marker.points.append(p)
+                
+                markers.markers.append(points_marker)
+                
+                # Create line marker for this row with translated points
+                line_marker = Marker()
+                line_marker.header.frame_id = frame_id
+                line_marker.ns = f"{marker_namespace}_row_{row_idx}_translated_path"
+                line_marker.id = row_idx + 2000
+                line_marker.type = Marker.LINE_STRIP
+                line_marker.action = Marker.ADD
+                line_marker.scale.x = 0.008  # Thicker line width for better visibility
+                
+                # Use region color with slight variation for rows
+                line_marker.color.a = 1.0
+                line_marker.color.r = min(1.0, region_color[0] * (1.0 + 0.2 * (-1 if row_idx % 2 == 0 else 1)))
+                line_marker.color.g = min(1.0, region_color[1] * (1.0 + 0.2 * (-1 if row_idx % 2 == 0 else 1)))
+                line_marker.color.b = min(1.0, region_color[2] * (1.0 + 0.2 * (-1 if row_idx % 2 == 0 else 1)))
+                
+                # Add translated points to form a path for this row
+                for point in translated_points:
+                    p = Point()
+                    p.x = point[0]
+                    p.y = point[1]
+                    p.z = point[2]
+                    line_marker.points.append(p)
+                
+                markers.markers.append(line_marker)
+                
+                # Create text markers for translated points in this row
+                for i, point in enumerate(translated_points):
+                    text_marker = Marker()
+                    text_marker.header.frame_id = frame_id
+                    text_marker.ns = f"{marker_namespace}_row_{row_idx}_text"
+                    text_marker.id = 3000 + row_idx * 100 + i
+                    text_marker.type = Marker.TEXT_VIEW_FACING
+                    text_marker.action = Marker.ADD
+                    text_marker.scale.z = 0.02  # Text height
+                    text_marker.color.a = 1.0
+                    text_marker.color.r = 1.0
+                    text_marker.color.g = 1.0
+                    text_marker.color.b = 1.0
+                    
+                    # Position text above the translated point
+                    text_marker.pose.position.x = point[0]
+                    text_marker.pose.position.y = point[1]
+                    text_marker.pose.position.z = point[2] + z_offset
+                    text_marker.pose.orientation.w = 1.0
+                    
+                    # Set text with row and point index
+                    text_marker.text = f"{row_idx}:{i}"
+                    markers.markers.append(text_marker)
+            
+            # Create connections between rows (vertical connections)
+            if len(rows) > 1 and visualize_path:
+                for i in range(len(rows) - 1):
+                    # Get the last point of the current row and the first point of the next row
+                    current_row = rows[i]
+                    next_row = rows[i+1]
+                    
+                    if not current_row or not next_row:
+                        continue
+                    
+                    # Apply stride to get the points we'll use
+                    strided_current_row = [current_row[j] for j in range(0, len(current_row), stride)]
+                    if len(current_row) > 0 and (len(current_row) - 1) % stride != 0:
+                        strided_current_row.append(current_row[-1])
+                        
+                    strided_next_row = [next_row[j] for j in range(0, len(next_row), stride)]
+                    if len(next_row) > 0 and (len(next_row) - 1) % stride != 0:
+                        strided_next_row.append(next_row[-1])
+                    
+                    if not strided_current_row or not strided_next_row:
+                        continue
+                    
+                    # Sort rows by y-coordinate for consistent connections
+                    if i % 2 == 0:  # Current row is left-to-right
+                        _, last_point = strided_current_row[-1]
+                        _, first_point = strided_next_row[0]
+                    else:  # Current row is right-to-left
+                        _, last_point = strided_current_row[-1]
+                        _, first_point = strided_next_row[-1]
+                    
+                    # Create translated points
+                    if massage_gun_tip_transform:
+                        last_translated = [
+                            last_point[0] + massage_gun_tip_transform[0],
+                            last_point[1] + massage_gun_tip_transform[1],
+                            last_point[2] + massage_gun_tip_transform[2]
+                        ]
+                        first_translated = [
+                            first_point[0] + massage_gun_tip_transform[0],
+                            first_point[1] + massage_gun_tip_transform[1],
+                            first_point[2] + massage_gun_tip_transform[2]
+                        ]
+                    else:
+                        last_translated = last_point
+                        first_translated = first_point
+                    
+                    # Create a connector line marker
+                    connector_marker = Marker()
+                    connector_marker.header.frame_id = frame_id
+                    connector_marker.ns = f"{marker_namespace}_row_connector_{i}"
+                    connector_marker.id = 4000 + i
+                    connector_marker.type = Marker.LINE_LIST
+                    connector_marker.action = Marker.ADD
+                    connector_marker.scale.x = 0.008  # Thicker line width
+                    connector_marker.color.a = 1.0
+                    connector_marker.color.r = region_color[0]
+                    connector_marker.color.g = region_color[1]
+                    connector_marker.color.b = region_color[2]
+                    
+                    # Add the two points to form a line
+                    p1 = Point()
+                    p1.x = last_translated[0]
+                    p1.y = last_translated[1]
+                    p1.z = last_translated[2]
+                    connector_marker.points.append(p1)
+                    
+                    p2 = Point()
+                    p2.x = first_translated[0]
+                    p2.y = first_translated[1]
+                    p2.z = first_translated[2]
+                    connector_marker.points.append(p2)
+                    
+                    markers.markers.append(connector_marker)
+        else:
+            # Non-section based numbering (global)
+            # Only show translated points
+            if massage_gun_tip_transform and visualize_path:
+                # Create a marker for the massage gun tip path
+                tip_path_marker = Marker()
+                tip_path_marker.header.frame_id = frame_id
+                tip_path_marker.ns = f"{marker_namespace}_tip_path"
+                tip_path_marker.id = 2000
+                tip_path_marker.type = Marker.LINE_STRIP
+                tip_path_marker.action = Marker.ADD
+                tip_path_marker.scale.x = 0.008  # Thicker line width
+                tip_path_marker.color.a = 1.0
+                tip_path_marker.color.r = region_color[0]
+                tip_path_marker.color.g = region_color[1]
+                tip_path_marker.color.b = region_color[2]
+                
+                # Create a marker for the massage gun tip points
+                tip_points_marker = Marker()
+                tip_points_marker.header.frame_id = frame_id
+                tip_points_marker.ns = f"{marker_namespace}_tip_points"
+                tip_points_marker.id = 3000
+                tip_points_marker.type = Marker.POINTS
+                tip_points_marker.action = Marker.ADD
+                tip_points_marker.scale.x = 0.015  # Larger point size
+                tip_points_marker.scale.y = 0.015
+                tip_points_marker.color.a = 1.0
+                tip_points_marker.color.r = region_color[0]
+                tip_points_marker.color.g = region_color[1]
+                tip_points_marker.color.b = region_color[2]
+                
+                # Add points to the path with the stride
+                for i, point in enumerate(points):
+                    if i % stride == 0 or i == len(points) - 1:  # Apply stride
+                        p = Point()
+                        p.x = point[0] + massage_gun_tip_transform[0]
+                        p.y = point[1] + massage_gun_tip_transform[1]
+                        p.z = point[2] + massage_gun_tip_transform[2]
+                        tip_path_marker.points.append(p)
+                        tip_points_marker.points.append(p)
+                
+                # Only add markers if they have points
+                if len(tip_path_marker.points) > 0:
+                    markers.markers.append(tip_path_marker)
+                    markers.markers.append(tip_points_marker)
+        
+        if logger:
+            logger.info(f"Created {len(markers.markers)} markers for {len(points)} numbered points (stride={stride}, section_based={section_based})")
+        
+        return markers
+        
+    except Exception as e:
+        if logger:
+            logger.error(f"Error creating numbered point markers: {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
+        return MarkerArray()
+
 def process_detections(best_detections, cropped_points, grid_data, class_colors, robot_base_frame, 
-                       detection_publisher=None, marker_publisher=None, crop_bounds=None, logger=None):
+                       detection_publisher=None, marker_publisher=None, crop_bounds=None, logger=None,
+                       visualize_point_order=False, point_stride=5, 
+                       massage_gun_tip_transform=None, visualize_path=False):
     """Process YOLO detections and create visualization markers"""
     # Extract points for each detection
     points_by_class = {}
+    
     for class_instance_id, (box, conf) in best_detections.items():
         detection_points = get_points_in_detection(
             cropped_points, 
             grid_data, 
             box,
+            structured_pattern=True,  # Always use structured pattern
             logger=logger
         )
         
@@ -846,69 +1294,54 @@ def process_detections(best_detections, cropped_points, grid_data, class_colors,
             points_by_class, 
             class_colors, 
             robot_base_frame,
-            detailed_regions,
+            detailed_regions=detailed_regions,
             logger=logger
         )
-            
-        if detection_markers.markers and detection_publisher:
+        
+        # Publish detection markers if publisher is provided
+        if detection_publisher:
             detection_publisher.publish(detection_markers)
             if logger:
-                logger.info(f"Published detection markers with {len(detection_markers.markers)} regions")
-            
-            # Create debug visualization showing grid and detection boxes
-            # For the debug visualization, we'll create a custom object that has
-            # both the detections and detailed regions
-            
-            class DetectionResult:
-                def __init__(self):
-                    self.boxes = []
-                    self.detailed_regions = None
-            
-            # Create a custom result object
-            result = DetectionResult()
-            
-            # Add boxes from best_detections
-            for class_id, (box, conf) in best_detections.items():
-                result.boxes.append(box)
-            
-            # Add detailed regions
-            result.detailed_regions = detailed_regions
-            
-            if marker_publisher:
-                debug_markers = create_yolo_markers(
-                    grid_data, 
-                    result,  # Pass our custom result object
-                    robot_base_frame, 
-                    grid_data.get("resolution", 0.01), 
-                    crop_bounds["z_min"] if crop_bounds else 0.0,
-                    logger=logger
+                logger.info("Published detection markers")
+        
+        # Create and publish numbered point markers if requested
+        if visualize_point_order and marker_publisher and detailed_regions:
+            # Only visualize the detailed back regions (not the class-based regions)
+            for region_name, (region_points, region_color) in detailed_regions.items():
+                # Skip the spine region for motion planning
+                if region_name == "spine":
+                    if logger:
+                        logger.info(f"Skipping motion planning for spine region")
+                    continue
+                
+                # Create a unique namespace for each region
+                namespace = f"numbered_points_region_{region_name}"
+                
+                if logger:
+                    logger.info(f"Creating markers for region {region_name} with color {region_color}")
+                
+                # Create numbered point markers with section-based numbering
+                numbered_markers = create_numbered_point_markers(
+                    region_points,
+                    robot_base_frame,
+                    marker_namespace=namespace,
+                    stride=point_stride,
+                    section_based=True,  # Enable section-based numbering
+                    logger=logger,
+                    massage_gun_tip_transform=massage_gun_tip_transform,
+                    visualize_path=visualize_path,
+                    region_color=region_color
                 )
                 
-                marker_publisher.publish(debug_markers)
+                # Publish numbered point markers
+                marker_publisher.publish(numbered_markers)
                 if logger:
-                    logger.info(f"Published visualization markers")
-        else:
-            if logger:
-                logger.warn("No detection markers created")
-    else:
-        if logger:
-            logger.warn("No points found in detection regions")
-            
-        # Create empty debug visualization if no detections
-        if marker_publisher and crop_bounds:
-            debug_markers = create_yolo_markers(
-                grid_data, 
-                None,  # No detections
-                robot_base_frame, 
-                grid_data.get("resolution", 0.01), 
-                crop_bounds["z_min"],
-                logger=logger
-            )
-            marker_publisher.publish(debug_markers)
-            if logger:
-                logger.info("Published empty visualization markers")
+                    logger.info(f"Published section-based numbered point markers for region {region_name} (stride={point_stride})")
+        
+        # Return the detected points by class
+        return points_by_class, detailed_regions
     
-    return points_by_class, detailed_regions
+    return {}, {}
 
 def publish_image(image, publisher, robot_base_frame, cv_bridge, timestamp=None, log_message=None, logger=None):
     """Helper method to publish images with proper headers"""
