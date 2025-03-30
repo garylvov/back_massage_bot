@@ -20,9 +20,9 @@ def generate_launch_description():
         name="esp32_message_handler",
         output="screen",
         parameters=[
-            # {"serial_port": "/dev/ttyUSB0"},  # Update with the correct serial port if needed
-            # {"baud_rate": 9600},
-            # {"output_topic": "esp32_logs"},
+            {"serial_port": "/dev/ttyUSB0"},  # Update with the correct serial port if needed
+            {"baud_rate": 9600},
+            {"output_topic": "esp32_logs"},
         ],
     )
 

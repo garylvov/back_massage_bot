@@ -231,7 +231,7 @@ class DockerManager:
         except Exception as e:
             print(f"Warning: Error detecting serial devices: {e}")
 
-        return serial_devices
+        return device_args
 
     def _parse_volumes(self, volumes: str | None) -> Sequence[str]:
         """Convert volume string into docker volume arguments"""
