@@ -172,6 +172,11 @@ def create_detailed_back_regions(torso_points, legs_points, spine_width_fraction
         spine_min_y = spine_center_y - spine_width / 2.0
         spine_max_y = spine_center_y + spine_width / 2.0
         
+        # Calculate edge filtering thresholds (10% from each edge)
+        edge_filter_fraction = 0.10  # 10% from each edge
+        left_edge = torso_min[1] + torso_width * edge_filter_fraction
+        right_edge = torso_max[1] - torso_width * edge_filter_fraction
+        
         # Divide the torso height into three equal parts (lower, middle, upper)
         torso_height = torso_max[0] - torso_min[0]  # X-axis is typically height in robot frame
         section_height = torso_height / back_regions_count
@@ -184,6 +189,7 @@ def create_detailed_back_regions(torso_points, legs_points, spine_width_fraction
         if logger:
             logger.debug(f"Torso bounds: X=[{torso_min[0]:.2f}, {torso_max[0]:.2f}], Y=[{torso_min[1]:.2f}, {torso_max[1]:.2f}]")
             logger.debug(f"Spine region: Y=[{spine_min_y:.2f}, {spine_max_y:.2f}]")
+            logger.debug(f"Edge filtering: left={left_edge:.2f}, right={right_edge:.2f}")
             logger.debug(f"Height sections: {section_boundaries}")
         
         # Initialize region points dictionary
@@ -237,6 +243,10 @@ def create_detailed_back_regions(torso_points, legs_points, spine_width_fraction
             for _, point in row:
                 x, y, z = point
                 
+                # Skip points outside the edge filtering boundaries
+                if y < left_edge or y > right_edge:
+                    continue
+                
                 # Check if point is in the spine region
                 if spine_min_y <= y <= spine_max_y:
                     region_points["spine"].append(point)
@@ -244,20 +254,20 @@ def create_detailed_back_regions(torso_points, legs_points, spine_width_fraction
                 elif y < spine_min_y:
                     # Determine vertical region (lower, middle, upper)
                     if section_boundaries[0] <= x < section_boundaries[1]:
-                        region_points["left_lower"].append(point)
+                        region_points["left_upper"].append(point)
                     elif section_boundaries[1] <= x < section_boundaries[2]:
                         region_points["left_middle"].append(point)
                     elif section_boundaries[2] <= x <= section_boundaries[3]:
-                        region_points["left_upper"].append(point)
+                        region_points["left_lower"].append(point)
                 # Right side regions (y > spine_max_y)
                 elif y > spine_max_y:
                     # Determine vertical region (lower, middle, upper)
                     if section_boundaries[0] <= x < section_boundaries[1]:
-                        region_points["right_lower"].append(point)
+                        region_points["right_upper"].append(point)
                     elif section_boundaries[1] <= x < section_boundaries[2]:
                         region_points["right_middle"].append(point)
                     elif section_boundaries[2] <= x <= section_boundaries[3]:
-                        region_points["right_upper"].append(point)
+                        region_points["right_lower"].append(point)
         
         # Create the dictionary of regions with points and colors
         regions = {}
@@ -1245,7 +1255,7 @@ def create_massage_motion_plan(points, stride=5, massage_gun_tip_transform=None,
     Args:
         points: Array of 3D points in structured order
         stride: Show every Nth point (default: 5)
-        massage_gun_tip_transform: Optional [x,y,z] translation to apply to points for massage gun tip
+        massage_gun_tip_transform: Optional [x,y,z] translation to apply to points for massage gun tip in end effector frame
         logger: Optional ROS logger for debug messages
         
     Returns:
@@ -1318,10 +1328,19 @@ def create_massage_motion_plan(points, stride=5, massage_gun_tip_transform=None,
             translated_row_points = []
             for _, point in strided_row:
                 if massage_gun_tip_transform:
+                    # The point is in robot base frame
+                    # We need to:
+                    # 1. Transform to end effector frame
+                    # 2. Apply offset in end effector frame
+                    # 3. Transform back to robot base frame
+                    
+                    # For now, we'll assume the end effector frame is aligned with robot base frame
+                    # but with Z pointing down (180 degree rotation around X)
+                    # This is a temporary solution until we get the actual end effector transform
                     translated_point = [
                         point[0] + massage_gun_tip_transform[0],
                         point[1] + massage_gun_tip_transform[1],
-                        point[2] + massage_gun_tip_transform[2]
+                        point[2] - massage_gun_tip_transform[2]  # Note: Z is inverted in end effector frame
                     ]
                     translated_row_points.append(translated_point)
                 else:
@@ -1330,38 +1349,24 @@ def create_massage_motion_plan(points, stride=5, massage_gun_tip_transform=None,
             # Add this row to the motion plan
             motion_plan['rows'].append(translated_row_points)
             
-            # Add these points to the flattened list
-            motion_plan['all_points'].extend(translated_row_points)
+            # Add connections between rows
+            if row_idx < len(rows) - 1:
+                # Connect the last point of this row to the first point of the next row
+                motion_plan['connections'].append(
+                    (translated_row_points[-1], motion_plan['rows'][-2][0] if row_idx > 0 else translated_row_points[0])
+                )
         
-        # Create connections between rows
-        if len(rows) > 1:
-            for i in range(len(motion_plan['rows']) - 1):
-                current_row = motion_plan['rows'][i]
-                next_row = motion_plan['rows'][i+1]
-                
-                if not current_row or not next_row:
-                    continue
-                
-                # Get the connection points
-                if i % 2 == 0:  # Current row is left-to-right
-                    last_point = current_row[-1]
-                    first_point = next_row[0]
-                else:  # Current row is right-to-left
-                    last_point = current_row[-1]
-                    first_point = next_row[-1]
-                
-                # Add the connection
-                motion_plan['connections'].append((last_point, first_point))
+        # Flatten the rows into a single list of points
+        motion_plan['all_points'] = [point for row in motion_plan['rows'] for point in row]
         
         if logger:
-            logger.debug(f"Created motion plan with {len(motion_plan['rows'])} rows and {len(motion_plan['connections'])} connections")
-            logger.debug(f"Total points in motion plan: {len(motion_plan['all_points'])}")
+            logger.debug(f"Created motion plan with {len(motion_plan['rows'])} rows and {len(motion_plan['all_points'])} total points")
         
         return motion_plan
         
     except Exception as e:
         if logger:
-            logger.error(f"Error creating massage motion plan: {str(e)}")
+            logger.error(f"Error creating motion plan: {str(e)}")
             import traceback
             logger.error(traceback.format_exc())
         return {'rows': [], 'connections': [], 'all_points': []}

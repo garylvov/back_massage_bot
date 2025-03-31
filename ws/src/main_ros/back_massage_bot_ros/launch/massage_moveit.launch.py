@@ -37,7 +37,7 @@ def generate_launch_description():
     
     # Load robot description
     xacro_file = os.path.join(kinova_description_dir, 'urdf', 'j2n6s300_standalone.xacro')
-    doc = xacro.process_file(xacro_file)
+    doc = xacro.process_file(xacro_file, mappings={'use_jaco_v1_fingers': 'false'})
     robot_description = {'robot_description': doc.toprettyxml(indent='  ')}
     
     # Load SRDF and other MoveIt configurations
