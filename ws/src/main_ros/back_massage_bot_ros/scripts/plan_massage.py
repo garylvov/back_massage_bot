@@ -1230,11 +1230,11 @@ def cli() -> argparse.ArgumentParser:
         help="Lower confidence threshold for YOLO fallback detection"
     )
     parser.add_argument(
-        "--point-stride", type=int, default=10,
+        "--point-stride", type=int, default=5,
         help="Stride for point numbering visualization (default: 5)"
     )
     parser.add_argument(
-        "--massage-gun-tip-x", type=float, default=-0.1143,
+        "--massage-gun-tip-x", type=float, default=-0.09,
         help="X component of massage gun tip transform (default: 0.0)"
     )
     parser.add_argument(
@@ -1242,7 +1242,7 @@ def cli() -> argparse.ArgumentParser:
         help="Y component of massage gun tip transform (default: 0.0)"
     )
     parser.add_argument(
-        "--massage-gun-tip-z", type=float, default=0.2413,
+        "--massage-gun-tip-z", type=float, default=0.2213,
         help="Z component of massage gun tip transform (default: 0.05)"
     )
     parser.add_argument(
