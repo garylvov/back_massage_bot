@@ -1,0 +1,18 @@
+## Version=1.0 ##
+# ESP32-S3-BOX udev rules
+# Device: ID 303a:1001 Espressif USB JTAG/serial debug unit
+
+# Normal operation mode (USB JTAG/serial)
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="303a", ATTRS{idProduct}=="1001", MODE:="0666", GROUP:="plugdev", TAG+="uaccess"
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="303a", ATTRS{idProduct}=="1001", MODE:="0666", GROUP:="dialout", TAG+="uaccess"
+SUBSYSTEM=="tty", ATTRS{idVendor}=="303a", ATTRS{idProduct}=="1001", MODE="0666", GROUP="plugdev", TAG+="uaccess"
+SUBSYSTEM=="tty", ATTRS{idVendor}=="303a", ATTRS{idProduct}=="1001", MODE="0666", GROUP="dialout", TAG+="uaccess"
+
+# Bootloader mode (common ESP32-S3 fallback ID)
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="303a", ATTRS{idProduct}=="1002", MODE:="0666", GROUP:="plugdev", TAG+="uaccess"
+
+# Serial port access (ttyUSB and ACM devices)
+KERNEL=="ttyUSB*", ATTRS{idVendor}=="303a", ATTRS{idProduct}=="1001", MODE:="0666", GROUP:="plugdev", TAG+="uaccess"
+KERNEL=="ttyUSB*", ATTRS{idVendor}=="303a", ATTRS{idProduct}=="1001", MODE:="0666", GROUP:="dialout", TAG+="uaccess"
+KERNEL=="ttyACM*", ATTRS{idVendor}=="303a", ATTRS{idProduct}=="1001", MODE:="0666", GROUP:="plugdev", TAG+="uaccess"
+KERNEL=="ttyACM*", ATTRS{idVendor}=="303a", ATTRS{idProduct}=="1001", MODE:="0666", GROUP:="dialout", TAG+="uaccess"
