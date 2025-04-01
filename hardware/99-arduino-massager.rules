@@ -1,0 +1,4 @@
+# Arduino Uno R3 (CDC ACM)
+# Bus 001 Device 005: ID 2341:0043 Arduino SA Uno R3 (CDC ACM)
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="2341", ATTRS{idProduct}=="0043", MODE:="0666", GROUP:="plugdev", TAG+="uaccess"
+KERNEL=="ttyACM*", ATTRS{idVendor}=="2341", ATTRS{idProduct}=="0043", MODE:="0666", GROUP:="plugdev", TAG+="uaccess"

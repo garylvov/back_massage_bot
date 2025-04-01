@@ -165,10 +165,10 @@ class DockerManager:
 
         return video_devices
 
-    def _detect_serial_devices(self) -> Sequence[str]:
-        """Detect serial devices and prepare them for docker"""
-        serial_devices = []
-        found_devices = []
+    def _detect_devices(self) -> Sequence[str]:
+        """Detect video and other devices and prepare them for docker with proper group permissions"""
+        device_args = []
+        found_devices = []  # For debug printing
 
         try:
             # Check for dialout group
@@ -178,28 +178,50 @@ class DockerManager:
                 print("Warning: 'dialout' group not found on system")
                 return []
 
+            # Get the video group ID
+            video_group_id = grp.getgrnam("video").gr_gid
+            
+            # List of device patterns to check
+            device_patterns = [
+                ("/dev/video*", range(100)),  # video0-100
+                ("/dev/ttyUSB*", range(10)),  # USB serial devices
+            ]
+
             # Check for Kinova device
             try:
                 lsusb_output = subprocess.check_output(["lsusb"], text=True)
-                if "Kinova" in lsusb_output:
-                    serial_devices.extend([
-                        "--group-add",
-                        str(dialout_group_id),
-                        "--device",
-                        "/dev/bus/usb",
-                        "-v",
-                        "/dev/bus/usb:/dev/bus/usb",
-                    ])
+                if "Kinova" in lsusb_output:  # Look for any Kinova device
+                    device_args.extend(["--group-add", str(dialout_group_id)] if dialout_group_id else [])
+                    device_args.extend(["--device", "/dev/bus/usb", "-v", "/dev/bus/usb:/dev/bus/usb"])
                     found_devices.append("Kinova Robotic Platform (USB)")
             except subprocess.CalledProcessError:
                 print("Warning: Could not check for Kinova device")
 
-            # Check for USB serial devices
-            for i in range(10):
-                device = f"/dev/ttyUSB{i}"
-                if os.path.exists(device):
-                    serial_devices.extend(["--device", f"{device}:{device}", "--group-add", str(dialout_group_id)])
-                    found_devices.append(device)
+            # Check for ESP32 Device
+            try:
+                lsusb_output = subprocess.check_output(["lsusb"], text=True)
+                if "Espressif" in lsusb_output:  # Look for any ESP32 device
+                    device_args.extend(["--group-add", str(dialout_group_id)] if dialout_group_id else [])
+                    # The ESP32 is a ttyACM device, which we cannot mount directly
+                    # Instead, we mount the entire /dev/:dev directory
+                    device_args.extend(["--device", "/dev/bus/usb:/dev/bus/usb", "-v", "/dev:/dev"])
+            except subprocess.CalledProcessError:
+                print("Warning: Could not check for ESP32 device")
+
+            # Check each device pattern
+            for pattern, range_obj in device_patterns:
+                if range_obj is not None:
+                    # Numbered devices
+                    for i in range_obj:
+                        device = pattern.replace("*", str(i))
+                        if os.path.exists(device):
+                            device_args.extend(["--device", f"{device}:{device}", "--group-add", str(video_group_id)])
+                            found_devices.append(device)
+                else:
+                    matching_devices = glob.glob(pattern)
+                    for device in matching_devices:
+                        device_args.extend(["--device", f"{device}:{device}", "--group-add", str(video_group_id)])
+                        found_devices.append(device)
 
             if found_devices:
                 print("\n🔌 Found serial devices:")
@@ -209,7 +231,7 @@ class DockerManager:
         except Exception as e:
             print(f"Warning: Error detecting serial devices: {e}")
 
-        return serial_devices
+        return device_args
 
     def _parse_volumes(self, volumes: str | None) -> Sequence[str]:
         """Convert volume string into docker volume arguments"""
@@ -221,12 +243,8 @@ class DockerManager:
 
     def build_docker_command(self, config: DockerConfig) -> list[str]:
         """Build docker command with specified options"""
-        cmd = ["docker", "run", "--rm", "--net=host", "--ipc=host", "--user", "$(id -u):$(id -g)"]
-
-        # Add both video and serial device detection
-        cmd.extend(self._detect_video_devices())
-        cmd.extend(self._detect_serial_devices())
-
+        cmd = ["docker", "run", "--rm", "--privileged", "--net=host", "--ipc=host", "--user", "$(id -u):$(id -g)"]
+        cmd.extend(self._detect_devices())
         if config.interactive:
             cmd.append("-it")
 

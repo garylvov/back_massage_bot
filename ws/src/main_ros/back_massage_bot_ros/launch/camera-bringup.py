@@ -3,6 +3,11 @@
 #
 # SPDX-License-Identifier: MIT
 
+# Copyright (c) 2025, Gary Lvov, Vinay Balaji, Tim Bennett, Xandar Ingare, Ben Yoon
+# All rights reserved.
+#
+# SPDX-License-Identifier: MIT
+
 from launch import LaunchDescription
 from launch_ros.actions import Node
 
