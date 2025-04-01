@@ -172,11 +172,6 @@ def create_detailed_back_regions(torso_points, legs_points, spine_width_fraction
         spine_min_y = spine_center_y - spine_width / 2.0
         spine_max_y = spine_center_y + spine_width / 2.0
         
-        # Calculate edge filtering thresholds (10% from each edge)
-        edge_filter_fraction = 0.10  # 10% from each edge
-        left_edge = torso_min[1] + torso_width * edge_filter_fraction
-        right_edge = torso_max[1] - torso_width * edge_filter_fraction
-        
         # Divide the torso height into three equal parts (lower, middle, upper)
         torso_height = torso_max[0] - torso_min[0]  # X-axis is typically height in robot frame
         section_height = torso_height / back_regions_count
@@ -189,7 +184,6 @@ def create_detailed_back_regions(torso_points, legs_points, spine_width_fraction
         if logger:
             logger.debug(f"Torso bounds: X=[{torso_min[0]:.2f}, {torso_max[0]:.2f}], Y=[{torso_min[1]:.2f}, {torso_max[1]:.2f}]")
             logger.debug(f"Spine region: Y=[{spine_min_y:.2f}, {spine_max_y:.2f}]")
-            logger.debug(f"Edge filtering: left={left_edge:.2f}, right={right_edge:.2f}")
             logger.debug(f"Height sections: {section_boundaries}")
         
         # Initialize region points dictionary
@@ -242,10 +236,6 @@ def create_detailed_back_regions(torso_points, legs_points, spine_width_fraction
             # Process each point in the row
             for _, point in row:
                 x, y, z = point
-                
-                # Skip points outside the edge filtering boundaries
-                if y < left_edge or y > right_edge:
-                    continue
                 
                 # Check if point is in the spine region
                 if spine_min_y <= y <= spine_max_y:
@@ -797,7 +787,6 @@ def create_massage_region_markers(points_by_class, class_colors, robot_base_fram
     # If we have detailed regions, add them to the visualization
     if detailed_regions:
         # Create markers for each detailed region
-        region_id = 10  # Start IDs at 10 to avoid collision with original classes
         for region_name, (region_points, region_color) in detailed_regions.items():
             if len(region_points) == 0:
                 continue
@@ -807,7 +796,7 @@ def create_massage_region_markers(points_by_class, class_colors, robot_base_fram
             marker.header.frame_id = robot_base_frame
             # Note: timestamp will be set by the caller
             marker.ns = "body_regions"
-            marker.id = region_id
+            marker.id = 1000
             marker.type = Marker.POINTS
             marker.action = Marker.ADD
             marker.scale.x = 0.02  # Point size
@@ -832,7 +821,7 @@ def create_massage_region_markers(points_by_class, class_colors, robot_base_fram
             text_marker.header.frame_id = robot_base_frame
             # Note: timestamp will be set by the caller
             text_marker.ns = "body_regions"
-            text_marker.id = 1000 + region_id  # Offset to avoid ID collision
+            text_marker.id = 1000
             text_marker.type = Marker.TEXT_VIEW_FACING
             text_marker.action = Marker.ADD
             text_marker.scale.z = 0.05  # Text height
@@ -851,8 +840,6 @@ def create_massage_region_markers(points_by_class, class_colors, robot_base_fram
             # Use the region name directly
             text_marker.text = region_name
             marker_array.markers.append(text_marker)
-            
-            region_id += 1
     
     return marker_array
 

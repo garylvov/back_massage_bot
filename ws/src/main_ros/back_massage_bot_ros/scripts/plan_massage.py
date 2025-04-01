@@ -80,8 +80,9 @@ class PointCloudTransformerAndOccupancyMapper:
         spine_width_fraction: float = 6.0,  # Spine width as fraction of torso width (1/6)
         back_regions_count: int = 3,  # Number of vertical regions to divide the back into
         point_stride: int = 5,  # Stride for point numbering visualization
-        massage_gun_tip_transform: list = [0.0, 0.0, 0.05],  # Default 5cm upward offset
-        visualize_path: bool = True  # Whether to visualize the massage gun tip path
+        massage_gun_tip_transform: list = [0.0765, 0.0, -0.254],  # Transform from end effector to tool tip location
+        visualize_path: bool = True,  # Whether to visualize the massage gun tip path
+        marker_publish_rate: float = 1.0  # Rate at which to publish markers (Hz)
     ):
         # Get node and tf listener from current scope
         self.node = ros_scope.node()
@@ -113,6 +114,8 @@ class PointCloudTransformerAndOccupancyMapper:
         self.point_stride = point_stride
         self.massage_gun_tip_transform = massage_gun_tip_transform
         self.visualize_path = visualize_path
+        self.marker_publish_rate = marker_publish_rate
+        self.last_marker_publish_time = 0.0
         
         # Define topic names for visualization and debugging
         self.regions_topic = "/massage_planning/body_regions"
@@ -457,6 +460,18 @@ class PointCloudTransformerAndOccupancyMapper:
                         logger=self.node.get_logger()
                     )
                     
+                    # Create and publish markers for the regions
+                    if detailed_regions:
+                        region_markers = create_massage_region_markers(
+                            points_by_class,
+                            self.class_colors,
+                            self.robot_base_frame,
+                            detailed_regions=detailed_regions,
+                            logger=self.node.get_logger()
+                        )
+                        self.detection_publisher.publish(region_markers)
+                        self.node.get_logger().info("Published region markers")
+                    
                     # STEP 2: Create motion plans for each region
                     region_motion_plans = self.create_region_motion_plans(
                         detailed_regions,
@@ -493,24 +508,7 @@ class PointCloudTransformerAndOccupancyMapper:
     def identify_massage_regions(self, best_detections, cropped_points, grid_data, class_colors, 
                                 robot_base_frame, detection_publisher=None, marker_publisher=None, 
                                 crop_bounds=None, logger=None):
-        """
-        Identify massage regions from YOLO detections
-        
-        Args:
-            best_detections: Dictionary of best detections for each class
-            cropped_points: Array of 3D points from the cropped point cloud
-            grid_data: Dictionary with grid information
-            class_colors: Dictionary mapping class IDs to RGB color tuples
-            robot_base_frame: Frame ID for the markers
-            detection_publisher: Publisher for detection markers
-            marker_publisher: Publisher for debug markers
-            crop_bounds: Dictionary with crop bounds
-            logger: Optional ROS logger for debug messages
-            
-        Returns:
-            Tuple of (points_by_class, detailed_regions)
-        """
-        # Extract points for each detection
+        """Identify massage regions from YOLO detections"""
         points_by_class = {}
         
         for class_instance_id, (box, conf) in best_detections.items():
@@ -518,122 +516,57 @@ class PointCloudTransformerAndOccupancyMapper:
                 cropped_points, 
                 grid_data, 
                 box,
-                structured_pattern=True,  # Always use structured pattern
+                structured_pattern=True,
                 logger=logger
             )
             
             if detection_points is not None and len(detection_points) > 0:
                 points_by_class[class_instance_id] = detection_points
         
-        # Check if we have both torso and legs to create detailed back regions
         detailed_regions = {}
         
         if 0 in points_by_class and 6 in points_by_class:
-            # Create detailed back regions
             detailed_regions = create_detailed_back_regions(
-                points_by_class[0],  # torso points
-                points_by_class[6],  # legs points
+                points_by_class[0],
+                points_by_class[6],
                 spine_width_fraction=self.spine_width_fraction,
                 back_regions_count=self.back_regions_count,
                 logger=logger
             )
         
-        # Create markers for detected regions
         if points_by_class or detailed_regions:
-            detection_markers = create_massage_region_markers(
+            body_part_markers = create_massage_region_markers(
                 points_by_class, 
                 class_colors, 
                 robot_base_frame,
-                detailed_regions=detailed_regions,
-                logger=logger
+                detailed_regions=None,
+                logger=None  # Disable logging
             )
             
-            # Publish detection markers if publisher is provided
-            if detection_publisher:
-                detection_publisher.publish(detection_markers)
-                if logger:
-                    logger.debug("Published detection markers")
+            detailed_region_markers = create_massage_region_markers(
+                {}, 
+                {}, 
+                robot_base_frame,
+                detailed_regions=detailed_regions,
+                logger=None  # Disable logging
+            )
+            
+            all_markers = MarkerArray()
+            all_markers.markers.extend(body_part_markers.markers)
+            all_markers.markers.extend(detailed_region_markers.markers)
+            
+            # Rate limit marker publishing
+            current_time = time.time()
+            if current_time - self.last_marker_publish_time >= 1.0 / self.marker_publish_rate:
+                if detection_publisher:
+                    detection_publisher.publish(all_markers)
+                
+                if marker_publisher:
+                    marker_publisher.publish(all_markers)
+                
+                self.last_marker_publish_time = current_time
         
         return points_by_class, detailed_regions
-
-    def apply_massage_offset(self, massage_point_matrix):
-        """
-        Transform from tool tip position (on body) to end effector position.
-        First applies rotation to get the correct frame, then applies the full XYZ translation.
-        
-        Args:
-            massage_point_matrix: 4x4 homogeneous matrix for the tool tip position (on body)
-            
-        Returns:
-            PoseStamped message representing the end effector pose in global frame
-        """
-        try:
-            # Get the tool tip position (on body)
-            tool_tip_point = massage_point_matrix[:3, 3]
-            
-            # Determine if this is a left region based on Y coordinate
-            is_left_region = tool_tip_point[1] < -0.3  # Threshold for left vs right
-            
-            # Create the tool tip frame with appropriate orientation
-            tool_tip_frame = np.eye(4)
-            if is_left_region:
-                # For left regions, tilt around X to extend reach
-                R_tilt = Rotation.from_euler('X', -30, degrees=True)
-            else:
-                # For right regions, keep straight up
-                R_tilt = Rotation.from_euler('X', 0, degrees=True)
-            
-            # Apply the rotation to the tool tip frame
-            tool_tip_frame[:3, :3] = R_tilt.as_matrix()
-            
-            # Create the offset transform from tool tip to end effector
-            # This moves the end effector back along all axes in the rotated frame
-            offset_transform = np.eye(4)
-            offset_transform[0, 3] = -self.massage_gun_tip_transform[0]  # Move back along X
-            offset_transform[1, 3] = -self.massage_gun_tip_transform[1]  # Move along Y
-            offset_transform[2, 3] = -self.massage_gun_tip_transform[2]  # Move along Z
-            
-            # Combine the transforms: tool_tip -> orientation -> offset
-            # This gives us the end effector position and orientation
-            end_effector_matrix = massage_point_matrix @ tool_tip_frame @ offset_transform
-            
-            # Create pose message from the final transform
-            pose = PoseStamped()
-            pose.header.stamp = self.node.get_clock().now().to_msg()
-            pose.header.frame_id = self.robot_base_frame
-            
-            # Set position from the final transform
-            pose.pose.position.x = end_effector_matrix[0, 3]
-            pose.pose.position.y = end_effector_matrix[1, 3]
-            pose.pose.position.z = end_effector_matrix[2, 3]
-            
-            # Set orientation from the final transform
-            R_final = Rotation.from_matrix(end_effector_matrix[:3, :3])
-            quat = R_final.as_quat()
-            pose.pose.orientation.w = quat[3]
-            pose.pose.orientation.x = quat[0]
-            pose.pose.orientation.y = quat[1]
-            pose.pose.orientation.z = quat[2]
-            
-            return pose
-            
-        except Exception as e:
-            self.node.get_logger().error(f"Error applying massage offset: {str(e)}")
-            import traceback
-            self.node.get_logger().error(traceback.format_exc())
-            # Return a default pose if something fails
-            default_pose = PoseStamped()
-            default_pose.header.stamp = self.node.get_clock().now().to_msg()
-            default_pose.header.frame_id = self.robot_base_frame
-            default_pose.pose.position.x = massage_point_matrix[0, 3]
-            default_pose.pose.position.y = massage_point_matrix[1, 3]
-            default_pose.pose.position.z = massage_point_matrix[2, 3]
-            quat = Rotation.from_matrix(massage_point_matrix[:3, :3]).as_quat()
-            default_pose.pose.orientation.w = quat[3]
-            default_pose.pose.orientation.x = quat[0]
-            default_pose.pose.orientation.y = quat[1]
-            default_pose.pose.orientation.z = quat[2]
-            return default_pose
 
     def create_region_motion_plans(self, detailed_regions, point_stride=5, 
                                   massage_gun_tip_transform=None, visualize_path=True):
@@ -659,217 +592,87 @@ class PointCloudTransformerAndOccupancyMapper:
                 logger.debug(f"Skipping motion planning for spine region")
                 continue
             
-            # Create motion plan for this region
-            motion_plan = create_massage_motion_plan(
-                region_points,
-                stride=point_stride,
-                massage_gun_tip_transform=None,  # No transform needed here - keep in base frame
-                logger=logger
-            )
+            # Create transforms for each point - just store the raw points
+            points_with_orientation = []
+            for point in region_points:
+                # Create a transform for each point
+                transform = TransformStamped()
+                transform.header.stamp = self.node.get_clock().now().to_msg()
+                transform.header.frame_id = self.robot_base_frame
+                transform.child_frame_id = f"massage_point_{region_name}_{len(points_with_orientation)}"
+                
+                # Set position
+                transform.transform.translation.x = point[0]
+                transform.transform.translation.y = point[1]
+                transform.transform.translation.z = point[2]
+                
+                # Set identity rotation (no extra rotation)
+                transform.transform.rotation.w = 1.0
+                transform.transform.rotation.x = 0.0
+                transform.transform.rotation.y = 0.0
+                transform.transform.rotation.z = 0.0
+                
+                points_with_orientation.append(transform)
             
-            # Add orientation to all points in the motion plan
-            motion_plan_with_orientation = {
-                'rows': [],
-                'connections': [],
-                'all_points': []
+            # Create a simple motion plan with the points
+            motion_plan = {
+                'rows': [region_points],  # Original points
+                'connections': [],  # No connections needed
+                'all_points': points_with_orientation  # Store the transforms
             }
             
-            # Create transforms for all points in rows
-            for row_idx, row in enumerate(motion_plan['rows']):
-                row_with_orientation = []
-                for point_idx, point in enumerate(row):
-                    # Calculate the overall point index for this point
-                    overall_idx = row_idx * len(row) + point_idx
-                    
-                    # Create a transform for the massage point (Z down orientation)
-                    massage_transform = TransformStamped()
-                    massage_transform.header.stamp = self.node.get_clock().now().to_msg()
-                    massage_transform.header.frame_id = self.robot_base_frame
-                    massage_transform.child_frame_id = f"massage_point_{region_name}_{overall_idx}"
-                    
-                    # Set position
-                    massage_transform.transform.translation.x = point[0]
-                    massage_transform.transform.translation.y = point[1]
-                    massage_transform.transform.translation.z = point[2]
-                    
-                    # Set Z down orientation (180° about X) using scipy Rotation
-                    R = Rotation.from_euler('X', 180, degrees=True)
-                    quat = R.as_quat()  # Returns [x, y, z, w]
-                    massage_transform.transform.rotation.w = quat[3]
-                    massage_transform.transform.rotation.x = quat[0]
-                    massage_transform.transform.rotation.y = quat[1]
-                    massage_transform.transform.rotation.z = quat[2]
-                    
-                    # Store the transform for later use
-                    row_with_orientation.append(massage_transform)
-                motion_plan_with_orientation['rows'].append(row_with_orientation)
-            
-            # Add orientation to connections with intermediate higher points
-            for start_idx, (start_point, end_point) in enumerate(motion_plan['connections']):
-                # Create an intermediate point that's higher than both start and end points
-                intermediate_z_offset = 0.03  # 3cm higher
-                max_z = max(start_point[2], end_point[2])
-                intermediate_point = [
-                    (start_point[0] + end_point[0]) / 2.0,
-                    (start_point[1] + end_point[1]) / 2.0,
-                    max_z + intermediate_z_offset
-                ]
-                
-                # Calculate indices for the points
-                start_overall_idx = start_idx * 2
-                intermediate_idx = start_overall_idx + 1
-                end_idx = start_overall_idx + 2
-                
-                # Create transforms for start, intermediate, and end points
-                for idx, point in [(start_overall_idx, start_point), 
-                                 (intermediate_idx, intermediate_point),
-                                 (end_idx, end_point)]:
-                    massage_transform = TransformStamped()
-                    massage_transform.header.stamp = self.node.get_clock().now().to_msg()
-                    massage_transform.header.frame_id = self.robot_base_frame
-                    massage_transform.child_frame_id = f"massage_point_{region_name}_{idx}"
-                    
-                    # Set position
-                    massage_transform.transform.translation.x = point[0]
-                    massage_transform.transform.translation.y = point[1]
-                    massage_transform.transform.translation.z = point[2]
-                    
-                    # Set Z down orientation (180° about X) using scipy Rotation
-                    R = Rotation.from_euler('X', 180, degrees=True)
-                    quat = R.as_quat()  # Returns [x, y, z, w]
-                    massage_transform.transform.rotation.w = quat[3]
-                    massage_transform.transform.rotation.x = quat[0]
-                    massage_transform.transform.rotation.y = quat[1]
-                    massage_transform.transform.rotation.z = quat[2]
-                    
-                    # Store the transform
-                    if idx == start_overall_idx:
-                        transformed_start = massage_transform
-                    elif idx == intermediate_idx:
-                        transformed_intermediate = massage_transform
-                    else:
-                        transformed_end = massage_transform
-                
-                # Add the connection with the intermediate point
-                motion_plan_with_orientation['connections'].append(
-                    (transformed_start, transformed_intermediate)
-                )
-                motion_plan_with_orientation['connections'].append(
-                    (transformed_intermediate, transformed_end)
-                )
-            
-            # Rebuild the all_points list to include the intermediate points
-            all_points_with_orientation = []
-            
-            # First, add all row points in order
-            for row in motion_plan_with_orientation['rows']:
-                all_points_with_orientation.extend(row)
-            
-            # Then add the connection points
-            for i in range(0, len(motion_plan_with_orientation['connections']), 2):
-                if i+1 < len(motion_plan_with_orientation['connections']):
-                    # Add the intermediate point
-                    intermediate_point = motion_plan_with_orientation['connections'][i][1]
-                    all_points_with_orientation.append(intermediate_point)
-                    
-                    # Add the end point of the second connection (which is the start of the next row)
-                    next_row_start = motion_plan_with_orientation['connections'][i+1][1]
-                    all_points_with_orientation.append(next_row_start)
-            
-            motion_plan_with_orientation['all_points'] = all_points_with_orientation
-            
             # Store the motion plan with the region color
-            region_motion_plans[region_name] = (motion_plan_with_orientation, region_color)
+            region_motion_plans[region_name] = (motion_plan, region_color)
             
-            # Visualize the motion plan if requested
+            # Use utility function for visualization if requested
             if visualize_path:
-                # Create a unique namespace for each region
-                namespace = f"numbered_points_region_{region_name}"
-                
-                logger.debug(f"Creating markers for region {region_name} with color {region_color}")
-                
-                # Create numbered point markers with section-based numbering for points on the body
-                numbered_markers = create_numbered_point_markers(
+                create_numbered_point_markers(
                     region_points,
                     self.robot_base_frame,
-                    marker_namespace=namespace,
+                    marker_namespace=f"numbered_points_region_{region_name}",
                     stride=point_stride,
-                    section_based=True,  # Enable section-based numbering
+                    section_based=True,
                     logger=logger,
-                    massage_gun_tip_transform=None,  # No transform needed here - keep in base frame
+                    massage_gun_tip_transform=None,
                     visualize_path=visualize_path,
                     region_color=region_color
                 )
-                
-                # Create markers for end effector positions (off the body)
-                end_effector_markers = MarkerArray()
-                for i, transform in enumerate(all_points_with_orientation):
-                    try:
-                        # Create a marker for the end effector position
-                        marker = Marker()
-                        marker.header.frame_id = self.robot_base_frame
-                        marker.header.stamp = self.node.get_clock().now().to_msg()
-                        marker.ns = f"{namespace}_end_effector"
-                        marker.id = i
-                        marker.type = Marker.SPHERE
-                        marker.action = Marker.ADD
-                        
-                        # Get the point and rotation from the transform
-                        point = [
-                            transform.transform.translation.x,
-                            transform.transform.translation.y,
-                            transform.transform.translation.z
-                        ]
-                        rotation = [
-                            transform.transform.rotation.w,
-                            transform.transform.rotation.x,
-                            transform.transform.rotation.y,
-                            transform.transform.rotation.z
-                        ]
-                        
-                        # Create 4x4 matrix from transform
-                        massage_point_matrix = np.eye(4)
-                        massage_point_matrix[:3, 3] = point
-                        massage_point_matrix[:3, :3] = Rotation.from_quat([rotation[1], rotation[2], rotation[3], rotation[0]]).as_matrix()
-                        
-                        # Apply the massage offset to get the end effector position
-                        end_effector_pose = self.apply_massage_offset(massage_point_matrix)
-                        
-                        # Set position and orientation from the end effector pose
-                        marker.pose.position.x = end_effector_pose.pose.position.x
-                        marker.pose.position.y = end_effector_pose.pose.position.y
-                        marker.pose.position.z = end_effector_pose.pose.position.z
-                        marker.pose.orientation = end_effector_pose.pose.orientation
-                        
-                        # Set scale (smaller than body points)
-                        marker.scale.x = 0.02  # 2cm diameter
-                        marker.scale.y = 0.02
-                        marker.scale.z = 0.02
-                        
-                        # Set color (slightly transparent version of region color)
-                        marker.color.r = region_color[0]
-                        marker.color.g = region_color[1]
-                        marker.color.b = region_color[2]
-                        marker.color.a = 0.5  # 50% transparency
-                        
-                        # Add text label
-                        marker.text = f"EE_{i}"
-                        
-                        end_effector_markers.markers.append(marker)
-                    except Exception as e:
-                        logger.error(f"Error creating marker for point {i}: {str(e)}")
-                        continue
-                
-                # Combine both marker arrays
-                all_markers = MarkerArray()
-                all_markers.markers.extend(numbered_markers.markers)
-                all_markers.markers.extend(end_effector_markers.markers)
-                
-                # Publish all markers
-                self.marker_publisher.publish(all_markers)
-                logger.debug(f"Published markers for region {region_name} (stride={point_stride})")
         
         return region_motion_plans
+
+    def save_region_points(self, region_name, points_with_orientation):
+        """Save region points to a PCD file"""
+        try:
+            if not points_with_orientation:
+                self.node.get_logger().warn(f"No points to save for region: {region_name}")
+                return False
+                
+            # Create filename and path
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            region_filename = f"region_{region_name}_{timestamp}.pcd"
+            region_path = os.path.join(os.getcwd(), region_filename)
+            
+            # Extract points from transforms
+            points = []
+            for transform in points_with_orientation:
+                points.append([
+                    transform.transform.translation.x,
+                    transform.transform.translation.y,
+                    transform.transform.translation.z
+                ])
+            
+            # Create point cloud and save
+            pcd = o3d.geometry.PointCloud()
+            pcd.points = o3d.utility.Vector3dVector(points)
+            o3d.io.write_point_cloud(region_path, pcd)
+            self.node.get_logger().info(f"Saved region points to: {region_path}")
+            return True
+            
+        except Exception as e:
+            self.node.get_logger().error(f"Error saving region points: {str(e)}")
+            import traceback
+            self.node.get_logger().error(traceback.format_exc())
+            return False
 
     def plan_and_execute_callback(self, request, response):
         """Callback for the plan and execute massage service"""
@@ -897,6 +700,11 @@ class PointCloudTransformerAndOccupancyMapper:
                 response.message = f"Region {self.selected_region} not found in motion plans. Available regions: {list(self.latest_region_motion_plans.keys())}"
                 return response
             
+            # Save the region points before execution
+            motion_plan, _ = self.latest_region_motion_plans[self.selected_region]
+            if not self.save_region_points(self.selected_region, motion_plan['all_points']):
+                self.node.get_logger().warn("Failed to save region points, but continuing with execution")
+            
             # Execute the motion plan for the selected region
             success = self.execute_motion_plan(self.selected_region)
             
@@ -922,125 +730,88 @@ class PointCloudTransformerAndOccupancyMapper:
     def region_service_callback(self, request, response, region):
         """Callback for region-specific services"""
         try:
-            self.node.get_logger().info(f"Received request to massage region: {region}")
-            
-            # Set the selected region
             self.selected_region = region
             
-            # Check if we have motion plans
             if not hasattr(self, 'latest_region_motion_plans') or not self.latest_region_motion_plans:
-                self.node.get_logger().error("No motion plans available. Please wait for point cloud processing.")
                 return response
             
-            # Check if the region exists in our motion plans
             if region not in self.latest_region_motion_plans:
-                self.node.get_logger().error(f"Region {region} not found in motion plans. Available regions: {list(self.latest_region_motion_plans.keys())}")
                 return response
             
-            # Get the motion plan for the selected region
             motion_plan, region_color = self.latest_region_motion_plans[region]
-            
-            # Extract the points with orientation
             points_with_orientation = motion_plan['all_points']
             
             if not points_with_orientation:
-                self.node.get_logger().warn(f"No points in motion plan for region: {region}")
                 return response
-            
-            # Create markers and publish TF frames for end effector positions
-            end_effector_markers = MarkerArray()
-            namespace = f"end_effector_positions_{region}"
-            
+
+            # Publish raw transforms
             for i, transform in enumerate(points_with_orientation):
-                try:
-                    # Get the point and rotation from the transform
-                    point = [
-                        transform.transform.translation.x,
-                        transform.transform.translation.y,
-                        transform.transform.translation.z
-                    ]
-                    rotation = [
-                        transform.transform.rotation.w,
-                        transform.transform.rotation.x,
-                        transform.transform.rotation.y,
-                        transform.transform.rotation.z
-                    ]
-                    
-                    # Create 4x4 matrix from transform
-                    massage_point_matrix = np.eye(4)
-                    massage_point_matrix[:3, 3] = point
-                    massage_point_matrix[:3, :3] = Rotation.from_quat([rotation[1], rotation[2], rotation[3], rotation[0]]).as_matrix()
-                    
-                    # Apply the massage offset to get the end effector position
-                    end_effector_pose = self.apply_massage_offset(massage_point_matrix)
-                    
-                    # Create a transform for the end effector position
-                    end_effector_transform = TransformStamped()
-                    end_effector_transform.header.stamp = self.node.get_clock().now().to_msg()
-                    end_effector_transform.header.frame_id = self.robot_base_frame
-                    end_effector_transform.child_frame_id = f"end_effector_{region}_{i}"
-                    
-                    # Set position and orientation from the end effector pose
-                    end_effector_transform.transform.translation.x = end_effector_pose.pose.position.x
-                    end_effector_transform.transform.translation.y = end_effector_pose.pose.position.y
-                    end_effector_transform.transform.translation.z = end_effector_pose.pose.position.z
-                    end_effector_transform.transform.rotation = end_effector_pose.pose.orientation
-                    
-                    # Publish the end effector transform
-                    self.tf_broadcaster.sendTransform(end_effector_transform)
-                    
-                    # Create a marker for visualization
-                    marker = Marker()
-                    marker.header.frame_id = self.robot_base_frame
-                    marker.header.stamp = self.node.get_clock().now().to_msg()
-                    marker.ns = namespace
-                    marker.id = i
-                    marker.type = Marker.SPHERE
-                    marker.action = Marker.ADD
-                    
-                    # Set position and orientation from the end effector pose
-                    marker.pose.position.x = end_effector_pose.pose.position.x
-                    marker.pose.position.y = end_effector_pose.pose.position.y
-                    marker.pose.position.z = end_effector_pose.pose.position.z
-                    marker.pose.orientation = end_effector_pose.pose.orientation
-                    
-                    # Set scale (smaller than body points)
-                    marker.scale.x = 0.02  # 2cm diameter
-                    marker.scale.y = 0.02
-                    marker.scale.z = 0.02
-                    
-                    # Set color (slightly transparent version of region color)
-                    marker.color.r = region_color[0]
-                    marker.color.g = region_color[1]
-                    marker.color.b = region_color[2]
-                    marker.color.a = 0.5  # 50% transparency
-                    
-                    # Add text label
-                    marker.text = f"EE_{i}"
-                    
-                    end_effector_markers.markers.append(marker)
-                except Exception as e:
-                    self.node.get_logger().error(f"Error creating marker for point {i}: {str(e)}")
-                    continue
-            
-            # Publish the end effector markers
-            self.marker_publisher.publish(end_effector_markers)
-            self.node.get_logger().debug(f"Published end effector markers for region {region}")
-            
-            # Wait a moment for transforms to be published
+                raw_transform = TransformStamped()
+                raw_transform.header.stamp = self.node.get_clock().now().to_msg()
+                raw_transform.header.frame_id = self.robot_base_frame
+                raw_transform.child_frame_id = f"raw_point_{region}_{i}"
+                raw_transform.transform = transform.transform
+                self.tf_broadcaster.sendTransform(raw_transform)
+
             time.sleep(0.5)
+
+            # Create point cloud
+            points = [[t.transform.translation.x, t.transform.translation.y, t.transform.translation.z] 
+                     for t in points_with_orientation]
+            pcd = o3d.geometry.PointCloud()
+            pcd.points = o3d.utility.Vector3dVector(points)
+
+            # Generate transforms
+            from debug_planning import plan_massage_from_points
+            print(f"PLAN MASSAGE FROM POINTS {region= }")
+            transforms = plan_massage_from_points(
+                pcd,
+                stride=self.point_stride,
+                point_normal_threshold_degrees=45,
+                tip_offset=self.massage_gun_tip_transform,
+                region_name=region
+            )
+
+            # Create and publish end effector poses
+            end_effector_poses = []
+            for i, (transform, label) in enumerate(transforms):
+                pose = PoseStamped()
+                pose.header.stamp = self.node.get_clock().now().to_msg()
+                pose.header.frame_id = self.robot_base_frame
+                pose.pose.position.x = transform[0, 3]
+                pose.pose.position.y = transform[1, 3]
+                pose.pose.position.z = transform[2, 3]
+                
+                R = Rotation.from_matrix(transform[:3, :3])
+                quat = R.as_quat()
+                pose.pose.orientation.w = quat[3]
+                pose.pose.orientation.x = quat[0]
+                pose.pose.orientation.y = quat[1]
+                pose.pose.orientation.z = quat[2]
+                
+                end_effector_poses.append(pose)
+
+                tf = TransformStamped()
+                tf.header.stamp = self.node.get_clock().now().to_msg()
+                tf.header.frame_id = self.robot_base_frame
+                tf.child_frame_id = f"end_effector_{region}_{i}"
+                tf.transform.translation.x = pose.pose.position.x
+                tf.transform.translation.y = pose.pose.position.y
+                tf.transform.translation.z = pose.pose.position.z
+                tf.transform.rotation = pose.pose.orientation
+                self.tf_broadcaster.sendTransform(tf)
+
+            time.sleep(.02)
+
+            # Execute poses
+            for pose in end_effector_poses:
+                self.arm_dispatch_pub.publish(pose)
+                time.sleep(.3)
             
-            # Execute the motion plan for the selected region
-            success = self.execute_motion_plan(region)
-            
-            # Return home after execution
             self.call_return_home_service()
-            
             return response
-        except Exception as e:
-            self.node.get_logger().error(f"Error in region service callback: {str(e)}")
-            import traceback
-            self.node.get_logger().error(traceback.format_exc())
+            
+        except Exception:
             return response
 
     def call_return_home_service(self):
@@ -1117,26 +888,14 @@ class PointCloudTransformerAndOccupancyMapper:
                     self.node.get_logger().error(f"Error creating end effector pose for point {i}: {str(e)}")
                     continue
             
-            # Add a 3-minute delay with cancellation capability
-            self.node.get_logger().info("Waiting 3 minutes before executing motion plan. Press Ctrl+C to cancel.")
-            try:
-                # Wait for 3 minutes (180 seconds)
-                for i in range(3):
-                    time.sleep(1)
-                    if i % 10 == 0:  # Log every 10 seconds
-                        self.node.get_logger().info(f"Waiting... {180-i} seconds remaining")
-            except KeyboardInterrupt:
-                self.node.get_logger().warn("Motion plan execution cancelled by user")
-                return False
-            
             # Execute each point in the motion plan using the end effector poses
-            for i, end_effector_pose in enumerate(end_effector_poses):
+            for end_effector_pose in end_effector_poses:
                 # Publish the pose command
                 self.arm_dispatch_pub.publish(end_effector_pose)
-                self.node.get_logger().info(f"Moving to point {i+1}/{len(end_effector_poses)} in {region_name}")
+                self.node.get_logger().info("Moving to next point")
                 
                 # Wait for the arm to reach the position
-                time.sleep(2.0)  # Adjust this delay based on your robot's speed
+                time.sleep(.1)  # Adjust this delay based on your robot's speed
             
             return True
             
@@ -1181,11 +940,11 @@ def cli() -> argparse.ArgumentParser:
         help="TF prefix for frame names"
     )
     parser.add_argument(
-        "--x-min", type=float, default=-0.7,
+        "--x-min", type=float, default=-0.6,
         help="Minimum X value (in robot base frame) for cropping"
     )
     parser.add_argument(
-        "--x-max", type=float, default=1.4,
+        "--x-max", type=float, default=1.6,
         help="Maximum X value (in robot base frame) for cropping"
     )
     parser.add_argument(
@@ -1197,7 +956,7 @@ def cli() -> argparse.ArgumentParser:
         help="Maximum Y value (in robot base frame) for cropping"
     )
     parser.add_argument(
-        "--z-min", type=float, default=-0.03,
+        "--z-min", type=float, default=-0.05    ,
         help="Minimum Z value (in robot base frame) for cropping"
     )
     parser.add_argument(
@@ -1230,20 +989,20 @@ def cli() -> argparse.ArgumentParser:
         help="Lower confidence threshold for YOLO fallback detection"
     )
     parser.add_argument(
-        "--point-stride", type=int, default=5,
+        "--point-stride", type=int, default=1,
         help="Stride for point numbering visualization (default: 5)"
     )
     parser.add_argument(
-        "--massage-gun-tip-x", type=float, default=-0.09,
-        help="X component of massage gun tip transform (default: 0.0)"
+        "--massage-gun-tip-x", type=float, default=.05,
+        help="X component of massage gun tip transform (default: 0.0765)"
     )
     parser.add_argument(
         "--massage-gun-tip-y", type=float, default=0.0,
         help="Y component of massage gun tip transform (default: 0.0)"
     )
     parser.add_argument(
-        "--massage-gun-tip-z", type=float, default=0.2213,
-        help="Z component of massage gun tip transform (default: 0.05)"
+        "--massage-gun-tip-z", type=float, default=-0.254,
+        help="Z component of massage gun tip transform (default: -0.254)"
     )
     parser.add_argument(
         "--no-visualize-path", action="store_true",
