@@ -4,4 +4,4 @@
 # SPDX-License-Identifier: MIT
 
 # Note that single word commands are rendered with single quotes in echo messages, but the data is not affected
-commands = ["ON", "OFF", "HARDER", "SOFTER", "THIGH", "UPPER BACK", "LOWER BACK"]
+commands = ["ON", "OFF", "HARDER", "SOFTER", "UPPER LEFT", "UPPER RIGHT", "MIDDLE LEFT", "MIDDLE RIGHT", "LOWER LEFT", "LOWER RIGHT"]

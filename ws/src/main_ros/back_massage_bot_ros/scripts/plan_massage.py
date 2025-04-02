@@ -24,10 +24,11 @@ import threading
 import queue
 import time
 import rclpy
+import re
 
 import synchros2.process as ros_process
 import synchros2.scope as ros_scope
-from rclpy.qos import QoSProfile, QoSReliabilityPolicy
+from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSHistoryPolicy
 from scipy.spatial.transform import Rotation
 from sensor_msgs.msg import PointCloud2, Image
 import sensor_msgs_py.point_cloud2 as pc2
@@ -221,7 +222,23 @@ class PointCloudTransformerAndOccupancyMapper:
             self.plan_and_execute_callback
         )
         
-        # Create services for each of the 6 back regions
+        esp_qos = QoSProfile(
+            reliability=QoSReliabilityPolicy.BEST_EFFORT,
+            history=QoSHistoryPolicy.KEEP_LAST,
+            avoid_ros_namespace_conventions=True,
+            depth=1,
+        )
+        
+        self.esp32_sub = self.node.create_subscription(
+            String,
+            '/esp32_logs',  # ESP32 topic that publishes region info
+            self.esp32_region_callback,
+            esp_qos
+        )
+        
+        self.node.get_logger().info("Subscribed to /esp32_logs topic.")
+        
+        # Create services for each of the 6 back regions THESE WILL NOT ACTUALLY BE USED
         self.region_services = {}
         for region in ["left_upper", "left_middle", "left_lower", 
                       "right_upper", "right_middle", "right_lower"]:
@@ -256,6 +273,63 @@ class PointCloudTransformerAndOccupancyMapper:
         
         # Default to left_upper if no region is selected
         self.selected_region = "left_upper"
+
+        self.is_stopped = False  # Flag to track STOP state
+
+
+    def esp32_region_callback(self, msg: String):
+        """Callback for handling region information from ESP32."""
+        region_data = msg.data.strip().upper()
+        self.node.get_logger().info(f"Received region message: {region_data}")
+        
+        # Define actions for the different region messages
+        if region_data == "OFF":
+            self.node.get_logger().info("STOP command received, interrupting movement.")
+            self.call_return_home_service()
+            self.is_stopped = True  # Set the stopped flag to True
+        elif region_data == "ON":
+            self.node.get_logger().info("START command received, enabling movement.")
+            self.is_stopped = False  # Reset the stopped flag
+        elif not self.is_stopped:
+            # Only process region messages if STOP hasn't been triggered
+            self.handle_region_selection(region_data)
+        else:
+            self.node.get_logger().info("Movement is stopped, ignoring region selection.")
+
+
+    def handle_region_selection(self, region_data):
+        """Handles region selection and executes the corresponding action."""
+        region_map = {
+            "UPPER LEFT": "left_upper",
+            "UPPER RIGHT": "right_upper",
+            "MIDDLE LEFT": "left_middle",
+            "MIDDLE RIGHT": "right_middle",
+            "LOWER LEFT": "left_lower",
+            "LOWER RIGHT": "right_lower"
+        }
+        
+        if region_data in region_map:
+            selected_region = region_map[region_data]
+            self.selected_region = selected_region
+            self.node.get_logger().info(f"Planning massage for {selected_region}.")
+            # Create mock request and response objects
+            req = type('Request', (object,), {})()
+            resp = type('Response', (object,), {'success': False, 'message': ''})()
+            self.plan_and_execute_callback(req, resp)
+        else:
+            self.node.get_logger().warn(f"Unknown region: {region_data}. No action taken.")
+
+    def start_massage(self):
+        """Start the massage process. CURRENTLY UNUSED ATM"""
+        self.node.get_logger().info("Starting the massage process...")        
+        #TODO
+        pass
+    
+    def stop_massage(self):
+        """Stop the massage process. CURRENTLY UNUSED ATM"""
+        self.node.get_logger().info("Stopping the massage process...")
+        #TODO
+        pass
 
     def lookup_transform(self) -> bool:
         """Look up the transform between camera and robot base frame, return True if successful"""
