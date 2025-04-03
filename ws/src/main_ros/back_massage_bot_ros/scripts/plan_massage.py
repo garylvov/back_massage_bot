@@ -963,7 +963,53 @@ class PointCloudTransformerAndOccupancyMapper:
                     continue
             
             # Execute each point in the motion plan using the end effector poses
+            current_region = region_name
             for end_effector_pose in end_effector_poses:
+                # Check if we've been stopped
+                if self.is_stopped:
+                    self.node.get_logger().info("Execution stopped by user request")
+                    self.call_return_home_service()
+                    return False
+                
+                # Check if region has changed
+                if self.selected_region != current_region:
+                    self.node.get_logger().info(f"Region changed from {current_region} to {self.selected_region}")
+                    # Get new motion plan for the new region
+                    if self.selected_region in self.latest_region_motion_plans:
+                        new_motion_plan, _ = self.latest_region_motion_plans[self.selected_region]
+                        new_points = new_motion_plan['all_points']
+                        if new_points:
+                            # Create new end effector poses for the new region
+                            new_end_effector_poses = []
+                            for transform in new_points:
+                                point = [
+                                    transform.transform.translation.x,
+                                    transform.transform.translation.y,
+                                    transform.transform.translation.z
+                                ]
+                                rotation = [
+                                    transform.transform.rotation.w,
+                                    transform.transform.rotation.x,
+                                    transform.transform.rotation.y,
+                                    transform.transform.rotation.z
+                                ]
+                                
+                                massage_point_matrix = np.eye(4)
+                                massage_point_matrix[:3, 3] = point
+                                massage_point_matrix[:3, :3] = Rotation.from_quat([rotation[1], rotation[2], rotation[3], rotation[0]]).as_matrix()
+                                
+                                new_end_effector_pose = self.apply_massage_offset(massage_point_matrix)
+                                new_end_effector_poses.append(new_end_effector_pose)
+                            
+                            # Update the poses and continue with new region
+                            end_effector_poses = new_end_effector_poses
+                            current_region = self.selected_region
+                            continue
+                    else:
+                        self.node.get_logger().warn(f"No motion plan available for new region: {self.selected_region}")
+                        self.call_return_home_service()
+                        return False
+                
                 # Publish the pose command
                 self.arm_dispatch_pub.publish(end_effector_pose)
                 self.node.get_logger().info("Moving to next point")
@@ -971,6 +1017,8 @@ class PointCloudTransformerAndOccupancyMapper:
                 # Wait for the arm to reach the position
                 time.sleep(.1)  # Adjust this delay based on your robot's speed
             
+            # Return home after successful execution
+            self.call_return_home_service()
             return True
             
         except Exception as e:
