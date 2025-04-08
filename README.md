@@ -163,11 +163,11 @@ synthetic data and our point cloud.
 
 # Motion Planning on Massage Candidate Regions
 
-We basically sample points on the back region (split into further regions from the YOLO bbx with a simple heuristic), order them from left to right and from top down, and then plan a position offset by the massage gun tip
-to the arm planning frame. 
+We basically sample points on the back region (split into further regions from the YOLO bbx with a simple heuristic), order them from left to right and from top down, and then plan to each point (with a position offset from the massage gun tip
+to the arm planning frame.)
 We have to do some niave gravity compensation: with a stronger arm this step would not needed.
 
-We also add collision objects to the scene from the ```all.scene``` package from the ROS workspace, adjusted to ensure maximum safety.
+We also add collision objects to the scene from the ```all.scene``` description from the ROS workspace, adjusted to ensure maximum safety.
 
 
 # Extrinsic Determination (Depth Camera to Robot Transform, and Massage Gun to Robot Transform)
