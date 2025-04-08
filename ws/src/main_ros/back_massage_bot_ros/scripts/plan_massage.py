@@ -9,6 +9,7 @@
 A ROS2 node for transforming and cropping point clouds from camera to robot frame.
 Subscribes to a point cloud topic, transforms points to the robot base frame using Open3D,
 crops based on specified bounds, and creates an occupancy grid with 1cm resolution.
+Runs YOLO inference directly on the occupancy grid to detect body regions.
 """
 
 import argparse
@@ -17,33 +18,52 @@ import sys
 import numpy as np
 import open3d as o3d
 from datetime import datetime
-from typing import Optional, Tuple, List
-import struct
-import matplotlib.pyplot as plt
+import ultralytics
+import cv2
+import threading
+import queue
+import time
+import rclpy
 
 import synchros2.process as ros_process
 import synchros2.scope as ros_scope
 from rclpy.qos import QoSProfile, QoSReliabilityPolicy
 from scipy.spatial.transform import Rotation
-from sensor_msgs.msg import PointCloud2
+from sensor_msgs.msg import PointCloud2, Image
 import sensor_msgs_py.point_cloud2 as pc2
-from geometry_msgs.msg import TransformStamped
+from geometry_msgs.msg import TransformStamped, PoseStamped
 from synchros2.context import wait_for_shutdown
 from synchros2.utilities import namespace_with
 from visualization_msgs.msg import Marker, MarkerArray
-from std_msgs.msg import ColorRGBA
-from geometry_msgs.msg import Point
+from std_msgs.msg import ColorRGBA, String
+from cv_bridge import CvBridge
+from std_srvs.srv import Trigger, Empty
+import tf2_ros
+from tf2_geometry_msgs import PoseStamped as TF2PoseStamped
 
+# Import only the utilities we actually need
+from utils import (
+    create_yolo_markers,
+    create_top_down_occupancy,
+    get_best_detections,
+    run_yolo_inference,
+    publish_image,
+    create_detailed_back_regions,
+    get_points_in_detection,
+    create_massage_region_markers,
+    create_numbered_point_markers,
+    create_massage_motion_plan
+)
 
 class PointCloudTransformerAndOccupancyMapper:
     def __init__(
         self,
         input_topic: str = "/depth/color/points",
         output_topic: str = "/massage_planning/cropped_cloud",
-        occupancy_topic: str = "/massage_planning/occupancy_grid",
+        occupancy_topic: str = "/massage_planning/debug_visualization",
         camera_frame: str = "camera_depth_optical_frame",
         robot_base_frame: str = "j2n6s300_link_base",
-        tf_prefix: Optional[str] = None,
+        tf_prefix: str | None = None,
         x_min: float = -0.7,
         x_max: float = 1.4,
         y_min: float = -0.8,
@@ -53,7 +73,16 @@ class PointCloudTransformerAndOccupancyMapper:
         grid_resolution: float = 0.01,  # 1cm grid resolution
         output_dir: str = "~/pointcloud_plys",
         save_plys: bool = False,
-        save_grids: bool = True
+        save_grids: bool = False,
+        model_path: str = "/back_massage_bot/src/back_massage_bot/models/third_runs_the_charm/weights/best.pt",
+        yolo_default_size: tuple = (640, 640),  # Default YOLO input size (width, height)
+        yolo_low_conf_threshold: float = 0.1,  # Lower confidence threshold for fallback detection
+        spine_width_fraction: float = 6.0,  # Spine width as fraction of torso width (1/6)
+        back_regions_count: int = 3,  # Number of vertical regions to divide the back into
+        point_stride: int = 5,  # Stride for point numbering visualization
+        massage_gun_tip_transform: list = [0.0765, 0.0, -0.254],  # Transform from end effector to tool tip location
+        visualize_path: bool = True,  # Whether to visualize the massage gun tip path
+        marker_publish_rate: float = 1.0  # Rate at which to publish markers (Hz)
     ):
         # Get node and tf listener from current scope
         self.node = ros_scope.node()
@@ -78,20 +107,43 @@ class PointCloudTransformerAndOccupancyMapper:
         self.save_plys = save_plys
         self.save_grids = save_grids
         self.output_dir = os.path.expanduser(output_dir)
+        self.yolo_default_size = yolo_default_size
+        self.yolo_low_conf_threshold = yolo_low_conf_threshold
+        self.spine_width_fraction = spine_width_fraction
+        self.back_regions_count = back_regions_count
+        self.point_stride = point_stride
+        self.massage_gun_tip_transform = massage_gun_tip_transform
+        self.visualize_path = visualize_path
+        self.marker_publish_rate = marker_publish_rate
+        self.last_marker_publish_time = 0.0
         
-        # Create a unique directory for this run
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        self.run_dir = os.path.join(self.output_dir, f"run_{timestamp}")
-        self.grid_dir = os.path.join(self.run_dir, "grid_images")
+        # Define topic names for visualization and debugging
+        self.regions_topic = "/massage_planning/body_regions"
+        self.yolo_input_topic = "/massage_planning/yolo_input"
+        self.yolo_output_topic = "/massage_planning/yolo_output"
+        self.grid_image_topic = "/massage_planning/grid_image"
         
-        # Create output directories
+        # Define colors for body regions
+        self.class_colors = {
+            0: (0.9, 0.2, 0.2),  # Torso - red
+            1: (0.2, 0.9, 0.2),  # Head - green
+            6: (0.7, 0.5, 0.3)   # legs - brown
+        }
+        
+        # Create a unique directory for this run if needed
         if self.save_plys or self.save_grids:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            self.run_dir = os.path.join(self.output_dir, f"run_{timestamp}")
             os.makedirs(self.run_dir, exist_ok=True)
-            self.node.get_logger().info(f"Created output directory at {self.run_dir}")
+            self.node.get_logger().debug(f"Created output directory at {self.run_dir}")
             
             if self.save_grids:
+                self.grid_dir = os.path.join(self.run_dir, "grids")
                 os.makedirs(self.grid_dir, exist_ok=True)
-                self.node.get_logger().info(f"Will save grid images to {self.grid_dir}")
+                self.node.get_logger().debug(f"Will save grid images to {self.grid_dir}")
+        else:
+            self.run_dir = None
+            self.grid_dir = None
         
         # Apply namespace prefix if provided
         if tf_prefix:
@@ -105,12 +157,28 @@ class PointCloudTransformerAndOccupancyMapper:
         self.cloud_publisher = self.node.create_publisher(PointCloud2, self.output_topic, qos)
         self.marker_publisher = self.node.create_publisher(MarkerArray, self.occupancy_topic, qos)
         
+        # Create CV bridge for image conversion
+        self.cv_bridge = CvBridge()
+        
+        # Create image publishers for debugging
+        self.yolo_input_pub = self.node.create_publisher(Image, self.yolo_input_topic, qos)
+        self.yolo_output_pub = self.node.create_publisher(Image, self.yolo_output_topic, qos)
+        self.grid_image_pub = self.node.create_publisher(Image, self.grid_image_topic, qos)
+        
         # Cache for the transform - only look it up once
         self.transform_matrix = None
         self.tried_transform_lookup = False
         
-        # Frame counter for grid images
+        # Frame counter
         self.frame_counter = 0
+        
+        # Create a queue for point cloud messages
+        self.point_cloud_queue = queue.Queue(maxsize=10)
+        
+        # Start the processing thread
+        self.processing_thread = threading.Thread(target=self.process_point_clouds, daemon=True)
+        self.processing_thread.start()
+        self.node.get_logger().debug("Started point cloud processing thread")
         
         # Subscribe to the point cloud topic
         self.subscription = self.node.create_subscription(
@@ -120,10 +188,74 @@ class PointCloudTransformerAndOccupancyMapper:
             qos
         )
         
-        self.node.get_logger().info(f"Subscribed to {self.input_topic}")
-        self.node.get_logger().info(f"Publishing transformed and cropped point cloud to {self.output_topic}")
-        self.node.get_logger().info(f"Publishing occupancy grid visualization to {self.occupancy_topic}")
+        self.node.get_logger().debug(f"Subscribed to {self.input_topic}")
+        self.node.get_logger().debug(f"Publishing transformed and cropped point cloud to {self.output_topic}")
+        self.node.get_logger().debug(f"Publishing visualization to {self.occupancy_topic}")
         self.node.get_logger().info("Waiting for point clouds...")
+        
+        # Initialize YOLO model for inference
+        self.node.get_logger().info(f"Attempting to load YOLO model from {model_path}")
+        if not os.path.exists(model_path):
+            self.node.get_logger().error(f"Model file does not exist: {model_path}")
+        
+        try:
+            self.model = ultralytics.YOLO(model_path)
+            self.model.args['data'] = "data/data.yaml"
+            # Disable verbose output from YOLO
+            self.model.args['verbose'] = False
+            self.node.get_logger().info(f"Successfully loaded YOLO model from {model_path}")
+        except Exception as e:
+            self.model = None
+            self.node.get_logger().error(f"Failed to load YOLO model: {str(e)}")
+            import traceback
+            self.node.get_logger().error(traceback.format_exc())
+        
+        # Create additional publisher for detected regions
+        self.detection_publisher = self.node.create_publisher(MarkerArray, self.regions_topic, qos)
+        self.node.get_logger().debug(f"Will publish detected regions to {self.regions_topic}")
+        
+        # Add these to the __init__ method
+        self.plan_and_execute_service = self.node.create_service(
+            Trigger, 
+            '/plan_and_execute_massage', 
+            self.plan_and_execute_callback
+        )
+        
+        # Create services for each of the 6 back regions
+        self.region_services = {}
+        for region in ["left_upper", "left_middle", "left_lower", 
+                      "right_upper", "right_middle", "right_lower"]:
+            service_name = f'/massage_region/{region}'
+            self.region_services[region] = self.node.create_service(
+                Empty,
+                service_name,
+                lambda req, resp, region=region: self.region_service_callback(req, resp, region)
+            )
+            self.node.get_logger().debug(f"Created service for region: {service_name}")
+        
+        self.region_selection_sub = self.node.create_subscription(
+            String,
+            '/massage_region_selection',
+            self.region_selection_callback,
+            10
+        )
+        
+        self.arm_dispatch_pub = self.node.create_publisher(
+            PoseStamped,
+            '/arm_dispatch_command',
+            10
+        )
+        
+        self.return_home_client = self.node.create_client(
+            Trigger,
+            '/return_to_home'
+        )
+        
+        self.selected_region = None
+        self.tf_broadcaster = tf2_ros.TransformBroadcaster(self.node)
+        
+        # Default to left_upper if no region is selected
+        self.selected_region = "left_upper"
 
     def lookup_transform(self) -> bool:
         """Look up the transform between camera and robot base frame, return True if successful"""
@@ -157,162 +289,58 @@ class PointCloudTransformerAndOccupancyMapper:
             self.transform_matrix = np.eye(4)
             self.transform_matrix[:3, :3] = rot_matrix
             self.transform_matrix[:3, 3] = [translation.x, translation.y, translation.z]
-            self.node.get_logger().info(f"Successfully cached transform from {self.camera_frame} to {self.robot_base_frame}")
+            self.node.get_logger().debug(f"Successfully cached transform from {self.camera_frame} to {self.robot_base_frame}")
             return True
             
         except Exception as e:
             self.node.get_logger().error(f"Failed to get transform: {str(e)}")
             return False
 
-    def create_occupancy_grid(self, points):
-        """Create a 2D occupancy grid from the point cloud"""
-        try:
-            # Calculate grid dimensions based on crop bounds
-            x_min, x_max = self.crop_bounds["x_min"], self.crop_bounds["x_max"]
-            y_min, y_max = self.crop_bounds["y_min"], self.crop_bounds["y_max"]
-            
-            # Calculate grid size
-            grid_width = int(np.ceil((x_max - x_min) / self.grid_resolution))
-            grid_height = int(np.ceil((y_max - y_min) / self.grid_resolution))
-            
-            # Create empty grid
-            grid = np.zeros((grid_width, grid_height), dtype=bool)
-            
-            # Fill grid cells
-            for point in points:
-                # Calculate grid cell indices
-                x_idx = int((point[0] - x_min) / self.grid_resolution)
-                y_idx = int((point[1] - y_min) / self.grid_resolution)
-                
-                # Check if the indices are within grid bounds
-                if 0 <= x_idx < grid_width and 0 <= y_idx < grid_height:
-                    grid[x_idx, y_idx] = True
-            
-            self.node.get_logger().info(f"Created occupancy grid with dimensions {grid_width}x{grid_height}")
-            
-            return grid, (x_min, y_min)
-        except Exception as e:
-            self.node.get_logger().error(f"Error creating occupancy grid: {str(e)}")
-            return None, None
-
-    def create_grid_markers(self, grid, origin):
-        """Create marker array for visualization of occupancy grid"""
-        marker_array = MarkerArray()
-        occupied_cells = np.where(grid)
-        
-        # Create a single cube marker for all cells
-        marker = Marker()
-        marker.header.frame_id = self.robot_base_frame
-        marker.header.stamp = self.node.get_clock().now().to_msg()
-        marker.ns = "occupancy_grid"
-        marker.id = 0
-        marker.type = Marker.CUBE_LIST
-        marker.action = Marker.ADD
-        marker.scale.x = self.grid_resolution
-        marker.scale.y = self.grid_resolution
-        marker.scale.z = self.grid_resolution * 0.1  # Thin in z-direction
-        marker.color.a = 0.7  # Semi-transparent
-        marker.color.r = 0.0
-        marker.color.g = 0.7
-        marker.color.b = 0.0
-        marker.pose.orientation.w = 1.0
-        
-        # Add all occupied cells as points
-        x_origin, y_origin = origin
-        points = []
-        for i, j in zip(occupied_cells[0], occupied_cells[1]):
-            x = x_origin + (i + 0.5) * self.grid_resolution
-            y = y_origin + (j + 0.5) * self.grid_resolution
-            z = self.crop_bounds["z_min"] + self.grid_resolution * 0.05  # Place just above min z
-            
-            point = Point()
-            point.x = x
-            point.y = y
-            point.z = z
-            points.append(point)
-        
-        marker.points = points
-        marker_array.markers.append(marker)
-        
-        # Create an outline of the grid area
-        outline = Marker()
-        outline.header.frame_id = self.robot_base_frame
-        outline.header.stamp = self.node.get_clock().now().to_msg()
-        outline.ns = "occupancy_grid"
-        outline.id = 1
-        outline.type = Marker.LINE_STRIP
-        outline.action = Marker.ADD
-        outline.scale.x = 0.005  # Line width
-        outline.color.a = 1.0
-        outline.color.r = 1.0
-        outline.color.g = 1.0
-        outline.color.b = 1.0
-        outline.pose.orientation.w = 1.0
-        
-        # Add the four corners of the grid
-        width = grid.shape[0] * self.grid_resolution
-        height = grid.shape[1] * self.grid_resolution
-        z = self.crop_bounds["z_min"] + 0.001  # Slightly above min z
-        
-        corners = [
-            (x_origin, y_origin, z),
-            (x_origin + width, y_origin, z),
-            (x_origin + width, y_origin + height, z),
-            (x_origin, y_origin + height, z),
-            (x_origin, y_origin, z)  # Close the loop
-        ]
-        
-        outline.points = [Point(x=x, y=y, z=z) for x, y, z in corners]
-        marker_array.markers.append(outline)
-        
-        return marker_array
-
-    def save_grid_as_image(self, grid, frame_number):
-        """Save the occupancy grid as a PNG image"""
-        try:
-            # Create a visual representation of the grid
-            # White pixels for occupied cells, black for free space
-            grid_image = np.zeros((grid.shape[0], grid.shape[1], 3), dtype=np.uint8)
-            grid_image[grid] = 255  # Set occupied cells to white
-            
-            # Flip the image to match the correct orientation
-            grid_image = np.flipud(grid_image)
-            
-            # Create the filename with frame number
-            filename = f"grid_{frame_number:04d}.png"
-            filepath = os.path.join(self.grid_dir, filename)
-            
-            # Save the image using matplotlib (without any titles or axes)
-            plt.figure(figsize=(10, 10))
-            plt.imshow(grid_image)
-            plt.axis('off')  # Turn off axes
-            plt.subplots_adjust(left=0, right=1, top=1, bottom=0)  # Remove margins
-            plt.savefig(filepath, dpi=100, bbox_inches='tight', pad_inches=0)
-            plt.close()
-            
-            # Save a text file with metadata
-            meta_filepath = os.path.join(self.grid_dir, f"grid_{frame_number:04d}_meta.txt")
-            with open(meta_filepath, 'w') as f:
-                f.write(f"Grid Resolution: {self.grid_resolution} meters\n")
-                f.write(f"Grid Dimensions: {grid.shape[0]}x{grid.shape[1]} cells\n")
-                f.write(f"Occupied Cells: {np.sum(grid)}\n")
-                f.write(f"X Range: {self.crop_bounds['x_min']} to {self.crop_bounds['x_max']}\n")
-                f.write(f"Y Range: {self.crop_bounds['y_min']} to {self.crop_bounds['y_max']}\n")
-                f.write(f"Z Range: {self.crop_bounds['z_min']} to {self.crop_bounds['z_max']}\n")
-                f.write(f"Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-            
-            # Also save a raw NumPy version for easier processing later
-            np_filepath = os.path.join(self.grid_dir, f"grid_{frame_number:04d}.npy")
-            np.save(np_filepath, grid)
-            
-            self.node.get_logger().info(f"Saved grid image to {filepath}")
-            return True
-        except Exception as e:
-            self.node.get_logger().error(f"Error saving grid image: {str(e)}")
-            return False
-
     def point_cloud_callback(self, msg: PointCloud2) -> None:
-        """Process incoming point cloud messages using Open3D"""
+        """Callback for point cloud messages - just adds to queue"""
+        try:
+            # Add the message to the queue, with a timeout to avoid blocking
+            self.point_cloud_queue.put(msg, block=True, timeout=0.1)
+            self.node.get_logger().debug(f"Added point cloud to queue (size: {self.point_cloud_queue.qsize()})")
+        except queue.Full:
+            # Only log queue full warning occasionally to reduce verbosity
+            if hasattr(self, 'last_queue_warning_time'):
+                current_time = time.time()
+                if current_time - self.last_queue_warning_time > 5.0:  # Only warn every 5 seconds
+                    self.node.get_logger().warn("Point cloud queue is full, dropping messages")
+                    self.last_queue_warning_time = current_time
+            else:
+                self.last_queue_warning_time = time.time()
+                self.node.get_logger().warn("Point cloud queue is full, dropping message")
+        except Exception as e:
+            self.node.get_logger().error(f"Error in point cloud callback: {str(e)}")
+
+    def process_point_clouds(self):
+        """Process point clouds from the queue in a separate thread"""
+        self.node.get_logger().debug("Point cloud processing thread started")
+        
+        while True:
+            try:
+                # Get a message from the queue
+                msg = self.point_cloud_queue.get(block=True)
+                self.node.get_logger().debug("Processing point cloud from queue")
+                
+                # Process the point cloud
+                self.process_point_cloud(msg)
+                
+                # Mark the task as done
+                self.point_cloud_queue.task_done()
+                
+            except Exception as e:
+                self.node.get_logger().error(f"Error in processing thread: {str(e)}")
+                import traceback
+                self.node.get_logger().error(traceback.format_exc())
+                
+                # Sleep briefly to avoid tight loop in case of persistent errors
+                time.sleep(0.1)
+
+    def process_point_cloud(self, msg: PointCloud2) -> None:
+        """Process a single point cloud message using Open3D"""
         try:
             # Try to get the transform if we don't have it yet
             if not self.lookup_transform() and not self.tried_transform_lookup:
@@ -337,6 +365,7 @@ class PointCloudTransformerAndOccupancyMapper:
             # Transform point cloud to robot base frame if we have the transform
             if self.transform_matrix is not None:
                 pcd = pcd.transform(self.transform_matrix)
+                self.node.get_logger().debug(f"Transformed point cloud to {self.robot_base_frame} frame")
             else:
                 self.node.get_logger().warn("Using point cloud in original frame - transform not available")
             
@@ -364,46 +393,522 @@ class PointCloudTransformerAndOccupancyMapper:
                 self.node.get_logger().warn("No points remain after cropping")
                 return
             
-            # Create occupancy grid from ALL cropped points (not just bottom points)
-            if len(cropped_points) > 0:
-                grid, origin = self.create_occupancy_grid(cropped_points)
-                
-                if grid is not None:
-                    # Create and publish marker array for visualization
-                    marker_array = self.create_grid_markers(grid, origin)
-                    self.marker_publisher.publish(marker_array)
-                    self.node.get_logger().info(f"Published occupancy grid with {np.sum(grid)} occupied cells")
-                    
-                    # Save grid as image if requested
-                    if self.save_grids:
-                        self.save_grid_as_image(grid, self.frame_counter)
-                        self.frame_counter += 1
-            else:
-                self.node.get_logger().warn("No points found for occupancy grid")
+            # Create top-down occupancy grid from cropped points using the utility function
+            grid_data = create_top_down_occupancy(
+                cropped_points, 
+                self.crop_bounds, 
+                self.grid_resolution,
+                save_grids=self.save_grids,
+                grid_dir=self.grid_dir,
+                frame_counter=self.frame_counter,
+                logger=self.node.get_logger()
+            )
             
-            # Publish the cropped point cloud
+            if grid_data is None:
+                self.node.get_logger().error("Failed to create occupancy grid")
+                return
+            
+            # Publish the grid image used for YOLO detection
+            current_time = self.node.get_clock().now().to_msg()
+            publish_image(
+                grid_data["image"], 
+                self.grid_image_pub, 
+                self.robot_base_frame, 
+                self.cv_bridge,
+                timestamp=current_time,
+                log_message="Published original grid image used for YOLO detection",
+                logger=self.node.get_logger()
+            )
+            
+            # Publish the full cropped point cloud (before segmentation)
             header = msg.header
             header.frame_id = self.robot_base_frame
             
             # Create point cloud message
+            cropped_points = np.array(cropped_points)
             cropped_cloud_msg = pc2.create_cloud_xyz32(header, cropped_points)
             self.cloud_publisher.publish(cropped_cloud_msg)
-            self.node.get_logger().info(f"Published cropped point cloud with {len(cropped_points)} points")
+            self.node.get_logger().debug(f"Published cropped point cloud with {len(cropped_points)} points")
             
-            # Save PLY if requested
-            if self.save_plys:
-                filename = f"cropped_cloud_{self.frame_counter-1:04d}.ply"
-                filepath = os.path.join(self.run_dir, filename)
-                o3d.io.write_point_cloud(filepath, cropped_pcd)
-                self.node.get_logger().info(f"Saved cropped point cloud to {filepath}")
+            # Run YOLO inference directly on the grid image using the utility function
+            if self.model is not None:
+                yolo_result = run_yolo_inference(
+                    self.model, 
+                    grid_data["image"],
+                    yolo_low_conf_threshold=self.yolo_low_conf_threshold,
+                    cv_bridge=self.cv_bridge,
+                    yolo_input_pub=self.yolo_input_pub,
+                    yolo_output_pub=self.yolo_output_pub,
+                    robot_base_frame=self.robot_base_frame,
+                    logger=self.node.get_logger()
+                )
                 
+                if yolo_result is not None:
+                    # Get the best detection for each class using the utility function
+                    best_detections = get_best_detections(yolo_result, logger=self.node.get_logger())
+                    
+                    # STEP 1: Identify regions - separate this from planning
+                    points_by_class, detailed_regions = self.identify_massage_regions(
+                        best_detections,
+                        cropped_points,
+                        grid_data,
+                        self.class_colors,
+                        self.robot_base_frame,
+                        detection_publisher=self.detection_publisher,
+                        marker_publisher=self.marker_publisher,
+                        crop_bounds=self.crop_bounds,
+                        logger=self.node.get_logger()
+                    )
+                    
+                    # Create and publish markers for the regions
+                    if detailed_regions:
+                        region_markers = create_massage_region_markers(
+                            points_by_class,
+                            self.class_colors,
+                            self.robot_base_frame,
+                            detailed_regions=detailed_regions,
+                            logger=self.node.get_logger()
+                        )
+                        self.detection_publisher.publish(region_markers)
+                        self.node.get_logger().info("Published region markers")
+                    
+                    # STEP 2: Create motion plans for each region
+                    region_motion_plans = self.create_region_motion_plans(
+                        detailed_regions,
+                        point_stride=self.point_stride,
+                        massage_gun_tip_transform=self.massage_gun_tip_transform,
+                        visualize_path=self.visualize_path
+                    )
+                    
+                    # Store the results for later use
+                    self.latest_points_by_class = points_by_class
+                    self.latest_detailed_regions = detailed_regions
+                    self.latest_region_motion_plans = region_motion_plans
+                
+                else:
+                    # Create empty debug visualization if no detections
+                    debug_markers = create_yolo_markers(
+                        grid_data, 
+                        None,  # No detections
+                        self.robot_base_frame, 
+                        self.grid_resolution, 
+                        self.crop_bounds["z_min"],
+                        logger=self.node.get_logger()
+                    )
+                    self.marker_publisher.publish(debug_markers)
+            
+            # Increment frame counter
+            self.frame_counter += 1
+            
         except Exception as e:
             self.node.get_logger().error(f"Error processing point cloud: {str(e)}")
-    
-    def visualize_point_cloud(self, pcd: o3d.geometry.PointCloud) -> None:
-        """Visualize the point cloud using Open3D (for debugging)"""
-        o3d.visualization.draw_geometries([pcd])
+            import traceback
+            self.node.get_logger().error(traceback.format_exc())
 
+    def identify_massage_regions(self, best_detections, cropped_points, grid_data, class_colors, 
+                                robot_base_frame, detection_publisher=None, marker_publisher=None, 
+                                crop_bounds=None, logger=None):
+        """Identify massage regions from YOLO detections"""
+        points_by_class = {}
+        
+        for class_instance_id, (box, conf) in best_detections.items():
+            detection_points = get_points_in_detection(
+                cropped_points, 
+                grid_data, 
+                box,
+                structured_pattern=True,
+                logger=logger
+            )
+            
+            if detection_points is not None and len(detection_points) > 0:
+                points_by_class[class_instance_id] = detection_points
+        
+        detailed_regions = {}
+        
+        if 0 in points_by_class and 6 in points_by_class:
+            detailed_regions = create_detailed_back_regions(
+                points_by_class[0],
+                points_by_class[6],
+                spine_width_fraction=self.spine_width_fraction,
+                back_regions_count=self.back_regions_count,
+                logger=logger
+            )
+        
+        if points_by_class or detailed_regions:
+            body_part_markers = create_massage_region_markers(
+                points_by_class, 
+                class_colors, 
+                robot_base_frame,
+                detailed_regions=None,
+                logger=None  # Disable logging
+            )
+            
+            detailed_region_markers = create_massage_region_markers(
+                {}, 
+                {}, 
+                robot_base_frame,
+                detailed_regions=detailed_regions,
+                logger=None  # Disable logging
+            )
+            
+            all_markers = MarkerArray()
+            all_markers.markers.extend(body_part_markers.markers)
+            all_markers.markers.extend(detailed_region_markers.markers)
+            
+            # Rate limit marker publishing
+            current_time = time.time()
+            if current_time - self.last_marker_publish_time >= 1.0 / self.marker_publish_rate:
+                if detection_publisher:
+                    detection_publisher.publish(all_markers)
+                
+                if marker_publisher:
+                    marker_publisher.publish(all_markers)
+                
+                self.last_marker_publish_time = current_time
+        
+        return points_by_class, detailed_regions
+
+    def create_region_motion_plans(self, detailed_regions, point_stride=5, 
+                                  massage_gun_tip_transform=None, visualize_path=True):
+        """
+        Create motion plans for each detected back region
+        
+        Args:
+            detailed_regions: Dictionary of detailed back regions
+            point_stride: Stride for point selection in motion planning
+            massage_gun_tip_transform: Transform from end effector to tool tip location [x,y,z]
+            visualize_path: Whether to visualize the massage gun tip path
+            
+        Returns:
+            Dictionary mapping region names to motion plans with position and orientation
+        """
+        region_motion_plans = {}
+        logger = self.node.get_logger()
+        
+        # Process each region
+        for region_name, (region_points, region_color) in detailed_regions.items():
+            # Skip the spine region for motion planning
+            if region_name == "spine":
+                logger.debug(f"Skipping motion planning for spine region")
+                continue
+            
+            # Create transforms for each point - just store the raw points
+            points_with_orientation = []
+            for point in region_points:
+                # Create a transform for each point
+                transform = TransformStamped()
+                transform.header.stamp = self.node.get_clock().now().to_msg()
+                transform.header.frame_id = self.robot_base_frame
+                transform.child_frame_id = f"massage_point_{region_name}_{len(points_with_orientation)}"
+                
+                # Set position
+                transform.transform.translation.x = point[0]
+                transform.transform.translation.y = point[1]
+                transform.transform.translation.z = point[2]
+                
+                # Set identity rotation (no extra rotation)
+                transform.transform.rotation.w = 1.0
+                transform.transform.rotation.x = 0.0
+                transform.transform.rotation.y = 0.0
+                transform.transform.rotation.z = 0.0
+                
+                points_with_orientation.append(transform)
+            
+            # Create a simple motion plan with the points
+            motion_plan = {
+                'rows': [region_points],  # Original points
+                'connections': [],  # No connections needed
+                'all_points': points_with_orientation  # Store the transforms
+            }
+            
+            # Store the motion plan with the region color
+            region_motion_plans[region_name] = (motion_plan, region_color)
+            
+            # Use utility function for visualization if requested
+            if visualize_path:
+                create_numbered_point_markers(
+                    region_points,
+                    self.robot_base_frame,
+                    marker_namespace=f"numbered_points_region_{region_name}",
+                    stride=point_stride,
+                    section_based=True,
+                    logger=logger,
+                    massage_gun_tip_transform=None,
+                    visualize_path=visualize_path,
+                    region_color=region_color
+                )
+        
+        return region_motion_plans
+
+    def save_region_points(self, region_name, points_with_orientation):
+        """Save region points to a PCD file"""
+        try:
+            if not points_with_orientation:
+                self.node.get_logger().warn(f"No points to save for region: {region_name}")
+                return False
+                
+            # Create filename and path
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            region_filename = f"region_{region_name}_{timestamp}.pcd"
+            region_path = os.path.join(os.getcwd(), region_filename)
+            
+            # Extract points from transforms
+            points = []
+            for transform in points_with_orientation:
+                points.append([
+                    transform.transform.translation.x,
+                    transform.transform.translation.y,
+                    transform.transform.translation.z
+                ])
+            
+            # Create point cloud and save
+            pcd = o3d.geometry.PointCloud()
+            pcd.points = o3d.utility.Vector3dVector(points)
+            o3d.io.write_point_cloud(region_path, pcd)
+            self.node.get_logger().info(f"Saved region points to: {region_path}")
+            return True
+            
+        except Exception as e:
+            self.node.get_logger().error(f"Error saving region points: {str(e)}")
+            import traceback
+            self.node.get_logger().error(traceback.format_exc())
+            return False
+
+    def plan_and_execute_callback(self, request, response):
+        """Callback for the plan and execute massage service"""
+        try:
+            self.node.get_logger().info("Received request to plan and execute massage")
+            
+            # Check if we have motion plans
+            if not hasattr(self, 'latest_region_motion_plans') or not self.latest_region_motion_plans:
+                self.node.get_logger().error("No motion plans available. Please wait for point cloud processing.")
+                response.success = False
+                response.message = "No motion plans available. Please wait for point cloud processing."
+                return response
+            
+            # Check if we have a selected region
+            if not self.selected_region:
+                self.node.get_logger().error("No region selected. Please select a region first.")
+                response.success = False
+                response.message = "No region selected. Please select a region first."
+                return response
+            
+            # Check if the selected region exists in our motion plans
+            if self.selected_region not in self.latest_region_motion_plans:
+                self.node.get_logger().error(f"Region {self.selected_region} not found in motion plans. Available regions: {list(self.latest_region_motion_plans.keys())}")
+                response.success = False
+                response.message = f"Region {self.selected_region} not found in motion plans. Available regions: {list(self.latest_region_motion_plans.keys())}"
+                return response
+            
+            # Save the region points before execution
+            motion_plan, _ = self.latest_region_motion_plans[self.selected_region]
+            if not self.save_region_points(self.selected_region, motion_plan['all_points']):
+                self.node.get_logger().warn("Failed to save region points, but continuing with execution")
+            
+            # Execute the motion plan for the selected region
+            success = self.execute_motion_plan(self.selected_region)
+            
+            # Return home after execution
+            self.call_return_home_service()
+            
+            # Set response
+            response.success = success
+            if success:
+                response.message = f"Successfully executed massage for region: {self.selected_region}"
+            else:
+                response.message = f"Failed to execute massage for region: {self.selected_region}"
+            
+            return response
+        except Exception as e:
+            self.node.get_logger().error(f"Error in plan and execute callback: {str(e)}")
+            import traceback
+            self.node.get_logger().error(traceback.format_exc())
+            response.success = False
+            response.message = f"Error executing massage: {str(e)}"
+            return response
+
+    def region_service_callback(self, request, response, region):
+        """Callback for region-specific services"""
+        try:
+            self.selected_region = region
+            
+            if not hasattr(self, 'latest_region_motion_plans') or not self.latest_region_motion_plans:
+                return response
+            
+            if region not in self.latest_region_motion_plans:
+                return response
+            
+            motion_plan, region_color = self.latest_region_motion_plans[region]
+            points_with_orientation = motion_plan['all_points']
+            
+            if not points_with_orientation:
+                return response
+
+            # Publish raw transforms
+            for i, transform in enumerate(points_with_orientation):
+                raw_transform = TransformStamped()
+                raw_transform.header.stamp = self.node.get_clock().now().to_msg()
+                raw_transform.header.frame_id = self.robot_base_frame
+                raw_transform.child_frame_id = f"raw_point_{region}_{i}"
+                raw_transform.transform = transform.transform
+                self.tf_broadcaster.sendTransform(raw_transform)
+
+            time.sleep(0.5)
+
+            # Create point cloud
+            points = [[t.transform.translation.x, t.transform.translation.y, t.transform.translation.z] 
+                     for t in points_with_orientation]
+            pcd = o3d.geometry.PointCloud()
+            pcd.points = o3d.utility.Vector3dVector(points)
+
+            # Generate transforms
+            from debug_planning import plan_massage_from_points
+            print(f"PLAN MASSAGE FROM POINTS {region= }")
+            transforms = plan_massage_from_points(
+                pcd,
+                stride=self.point_stride,
+                point_normal_threshold_degrees=45,
+                tip_offset=self.massage_gun_tip_transform,
+                region_name=region
+            )
+
+            # Create and publish end effector poses
+            end_effector_poses = []
+            for i, (transform, label) in enumerate(transforms):
+                pose = PoseStamped()
+                pose.header.stamp = self.node.get_clock().now().to_msg()
+                pose.header.frame_id = self.robot_base_frame
+                pose.pose.position.x = transform[0, 3]
+                pose.pose.position.y = transform[1, 3]
+                pose.pose.position.z = transform[2, 3]
+                
+                R = Rotation.from_matrix(transform[:3, :3])
+                quat = R.as_quat()
+                pose.pose.orientation.w = quat[3]
+                pose.pose.orientation.x = quat[0]
+                pose.pose.orientation.y = quat[1]
+                pose.pose.orientation.z = quat[2]
+                
+                end_effector_poses.append(pose)
+
+                tf = TransformStamped()
+                tf.header.stamp = self.node.get_clock().now().to_msg()
+                tf.header.frame_id = self.robot_base_frame
+                tf.child_frame_id = f"end_effector_{region}_{i}"
+                tf.transform.translation.x = pose.pose.position.x
+                tf.transform.translation.y = pose.pose.position.y
+                tf.transform.translation.z = pose.pose.position.z
+                tf.transform.rotation = pose.pose.orientation
+                self.tf_broadcaster.sendTransform(tf)
+
+            time.sleep(.02)
+
+            # Execute poses
+            for pose in end_effector_poses:
+                self.arm_dispatch_pub.publish(pose)
+                time.sleep(.3)
+            
+            self.call_return_home_service()
+            return response
+            
+        except Exception:
+            return response
+
+    def call_return_home_service(self):
+        """Call the return to home service"""
+        self.node.get_logger().info("Calling return to home service")
+        
+        try:
+            # Check if service is available
+            if not self.return_home_client.service_is_ready():
+                self.node.get_logger().error("Return to home service is not available")
+                return False
+                
+            # Create a request
+            request = Trigger.Request()
+            
+            # Call the service (non-blocking)
+            future = self.return_home_client.call_async(request)
+            
+            # We can't use spin_until_future_complete in synchros2 framework
+            # Instead, we'll just log that we've sent the request
+            self.node.get_logger().info("Sent return to home request (async)")
+            
+            # Return true to indicate we've sent the request
+            return True
+                
+        except Exception as e:
+            self.node.get_logger().error(f"Error calling return to home service: {str(e)}")
+            import traceback
+            self.node.get_logger().error(traceback.format_exc())
+            return False
+
+    def execute_motion_plan(self, region_name):
+        """Execute the motion plan for a specific region"""
+        try:
+            # Get the motion plan for the selected region
+            motion_plan, region_color = self.latest_region_motion_plans[region_name]
+            
+            # Extract the points with orientation
+            points_with_orientation = motion_plan['all_points']
+            
+            if not points_with_orientation:
+                self.node.get_logger().warn(f"No points in motion plan for region: {region_name}")
+                return False
+            
+            self.node.get_logger().info(f"Executing motion plan for {region_name} with {len(points_with_orientation)} points")
+            
+            # Create end effector poses with tool offset for each point
+            end_effector_poses = []
+            for i, transform in enumerate(points_with_orientation):
+                try:
+                    # Get the point and rotation from the transform
+                    point = [
+                        transform.transform.translation.x,
+                        transform.transform.translation.y,
+                        transform.transform.translation.z
+                    ]
+                    rotation = [
+                        transform.transform.rotation.w,
+                        transform.transform.rotation.x,
+                        transform.transform.rotation.y,
+                        transform.transform.rotation.z
+                    ]
+                    
+                    # Create 4x4 matrix from transform
+                    massage_point_matrix = np.eye(4)
+                    massage_point_matrix[:3, 3] = point
+                    massage_point_matrix[:3, :3] = Rotation.from_quat([rotation[1], rotation[2], rotation[3], rotation[0]]).as_matrix()
+                    
+                    # Apply the massage offset to get the end effector position
+                    end_effector_pose = self.apply_massage_offset(massage_point_matrix)
+                    end_effector_poses.append(end_effector_pose)
+                    
+                except Exception as e:
+                    self.node.get_logger().error(f"Error creating end effector pose for point {i}: {str(e)}")
+                    continue
+            
+            # Execute each point in the motion plan using the end effector poses
+            for end_effector_pose in end_effector_poses:
+                # Publish the pose command
+                self.arm_dispatch_pub.publish(end_effector_pose)
+                self.node.get_logger().info("Moving to next point")
+                
+                # Wait for the arm to reach the position
+                time.sleep(.1)  # Adjust this delay based on your robot's speed
+            
+            return True
+            
+        except Exception as e:
+            self.node.get_logger().error(f"Error executing motion plan: {str(e)}")
+            import traceback
+            self.node.get_logger().error(traceback.format_exc())
+            return False
+
+    def region_selection_callback(self, msg):
+        """Callback for region selection messages"""
+        self.selected_region = msg.data
+        self.node.get_logger().info(f"Selected region for massage: {self.selected_region}")
 
 def cli() -> argparse.ArgumentParser:
     """Create command line argument parser"""
@@ -419,8 +924,8 @@ def cli() -> argparse.ArgumentParser:
         help="Output topic for the transformed and cropped point cloud"
     )
     parser.add_argument(
-        "--occupancy-topic", type=str, default="/massage_planning/occupancy_grid",
-        help="Output topic for the occupancy grid visualization"
+        "--occupancy-topic", type=str, default="/massage_planning/debug_visualization",
+        help="Output topic for visualization"
     )
     parser.add_argument(
         "--camera-frame", type=str, default="camera_depth_optical_frame",
@@ -435,11 +940,11 @@ def cli() -> argparse.ArgumentParser:
         help="TF prefix for frame names"
     )
     parser.add_argument(
-        "--x-min", type=float, default=-0.7,
+        "--x-min", type=float, default=-0.6,
         help="Minimum X value (in robot base frame) for cropping"
     )
     parser.add_argument(
-        "--x-max", type=float, default=1.4,
+        "--x-max", type=float, default=1.6,
         help="Maximum X value (in robot base frame) for cropping"
     )
     parser.add_argument(
@@ -451,7 +956,7 @@ def cli() -> argparse.ArgumentParser:
         help="Maximum Y value (in robot base frame) for cropping"
     )
     parser.add_argument(
-        "--z-min", type=float, default=.05,
+        "--z-min", type=float, default=-0.05    ,
         help="Minimum Z value (in robot base frame) for cropping"
     )
     parser.add_argument(
@@ -473,6 +978,35 @@ def cli() -> argparse.ArgumentParser:
     parser.add_argument(
         "--save-grids", action="store_true",
         help="Save occupancy grid as PNG images"
+    )
+    parser.add_argument(
+        "--model-path", type=str, 
+        default="/back_massage_bot/src/back_massage_bot/models/third_runs_the_charm/weights/best.pt",
+        help="Path to YOLO model weights"
+    )
+    parser.add_argument(
+        "--yolo-low-conf", type=float, default=0.1,
+        help="Lower confidence threshold for YOLO fallback detection"
+    )
+    parser.add_argument(
+        "--point-stride", type=int, default=1,
+        help="Stride for point numbering visualization (default: 5)"
+    )
+    parser.add_argument(
+        "--massage-gun-tip-x", type=float, default=.05,
+        help="X component of massage gun tip transform (default: 0.0765)"
+    )
+    parser.add_argument(
+        "--massage-gun-tip-y", type=float, default=0.0,
+        help="Y component of massage gun tip transform (default: 0.0)"
+    )
+    parser.add_argument(
+        "--massage-gun-tip-z", type=float, default=-0.254,
+        help="Z component of massage gun tip transform (default: -0.254)"
+    )
+    parser.add_argument(
+        "--no-visualize-path", action="store_true",
+        help="Disable visualization of massage gun tip path"
     )
     return parser
 
@@ -496,7 +1030,12 @@ def main(args: argparse.Namespace) -> None:
         grid_resolution=args.grid_resolution,
         output_dir=args.output_dir,
         save_plys=args.save_plys,
-        save_grids=args.save_grids
+        save_grids=args.save_grids,
+        model_path=args.model_path,
+        yolo_low_conf_threshold=args.yolo_low_conf,
+        point_stride=args.point_stride,
+        massage_gun_tip_transform=[args.massage_gun_tip_x, args.massage_gun_tip_y, args.massage_gun_tip_z],
+        visualize_path=not args.no_visualize_path
     )
     wait_for_shutdown()
 

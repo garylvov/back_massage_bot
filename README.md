@@ -9,8 +9,9 @@ be easily adapted to other arms as long as they support Cartesian planning with 
 and other sensors, as long as they provide point cloud information. The base vision and motion planning code in ``back_massage_bot`` wouldn't need to change 
 at all; only the ROS 2 integration in ``ws/src/main_ros`` and would have to be adapted to build and launch the new platform.
 
-This repository provides a high level overview of the project, but you can also read [our final report here](garylvov.com)
-if this README is not enough info. (TODO: Add report link).
+Some personal notes: I think some of the best parts of this repo include the self-contained setup with the [RoboStack Integration](https://robostack.github.io/) and Mamba/Docker.
+Now, I use Pixi with RoboStack and Docker for my projects (with a more unified environment manifest) but this was a fun experiment to do a completely self-contained ML + ROS 2 environment that gave me a lot of great ideas for the next time.
+This repo is a definitely little rough around the edges as I was rushing to finish it in time (I'll confess our vision is better than our motion planning).
 
 # Installation
 
@@ -161,11 +162,17 @@ synthetic data and our point cloud.
 
 # Motion Planning on Massage Candidate Regions
 
-TODO: We use MoveIt. Our motion planning does rely on knowing two extrinsic transforms (see the next section for more information).
+We rely on the extrinsic transform (see next section) to transform the sensor point cloud into the arm frame.
 
+We basically sample points on the back region (split into further regions from the YOLO bbx with a simple heuristic), order them from left to right and from top down, and then plan a position offset by the massage gun tip
+to the arm planning frame. 
+We have to do some niave gravity compensation: with a stronger arm this step would not needed.
+
+We also add collision objects to the scene from the ```all.scene``` package from the ROS workspace, adjusted to ensure maximum safety.
 
 
 # Extrinsic Determination (Depth Camera to Robot Transform, and Massage Gun to Robot Transform)
+TODO: Update to reflect default values being set in script directly and from TF lookup directly.
 
 The depth camera to robot extrinsic transform, needed to transform percieved points from the camera to points 
 to visit with the robot arm, is found by a tool that @garylvov created. 
@@ -176,14 +183,13 @@ See [this page](https://garylvov.com/projects/extrinsic_cal/) for a teaser.
 The tool works by constructing a synthetic robot mesh using the robot's URDF and joint positions, 
 then applies ICP to align the mesh with the depth sensor's view of the robot to solve for the extrinsic transform.
 
-If the tool is not present on the system (runs within its own docker container), the default config file, 
-```back_massage_bot/src/back_massage_bot/config/default_transforms.yaml``` is used instead. 
+The tool publishes a transform the ```depth_camera_optical_frame``` link to the base of the robot arm.
 
-To populate the default config file without the proprietary tool, set up the camera in a known location relative to the base of the arm, or measure the camera location, or perform some eye-to-hand calibration routine (such as placing an april tag near the base of the arm 
-at a known location, then localizing from the camera to the april tag).
+To populate transform, set up the camera in a known location relative to the base of the arm, or measure the camera location, or perform some eye-to-hand calibration routine (such as placing an april tag near the base of the arm 
+at a known location, then localizing from the camera to the april tag). Then, publish this transform
 
 The massage gun to robot hand extrinsic transform was measured from CAD and confirmed in the real world. If the CAD from ``hardware/cad``
-is used, the massage gun is the same/oriented the same as ours, then the values within the default config file ```back_massage_bot/src/back_massage_bot/config/default_transforms.yaml``` should be sufficient.
+is used, the massage gun is the same/oriented the same as ours, then the values within the default config file ```plan_massage.py``` should be sufficient.
 
 The default file also includes a niave crop of the massage table in the robot's base frame to enable easier downstream processing.
 
@@ -191,9 +197,7 @@ The default file also includes a niave crop of the massage table in the robot's 
 # Hardware Setup
 
 We set up a camera on a tripod, as high as possible, facing downwards towards a person laying on a massage
-table to get as close to a top-down view as possible. The robot arm is placed at a rough known location relative to the massage table.
-TODO: Add more information here
-
+table to get as close to a top-down view as possible. The robot arm is placed at a rough known location relative to the massage table.\
 We modified a massage gun to be powered by wire so that we don't need to rechage the battery.
 
 We designed/3D printed two adapters found in ```hardware/CAD``` to mount a massage gun to the 
@@ -232,7 +236,6 @@ back_massage_bot/ # PROJECT_DIR
 |-------------/develop.sh # To run python only dev
 |-------------/post-entry-hooks.sh
 |-------------/entrypoint.sh
-|-src/ # Where C++ Stuff Lives
 |----/Dockerfile
 |----/build.sh
 |----/develop.sh
@@ -287,3 +290,7 @@ with ```ros2 topic list```, or the ROS 2 daemon keeps crashing.
 ```
 sudo ufw disable # run sudo ufw enable when finished.
 ```
+
+# Disclaimer
+
+This repo is not maintained and is for reference only.

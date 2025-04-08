@@ -2,3 +2,5 @@
 # All rights reserved.
 #
 # SPDX-License-Identifier: MIT
+
+"""Back massage bot ROS package."""

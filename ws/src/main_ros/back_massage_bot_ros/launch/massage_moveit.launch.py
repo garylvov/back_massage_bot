@@ -37,7 +37,7 @@ def generate_launch_description():
     
     # Load robot description
     xacro_file = os.path.join(kinova_description_dir, 'urdf', 'j2n6s300_standalone.xacro')
-    doc = xacro.process_file(xacro_file)
+    doc = xacro.process_file(xacro_file, mappings={'use_jaco_v1_fingers': 'false'})
     robot_description = {'robot_description': doc.toprettyxml(indent='  ')}
     
     # Load SRDF and other MoveIt configurations
@@ -68,7 +68,7 @@ def generate_launch_description():
                                   default_planner_request_adapters/FixStartStateBounds 
                                   default_planner_request_adapters/FixStartStateCollision 
                                   default_planner_request_adapters/FixStartStatePathConstraints""",
-            "start_state_max_bounds_error": 0.1,
+            "start_state_max_bounds_error": 0.5,
         }
     }
     
@@ -149,6 +149,7 @@ def generate_launch_description():
                 "planner_id": LaunchConfiguration("planner_id"),
                 "cartesian_path_eef_step": LaunchConfiguration("cartesian_path_eef_step"),
                 "cartesian_path_jump_threshold": LaunchConfiguration("cartesian_path_jump_threshold"),
+                "start_state_max_bounds_error": LaunchConfiguration("start_state_max_bounds_error"),
             }
         ],
         remappings=[('/joint_states', '/j2n6s300_driver/out/joint_state')],
@@ -156,7 +157,7 @@ def generate_launch_description():
     
     # Delay the start of the massage_moveit node to ensure MoveIt is fully initialized
     delayed_massage_moveit_node = TimerAction(
-        period=5.0,  # 5     seconds delay
+        period=5.0,  # 5 seconds delay
         actions=[massage_moveit_node]
     )
     
@@ -178,18 +179,18 @@ def generate_launch_description():
             ),
             # Launch arguments for planning parameters
             DeclareLaunchArgument(
-                "velocity_scaling_factor", default_value="0.1", description="Velocity scaling factor for planning (0.0-1.0)"
+                "velocity_scaling_factor", default_value="1.0", description="Velocity scaling factor for planning (0.0-1.0)"
             ),
             DeclareLaunchArgument(
                 "acceleration_scaling_factor",
-                default_value="0.1",
+                default_value="0.5",
                 description="Acceleration scaling factor for planning (0.0-1.0)",
             ),
             DeclareLaunchArgument(
-                "planning_time", default_value="5.0", description="Time allowed for motion planning (seconds)"
+                "planning_time", default_value="20.0", description="Time allowed for motion planning (seconds)"
             ),
             DeclareLaunchArgument(
-                "planning_attempts", default_value="10", description="Number of planning attempts before giving up"
+                "planning_attempts", default_value="100", description="Number of planning attempts before giving up"
             ),
             DeclareLaunchArgument(
                 "goal_position_tolerance", default_value="0.0025", description="Position tolerance for the goal (meters)"
@@ -204,13 +205,18 @@ def generate_launch_description():
             ),
             DeclareLaunchArgument(
                 "cartesian_path_eef_step",
-                default_value="0.001",
+                default_value="0.01",
                 description="Step size for Cartesian path planning (meters)",
             ),
             DeclareLaunchArgument(
                 "cartesian_path_jump_threshold",
                 default_value="0.0",
                 description="Jump threshold for Cartesian path planning",
+            ),
+            DeclareLaunchArgument(
+                "start_state_max_bounds_error",
+                default_value="0.6",
+                description="Maximum allowed error in start state bounds (radians/meters)",
             ),
             
             # Launch the massage_moveit node with a delay
