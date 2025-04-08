@@ -25,7 +25,6 @@ import queue
 import time
 import rclpy
 import re
-
 import synchros2.process as ros_process
 import synchros2.scope as ros_scope
 from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSHistoryPolicy
@@ -135,7 +134,6 @@ class PointCloudTransformerAndOccupancyMapper:
             1: (0.2, 0.9, 0.2),  # Head - green
             6: (0.7, 0.5, 0.3)   # legs - brown
         }
-        
         # Create a unique directory for this run if needed
         if self.save_plys or self.save_grids:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -272,7 +270,7 @@ class PointCloudTransformerAndOccupancyMapper:
             Trigger,
             '/return_to_home'
         )
-        
+
         self.tf_broadcaster = tf2_ros.TransformBroadcaster(self.node)
         
         
@@ -383,7 +381,6 @@ class PointCloudTransformerAndOccupancyMapper:
                 self.node.get_logger().warn("Point cloud queue is full, dropping message")
         except Exception as e:
             self.node.get_logger().error(f"Error in point cloud callback: {str(e)}")
-
     def process_point_clouds(self):
         """Process point clouds from the queue in a separate thread"""
         self.node.get_logger().debug("Point cloud processing thread started")
@@ -476,7 +473,6 @@ class PointCloudTransformerAndOccupancyMapper:
             if grid_data is None:
                 self.node.get_logger().error("Failed to create occupancy grid")
                 return
-            
             # Publish the grid image used for YOLO detection
             current_time = self.node.get_clock().now().to_msg()
             publish_image(
@@ -832,7 +828,6 @@ class PointCloudTransformerAndOccupancyMapper:
 
             # Generate transforms
             from debug_planning import plan_massage_from_points
-            # print(f"PLAN MASSAGE FROM POINTS {region= }")
             transforms = plan_massage_from_points(
                 pcd,
                 stride=self.point_stride,
@@ -877,7 +872,7 @@ class PointCloudTransformerAndOccupancyMapper:
                 self.arm_dispatch_pub.publish(pose)
                 time.sleep(.3)
             
-            # self.call_return_home_service()
+            self.call_return_home_service()
             return response
             
         except Exception:
@@ -1037,7 +1032,6 @@ class PointCloudTransformerAndOccupancyMapper:
         except Exception as e:
             self.node.get_logger().error(f"Error applying massage offset: {str(e)}")
             return None
-
 
     def region_selection_callback(self, msg):
         """Callback for region selection messages"""
