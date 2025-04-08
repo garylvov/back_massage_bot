@@ -9,6 +9,7 @@ be easily adapted to other arms as long as they support Cartesian planning with 
 and other sensors, as long as they provide point cloud information. The base vision and motion planning code in ``back_massage_bot`` wouldn't need to change 
 at all; only the ROS 2 integration in ``ws/src/main_ros`` and would have to be adapted to build and launch the new platform.
 
+
 Some personal notes: I think some of the best parts of this repo include the self-contained setup with the [RoboStack Integration](https://robostack.github.io/) and Mamba/Docker.
 Now, I use Pixi with RoboStack and Docker for my projects (with a more unified environment manifest) but this was a fun experiment to do a completely self-contained ML + ROS 2 environment that gave me a lot of great ideas for the next time.
 This repo is a definitely little rough around the edges as I was rushing to finish it in time (I'll confess our vision is better than our motion planning).
@@ -161,8 +162,6 @@ synthetic data and our point cloud.
 
 
 # Motion Planning on Massage Candidate Regions
-
-We rely on the extrinsic transform (see next section) to transform the sensor point cloud into the arm frame.
 
 We basically sample points on the back region (split into further regions from the YOLO bbx with a simple heuristic), order them from left to right and from top down, and then plan a position offset by the massage gun tip
 to the arm planning frame. 

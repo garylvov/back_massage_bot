@@ -24,10 +24,10 @@ import threading
 import queue
 import time
 import rclpy
-
+import re
 import synchros2.process as ros_process
 import synchros2.scope as ros_scope
-from rclpy.qos import QoSProfile, QoSReliabilityPolicy
+from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSHistoryPolicy
 from scipy.spatial.transform import Rotation
 from sensor_msgs.msg import PointCloud2, Image
 import sensor_msgs_py.point_cloud2 as pc2
@@ -92,6 +92,11 @@ class PointCloudTransformerAndOccupancyMapper:
             self.node.get_logger().error("Failed to get TF listener")
             raise RuntimeError("TF listener not available")
         
+        # Initialize state variables
+        self.latest_region_motion_plans = {}  # Dictionary to store motion plans for each region
+        self.selected_region = "right_upper"  # Default region
+        self.is_stopped = False
+        
         # Store configuration
         self.input_topic = input_topic
         self.output_topic = output_topic
@@ -129,7 +134,6 @@ class PointCloudTransformerAndOccupancyMapper:
             1: (0.2, 0.9, 0.2),  # Head - green
             6: (0.7, 0.5, 0.3)   # legs - brown
         }
-        
         # Create a unique directory for this run if needed
         if self.save_plys or self.save_grids:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -221,7 +225,23 @@ class PointCloudTransformerAndOccupancyMapper:
             self.plan_and_execute_callback
         )
         
-        # Create services for each of the 6 back regions
+        esp_qos = QoSProfile(
+            reliability=QoSReliabilityPolicy.BEST_EFFORT,
+            history=QoSHistoryPolicy.KEEP_LAST,
+            avoid_ros_namespace_conventions=True,
+            depth=1,
+        )
+        
+        self.esp32_sub = self.node.create_subscription(
+            String,
+            '/esp32_logs',  # ESP32 topic that publishes region info
+            self.esp32_region_callback,
+            esp_qos
+        )
+        
+        self.node.get_logger().info("Subscribed to /esp32_logs topic.")
+        
+        # Create services for each of the 6 back regions THESE WILL NOT ACTUALLY BE USED
         self.region_services = {}
         for region in ["left_upper", "left_middle", "left_lower", 
                       "right_upper", "right_middle", "right_lower"]:
@@ -250,12 +270,59 @@ class PointCloudTransformerAndOccupancyMapper:
             Trigger,
             '/return_to_home'
         )
-        
-        self.selected_region = None
+
         self.tf_broadcaster = tf2_ros.TransformBroadcaster(self.node)
         
-        # Default to left_upper if no region is selected
-        self.selected_region = "left_upper"
+        
+
+    def esp32_region_callback(self, msg: String):
+        """Callback for handling region information from ESP32."""
+        region_data = msg.data.strip().upper()
+        self.node.get_logger().info(f"Received region message: {region_data}")
+        
+        # Define actions for the different region messages
+        if region_data == "OFF":
+            self.node.get_logger().info("STOP command received, interrupting movement.")
+            self.is_stopped = True  # Set the stopped flag to True
+        elif region_data == "ON":
+            self.node.get_logger().info("START command received, enabling movement.")
+            self.is_stopped = False  # Reset the stopped flag
+        elif not self.is_stopped:
+            # Only process region messages if STOP hasn't been triggered
+            self.handle_region_selection(region_data)
+        else:
+            self.node.get_logger().info("Movement is stopped, ignoring region selection.")
+
+
+    def handle_region_selection(self, region_data):
+        """Handles region selection and executes the corresponding action."""
+        region_map = {
+            "UPPER LEFT": "left_upper",
+            "UPPER RIGHT": "right_upper",
+            "MIDDLE LEFT": "left_middle",
+            "MIDDLE RIGHT": "right_middle",
+            "LOWER LEFT": "left_lower",
+            "LOWER RIGHT": "right_lower"
+        }
+        
+        if region_data in region_map:
+            selected_region = region_map[region_data]
+            self.selected_region = selected_region
+            self.node.get_logger().info(f"Planning massage for {selected_region}.")
+        else:
+            self.node.get_logger().warn(f"Unknown region: {region_data}. No action taken.")
+
+    def start_massage(self):
+        """Start the massage process. CURRENTLY UNUSED ATM"""
+        self.node.get_logger().info("Starting the massage process...")        
+        #TODO
+        pass
+    
+    def stop_massage(self):
+        """Stop the massage process. CURRENTLY UNUSED ATM"""
+        self.node.get_logger().info("Stopping the massage process...")
+        #TODO
+        pass
 
     def lookup_transform(self) -> bool:
         """Look up the transform between camera and robot base frame, return True if successful"""
@@ -314,7 +381,6 @@ class PointCloudTransformerAndOccupancyMapper:
                 self.node.get_logger().warn("Point cloud queue is full, dropping message")
         except Exception as e:
             self.node.get_logger().error(f"Error in point cloud callback: {str(e)}")
-
     def process_point_clouds(self):
         """Process point clouds from the queue in a separate thread"""
         self.node.get_logger().debug("Point cloud processing thread started")
@@ -407,7 +473,6 @@ class PointCloudTransformerAndOccupancyMapper:
             if grid_data is None:
                 self.node.get_logger().error("Failed to create occupancy grid")
                 return
-            
             # Publish the grid image used for YOLO detection
             current_time = self.node.get_clock().now().to_msg()
             publish_image(
@@ -706,10 +771,10 @@ class PointCloudTransformerAndOccupancyMapper:
                 self.node.get_logger().warn("Failed to save region points, but continuing with execution")
             
             # Execute the motion plan for the selected region
-            success = self.execute_motion_plan(self.selected_region)
+            success = self.execute_motion_plan()
             
             # Return home after execution
-            self.call_return_home_service()
+            # self.call_return_home_service()
             
             # Set response
             response.success = success
@@ -763,7 +828,6 @@ class PointCloudTransformerAndOccupancyMapper:
 
             # Generate transforms
             from debug_planning import plan_massage_from_points
-            print(f"PLAN MASSAGE FROM POINTS {region= }")
             transforms = plan_massage_from_points(
                 pcd,
                 stride=self.point_stride,
@@ -843,67 +907,131 @@ class PointCloudTransformerAndOccupancyMapper:
             self.node.get_logger().error(traceback.format_exc())
             return False
 
-    def execute_motion_plan(self, region_name):
-        """Execute the motion plan for a specific region"""
-        try:
-            # Get the motion plan for the selected region
-            motion_plan, region_color = self.latest_region_motion_plans[region_name]
+    def execute_motion_plan(self):
+        """Callback for region-specific services"""
+        try:            
+            end_effector_poses = self.execute_motion_plan_helper()
+            current_region = self.selected_region
+
+            # Execute poses
+            for pose in end_effector_poses:
+                if self.is_stopped:
+                        self.node.get_logger().info("Execution stopped by user request")
+                        self.call_return_home_service()
+                        return False
+                if self.selected_region != current_region:
+                    self.node.get_logger().info(f"Region changed from {current_region} to {self.selected_region}")
+                    if self.selected_region in self.latest_region_motion_plans:
+                        new_points = self.execute_motion_plan_helper()
+                        end_effector_poses = new_points
+                self.arm_dispatch_pub.publish(pose)
+                time.sleep(.3)
             
-            # Extract the points with orientation
-            points_with_orientation = motion_plan['all_points']
+            # self.call_return_home_service()
             
-            if not points_with_orientation:
-                self.node.get_logger().warn(f"No points in motion plan for region: {region_name}")
-                return False
-            
-            self.node.get_logger().info(f"Executing motion plan for {region_name} with {len(points_with_orientation)} points")
-            
-            # Create end effector poses with tool offset for each point
-            end_effector_poses = []
-            for i, transform in enumerate(points_with_orientation):
-                try:
-                    # Get the point and rotation from the transform
-                    point = [
-                        transform.transform.translation.x,
-                        transform.transform.translation.y,
-                        transform.transform.translation.z
-                    ]
-                    rotation = [
-                        transform.transform.rotation.w,
-                        transform.transform.rotation.x,
-                        transform.transform.rotation.y,
-                        transform.transform.rotation.z
-                    ]
-                    
-                    # Create 4x4 matrix from transform
-                    massage_point_matrix = np.eye(4)
-                    massage_point_matrix[:3, 3] = point
-                    massage_point_matrix[:3, :3] = Rotation.from_quat([rotation[1], rotation[2], rotation[3], rotation[0]]).as_matrix()
-                    
-                    # Apply the massage offset to get the end effector position
-                    end_effector_pose = self.apply_massage_offset(massage_point_matrix)
-                    end_effector_poses.append(end_effector_pose)
-                    
-                except Exception as e:
-                    self.node.get_logger().error(f"Error creating end effector pose for point {i}: {str(e)}")
-                    continue
-            
-            # Execute each point in the motion plan using the end effector poses
-            for end_effector_pose in end_effector_poses:
-                # Publish the pose command
-                self.arm_dispatch_pub.publish(end_effector_pose)
-                self.node.get_logger().info("Moving to next point")
-                
-                # Wait for the arm to reach the position
-                time.sleep(.1)  # Adjust this delay based on your robot's speed
-            
-            return True
-            
-        except Exception as e:
-            self.node.get_logger().error(f"Error executing motion plan: {str(e)}")
-            import traceback
-            self.node.get_logger().error(traceback.format_exc())
+        except Exception:
             return False
+        return True
+
+
+    def execute_motion_plan_helper(self):
+        if not hasattr(self, 'latest_region_motion_plans') or not self.latest_region_motion_plans:
+            return False
+        
+        if self.selected_region not in self.latest_region_motion_plans:
+            return False
+        
+        motion_plan, region_color = self.latest_region_motion_plans[self.selected_region]
+        points_with_orientation = motion_plan['all_points']
+        
+        if not points_with_orientation:
+            return False
+
+        # Publish raw transforms
+        for i, transform in enumerate(points_with_orientation):
+            raw_transform = TransformStamped()
+            raw_transform.header.stamp = self.node.get_clock().now().to_msg()
+            raw_transform.header.frame_id = self.robot_base_frame
+            raw_transform.child_frame_id = f"raw_point_{self.selected_region}_{i}"
+            raw_transform.transform = transform.transform
+            self.tf_broadcaster.sendTransform(raw_transform)
+
+        time.sleep(0.5)
+
+        # Create point cloud
+        points = [[t.transform.translation.x, t.transform.translation.y, t.transform.translation.z] 
+                    for t in points_with_orientation]
+        pcd = o3d.geometry.PointCloud()
+        pcd.points = o3d.utility.Vector3dVector(points)
+
+        # Generate transforms
+        from debug_planning import plan_massage_from_points
+        # print(f"PLAN MASSAGE FROM POINTS {region= }")
+        transforms = plan_massage_from_points(
+            pcd,
+            stride=self.point_stride,
+            point_normal_threshold_degrees=45,
+            tip_offset=self.massage_gun_tip_transform,
+            region_name=self.selected_region
+        )
+
+        # Create and publish end effector poses
+        end_effector_poses = []
+        for i, (transform, label) in enumerate(transforms):
+            pose = PoseStamped()
+            pose.header.stamp = self.node.get_clock().now().to_msg()
+            pose.header.frame_id = self.robot_base_frame
+            pose.pose.position.x = transform[0, 3]
+            pose.pose.position.y = transform[1, 3]
+            pose.pose.position.z = transform[2, 3]
+            
+            R = Rotation.from_matrix(transform[:3, :3])
+            quat = R.as_quat()
+            pose.pose.orientation.w = quat[3]
+            pose.pose.orientation.x = quat[0]
+            pose.pose.orientation.y = quat[1]
+            pose.pose.orientation.z = quat[2]
+            
+            end_effector_poses.append(pose)
+
+            tf = TransformStamped()
+            tf.header.stamp = self.node.get_clock().now().to_msg()
+            tf.header.frame_id = self.robot_base_frame
+            tf.child_frame_id = f"end_effector_{self.selected_region}_{i}"
+            tf.transform.translation.x = pose.pose.position.x
+            tf.transform.translation.y = pose.pose.position.y
+            tf.transform.translation.z = pose.pose.position.z
+            tf.transform.rotation = pose.pose.orientation
+            self.tf_broadcaster.sendTransform(tf)
+
+        time.sleep(.02)
+        return end_effector_poses
+
+
+    def apply_massage_offset(self, massage_point_matrix):
+        """Apply the massage gun tip offset to get the end effector pose"""
+        try:
+            # Create end effector pose
+            end_effector_pose = PoseStamped()
+            end_effector_pose.header.stamp = self.node.get_clock().now().to_msg()
+            end_effector_pose.header.frame_id = self.robot_base_frame
+
+            point = massage_point_matrix[:3, 3]
+
+            end_effector_pose.pose.position.x = point[0] + self.massage_gun_tip_transform[0]
+            end_effector_pose.pose.position.y = point[1] + self.massage_gun_tip_transform[1]
+            end_effector_pose.pose.position.z = point[2] + self.massage_gun_tip_transform[2]
+
+            end_effector_pose.pose.orientation.w = 1.0
+            end_effector_pose.pose.orientation.x = 0.0
+            end_effector_pose.pose.orientation.y = 0.0
+            end_effector_pose.pose.orientation.z = 0.0
+
+            return end_effector_pose
+
+        except Exception as e:
+            self.node.get_logger().error(f"Error applying massage offset: {str(e)}")
+            return None
 
     def region_selection_callback(self, msg):
         """Callback for region selection messages"""
@@ -1010,11 +1138,12 @@ def cli() -> argparse.ArgumentParser:
     )
     return parser
 
+import threading
 
 @ros_process.main(cli(), uses_tf=True)
 def main(args: argparse.Namespace) -> None:
     """Main entry point for the ROS node"""
-    PointCloudTransformerAndOccupancyMapper(
+    mapper = PointCloudTransformerAndOccupancyMapper(
         input_topic=args.input_topic,
         output_topic=args.output_topic,
         occupancy_topic=args.occupancy_topic,
@@ -1037,6 +1166,24 @@ def main(args: argparse.Namespace) -> None:
         massage_gun_tip_transform=[args.massage_gun_tip_x, args.massage_gun_tip_y, args.massage_gun_tip_z],
         visualize_path=not args.no_visualize_path
     )
+
+
+    def execute_in_background():
+        """Run execute_motion_plan in the background."""
+        while rclpy.ok():
+            # Run the motion plan execution
+            mapper.execute_motion_plan()
+            time.sleep(0.1)  # Adjust the sleep duration to suit the desired loop frequency
+
+    # Start a background thread to execute the motion plan
+    motion_plan_thread = threading.Thread(target=execute_in_background, daemon=True)
+    motion_plan_thread.start()
+
+    # Spin the node to handle callbacks like point cloud processing and region selection
+    rclpy.spin(mapper.node)
+
+
+
     wait_for_shutdown()
 
 
