@@ -74,7 +74,10 @@ def plan_massage_from_points(pcd,
     base_transform_2[:3, :3] = Rotation.from_euler("Z", -90, degrees=True).as_matrix()
     to_tip_transform = np.eye(4, dtype=np.float64)
     to_tip_transform[:3, 3] = tip_offset
-   
+                                 
+    # Ok so these hard coded offsets exist because the Kinova isn't strong enough to lift the massage gun to some regions
+    # Sorry ;(           
+    print("warning: using hard coded offsets for gravity comp")
     if "left" in region_name:
         to_tip_transform[:3, 3] = np.array([0, tip_offset[0], tip_offset[2]])
         dumb_gravity_comp = np.eye(4, dtype=np.float64)
@@ -84,6 +87,7 @@ def plan_massage_from_points(pcd,
     
     if "right" in region_name:
         transform_chain_to_align = [base_transform, to_tip_transform]
+    print("finished applying offsets... Only apply to_tip_transform if offsets are not desired.")
     
     # First collect all valid transforms based on normal angle
     vertical = np.array([0, 0, 1])
